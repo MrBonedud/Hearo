@@ -5,6 +5,53 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+export type StudyAllowanceBlockedBy = typeof StudyAllowanceBlockedBy[keyof typeof StudyAllowanceBlockedBy];
+
+
+export const StudyAllowanceBlockedBy = {
+  session: 'session',
+  overall: 'overall',
+} as const;
+
+export interface StudyAllowance {
+  /**
+     * Remaining reservations for this browser session, including failed paid attempts
+     * @minimum 0
+     */
+  remainingChecks: number;
+  /** @minimum 0 */
+  dailyLimit: number;
+  /** Next midnight UTC, measured by the database */
+  resetAt: string;
+  /** Both this session and the shared service have allowance at the time of reading */
+  available: boolean;
+  blockedBy?: StudyAllowanceBlockedBy;
+}
+
+export type StudyCheckErrorCode = typeof StudyCheckErrorCode[keyof typeof StudyCheckErrorCode];
+
+
+export const StudyCheckErrorCode = {
+  evaluation_budget_exceeded: 'evaluation_budget_exceeded',
+  evaluation_budget_unavailable: 'evaluation_budget_unavailable',
+} as const;
+
+export type StudyCheckErrorScope = typeof StudyCheckErrorScope[keyof typeof StudyCheckErrorScope];
+
+
+export const StudyCheckErrorScope = {
+  session: 'session',
+  overall: 'overall',
+} as const;
+
+export interface StudyCheckError {
+  error: string;
+  code?: StudyCheckErrorCode;
+  scope?: StudyCheckErrorScope;
+  retryAt?: string;
+  retryAfterSeconds?: number;
+}
+
 export interface DemoEvidence {
   /** @minimum 1 */
   line_id: number;

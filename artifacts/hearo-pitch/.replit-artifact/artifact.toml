@@ -1,0 +1,28 @@
+kind = "slides"
+previewPath = "/hearo-pitch/"
+title = "Hearo — Hackathon Pitch"
+description = "Five-slide Arabic-first hackathon pitch for Hearo: silent source-grounded checking, a live concept map, honest demo readiness and a vision for learning across subjects."
+version = "1.0.0"
+id = "artifacts/hearo-pitch"
+router = "path"
+
+[[services]]
+name = "web"
+paths = [ "/hearo-pitch/" ]
+localPort = 22724
+
+[services.development]
+run = "pnpm --filter @workspace/hearo-pitch run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/hearo-pitch", "run", "build" ]
+serve = "static"
+publicDir = "artifacts/hearo-pitch/dist/public"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "22724"
+BASE_PATH = "/hearo-pitch/"

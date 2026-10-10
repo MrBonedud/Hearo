@@ -3,3 +3,7 @@
 - [Git backup integrity](git-backup-integrity.md) — Bundle prepared commits before approval pauses and assert the Git directory to prevent parent-repository fallback.
 - [Live model verification](live-model-verification.md) — A saved API key or listed model does not prove completions work; verify the configured model live before semantic claims.
 - [Assessment snapshots](assessment-snapshots.md) — Live feedback may cover a checked prefix; saved reports must match the whole current explanation exactly.
+- [Concurrent route integration](concurrent-route-integration.md) — Rerun focused HTTP checks after shared route edits are integrated; valid TypeScript can hide intercepted handlers.
+- [Public checking costs](public-checking-costs.md) — Count ambiguous paid attempts conservatively; anonymous session limits are not per-person or exact monetary caps.
+- [Owner checking policy](owner-checking-policy.md) — Trusted operations controls only; limit changes preserve usage and serialize with reservations.
+- [Demo evidence](demo-evidence.md) — Caption replay is not fresh recognition; report failed requests and benchmark interference alongside successful verdicts.

@@ -28,6 +28,8 @@ import type {
   DemoVerifyInput,
   DemoVerifyResult,
   HealthStatus,
+  StudyAllowance,
+  StudyCheckError,
   StudyEvaluation,
   StudyEvaluationInput,
   StudyMap,
@@ -61,6 +63,83 @@ const withQueryKey = <T extends object, K>(query: T, queryKey: K): T & { queryKe
   }
   return result;
 };
+
+export const getGetStudyAllowanceUrl = () => {
+
+
+
+
+  return `/api/study/allowance`
+}
+
+/**
+ * @summary Read this signed browser session's daily allowance without running AI
+ */
+export const getStudyAllowance = async ( options?: Parameters<typeof customFetch>[1]): Promise<StudyAllowance> => {
+
+  return customFetch<StudyAllowance>(getGetStudyAllowanceUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetStudyAllowanceQueryKey = () => {
+    return [
+    `/api/study/allowance`
+    ] as const;
+    }
+
+
+export const getGetStudyAllowanceQueryOptions = <TData = Awaited<ReturnType<typeof getStudyAllowance>>, TError = ErrorType<void>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getStudyAllowance>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetStudyAllowanceQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getStudyAllowance>>> = ({ signal }) => getStudyAllowance({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getStudyAllowance>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetStudyAllowanceQueryResult = NonNullable<Awaited<ReturnType<typeof getStudyAllowance>>>
+export type GetStudyAllowanceQueryError = ErrorType<void>
+
+
+/**
+ * @summary Read this signed browser session's daily allowance without running AI
+ */
+
+export function useGetStudyAllowance<TData = Awaited<ReturnType<typeof getStudyAllowance>>, TError = ErrorType<void>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getStudyAllowance>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetStudyAllowanceQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
 
 export const getGetDemoSourceUrl = () => {
 
@@ -666,6 +745,9 @@ export const getEvaluateStudyUrl = () => {
 }
 
 /**
+ * Paid checks reserve one session and overall allowance before any provider call.
+ * Limits are 30 checks per signed browser session and 500 overall per UTC day.
+ * Failed provider attempts consume allowance. Storage failures fail closed.
  * @summary Check the learner's explanation against the reference
  */
 export const evaluateStudy = async (studyEvaluationInput: StudyEvaluationInput, options?: Parameters<typeof customFetch>[1]): Promise<StudyEvaluation> => {
@@ -699,7 +781,7 @@ return customFetch<StudyEvaluation>(getEvaluateStudyUrl(),
 
 export const getEvaluateStudyMutationKey = () => ['evaluateStudy'] as const;
 
-export const getEvaluateStudyMutationOptions = <TError = ErrorType<void>,
+export const getEvaluateStudyMutationOptions = <TError = ErrorType<void | StudyCheckError>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof evaluateStudy>>, TError,EvaluateStudyMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
 ): UseMutationOptions<Awaited<ReturnType<typeof evaluateStudy>>, TError,EvaluateStudyMutationVariables, TContext> => {
 
@@ -728,13 +810,13 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
     export type EvaluateStudyMutationResult = NonNullable<Awaited<ReturnType<typeof evaluateStudy>>>
     export type EvaluateStudyMutationBody = BodyType<StudyEvaluationInput>
-    export type EvaluateStudyMutationError = ErrorType<void>
+    export type EvaluateStudyMutationError = ErrorType<void | StudyCheckError>
     export type EvaluateStudyMutationVariables = {data: BodyType<StudyEvaluationInput>}
 
     /**
  * @summary Check the learner's explanation against the reference
  */
-export const useEvaluateStudy = <TError = ErrorType<void>,
+export const useEvaluateStudy = <TError = ErrorType<void | StudyCheckError>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof evaluateStudy>>, TError,EvaluateStudyMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
  ): UseMutationResult<
         Awaited<ReturnType<typeof evaluateStudy>>,

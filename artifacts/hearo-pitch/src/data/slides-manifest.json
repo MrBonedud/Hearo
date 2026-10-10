@@ -1,0 +1,47 @@
+[
+  {
+    "id": "slide1",
+    "position": 1,
+    "kind": "sdm",
+    "filepath": "src/data/slides/slide1.sdm.yaml",
+    "title": "Title slide",
+    "description": "Cover",
+    "speakerNotes": ""
+  },
+  {
+    "id": "slide2",
+    "position": 2,
+    "kind": "sdm",
+    "filepath": "src/data/slides/slide2.sdm.yaml",
+    "title": "Explain, watch, correct",
+    "description": "How the loop works",
+    "speakerNotes": ""
+  },
+  {
+    "id": "slide3",
+    "position": 3,
+    "kind": "sdm",
+    "filepath": "src/data/slides/slide3.sdm.yaml",
+    "title": "Evidence before judgment",
+    "description": "How checking works",
+    "speakerNotes": ""
+  },
+  {
+    "id": "slide4",
+    "position": 4,
+    "kind": "sdm",
+    "filepath": "src/data/slides/slide4.sdm.yaml",
+    "title": "What we tested",
+    "description": "Honest evaluation status",
+    "speakerNotes": ""
+  },
+  {
+    "id": "slide5",
+    "position": 5,
+    "kind": "sdm",
+    "filepath": "src/data/slides/slide5.sdm.yaml",
+    "title": "Vision",
+    "description": "Closing",
+    "speakerNotes": ""
+  }
+]

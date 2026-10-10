@@ -13,6 +13,34 @@ tags:
   - name: study
     description: Reference-grounded spoken study
 paths:
+  /study/allowance:
+    get:
+      operationId: getStudyAllowance
+      tags: [study]
+      summary: Read this signed browser session's daily allowance without running AI
+      responses:
+        "200":
+          description: Session allowance and shared-service availability; never other sessions' usage
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StudyAllowance"
+        "429":
+          description: Too many allowance reads; does not consume checking allowance or prevent draft editing
+          headers:
+            Retry-After:
+              description: Seconds until this browser may retry the allowance read
+              schema:
+                type: integer
+                minimum: 1
+        "503":
+          description: Allowance storage is busy, its bounded wait expired, or session signing is unavailable; draft editing remains available
+          headers:
+            Retry-After:
+              description: Seconds to wait before retrying
+              schema:
+                type: integer
+                minimum: 1
   /study/demo:
     get:
       operationId: getDemoSource
@@ -154,6 +182,10 @@ paths:
   /study/evaluate:
     post:
       operationId: evaluateStudy
+      description: |
+        Paid checks reserve one session and overall allowance before any provider call.
+        Limits are 30 checks per signed browser session and 500 overall per UTC day.
+        Failed provider attempts consume allowance. Storage failures fail closed.
       tags: [study]
       summary: Check the learner's explanation against the reference
       requestBody:
@@ -163,6 +195,23 @@ paths:
             schema:
               $ref: "#/components/schemas/StudyEvaluationInput"
       responses:
+        "429":
+          description: Daily allowance exhausted, or short cooldown/in-flight guard.
+          headers:
+            Retry-After:
+              schema:
+                type: integer
+              description: Seconds until retry (provided for daily budget exhaustion).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StudyCheckError"
+        "503":
+          description: Checker or persistent budget storage unavailable.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StudyCheckError"
         "200":
           description: Updated concept map and claim feedback
           content:
@@ -171,10 +220,46 @@ paths:
                 $ref: "#/components/schemas/StudyEvaluation"
         "400":
           description: Invalid evaluation request
-        "503":
-          description: Gemini is not configured or its API quota is unavailable
 components:
   schemas:
+    StudyAllowance:
+      type: object
+      required: [remainingChecks, dailyLimit, resetAt, available]
+      properties:
+        remainingChecks:
+          type: integer
+          minimum: 0
+          description: Remaining reservations for this browser session, including failed paid attempts
+        dailyLimit:
+          type: integer
+          minimum: 0
+        resetAt:
+          type: string
+          format: date-time
+          description: Next midnight UTC, measured by the database
+        available:
+          type: boolean
+          description: Both this session and the shared service have allowance at the time of reading
+        blockedBy:
+          type: string
+          enum: [session, overall]
+    StudyCheckError:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: string
+        code:
+          type: string
+          enum: [evaluation_budget_exceeded, evaluation_budget_unavailable]
+        scope:
+          type: string
+          enum: [session, overall]
+        retryAt:
+          type: string
+          format: date-time
+        retryAfterSeconds:
+          type: integer
     DemoEvidence:
       type: object
       properties:
@@ -613,4 +698,3 @@ components:
           items:
             $ref: "#/components/schemas/ConceptAssessment"
       required: [assessments]
-

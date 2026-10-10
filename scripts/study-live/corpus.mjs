@@ -1,0 +1,115 @@
+// Evaluation-only data. Never imported by the checker or included in its prompt.
+export const equivalentGroups = [
+  {
+    concept: "scaling",
+    variants: {
+      en: "Scaling out adds more instances to expand capacity; scaling up replaces an instance with a bigger one. With multiple instances, we must manage them and distribute work among them.",
+      msa: "التوسع الأفقي يزيد السعة بإضافة مثيلات أكثر، أما التوسع الرأسي فيستبدل المثيل بآخر أكبر. عند تعدد المثيلات علينا إدارتها وتوزيع العمل بينها.",
+      jordanian: "بالـscale out بنزيد عدد النسخ عشان نكبّر السعة، وبالـscale up بنبدّل النسخة بوحدة أكبر. لما يصير عنا كذا نسخة لازم نديرهم ونوزّع الشغل عليهم.",
+      egyptian: "الـscale out بيزوّد السعة بإننا نضيف instances أكتر، والـscale up بنبدّل فيه الـinstance بواحدة أكبر. النسخ الكتير محتاجة إدارة وتوزيع الشغل عليها.",
+      gulf: "إذا نبي نزيد السعة بالـscale out نضيف instances زيادة، أما الـscale up فنبدّل الـinstance بوحدة أكبر. ومع تعدد النسخ لازم نديرها ونوزّع الشغل بينها.",
+      maghrebi: "فالـscale out كنزيدو instances باش تكبر السعة، وفالـscale up كنبدلو الـinstance بوحدة كبر منها. إلا كانو بزاف خاصنا نسيّروهم ونقسمو الخدمة عليهم.",
+      mixed: "Scale out يعني add more instances لزيادة capacity؛ scale up يعني switch to a bigger instance. تعدد instances بيحتاج management وwork distribution بينهم.",
+      "heldout-en": "Capacity can grow by multiplying the running instances rather than enlarging one. Enlarging a single instance is the other approach. The first approach leaves us responsible for coordinating the instances and assigning their work.",
+      "heldout-ar": "بدل ما أجيب نسخة أكبر، ممكن أزود عدد النسخ اللي شغالة عشان السعة تزيد. اختيار النسخة الأكبر هو التوسع الرأسي، وزيادة العدد هي التوسع الأفقي؛ في الحالة دي لازم أرتّب إدارة النسخ وتوزيع الشغل بينها.",
+    },
+    incomplete: "Scaling out means adding more instances to increase capacity.",
+    contradiction: "Scale out replaces one instance with a bigger one, whereas scale up adds more separate instances. There is no need to distribute work when there are many instances.",
+  },
+  {
+    concept: "load-balancing",
+    variants: {
+      en: "The load balancer distributes incoming HTTP requests across front-end web servers. It chooses a server for a TCP connection, randomly or using load estimates, sends every packet of that connection to the same server, and stops using a server if it dies.",
+      msa: "يوزع موازن التحميل طلبات HTTP الواردة على خوادم الواجهة الأمامية. يختار خادمًا لاتصال TCP عشوائيًا أو حسب تقدير الحمل، ويرسل كل حزم الاتصال نفسه إلى ذلك الخادم، ويتوقف عن استخدام أي خادم يتعطل.",
+      jordanian: "موزّع الحمل بيوزّع طلبات HTTP على سيرفرات الواجهة. بيختار سيرفر لاتصال TCP عشوائي أو حسب تقدير الحمل، وكل باكيتات هالاتصال بتروح لنفس السيرفر. إذا سيرفر وقع بوقف يستخدمه.",
+      egyptian: "موزّع الحمل بيفرّق طلبات HTTP على سيرفرات الواجهة. بيختار سيرفر لاتصال TCP عشوائي أو حسب الحمل المتوقع، وبيبعت كل باكيتات الاتصال ده لنفس السيرفر. ولو السيرفر وقع، مايبعتلوش تاني.",
+      gulf: "موزّع الحمل يوزّع طلبات HTTP على سيرفرات الواجهة. يختار سيرفر لاتصال TCP عشوائي أو حسب تقدير الحمل، وكل باكيتات نفس الاتصال تروح لنفس السيرفر. إذا السيرفر تعطّل يوقف يستخدمه.",
+      maghrebi: "موزّع الحمل كيفرق طلبات HTTP على سيرفرات الواجهة. كيختار سيرفر لاتصال TCP عشوائي ولا على حساب تقدير الحمل، وكاع باكيتات داك الاتصال كيمشيو لنفس السيرفر. إلا طاح السيرفر كيحبس يستعملو.",
+      mixed: "الـload balancer بيوزّع incoming HTTP requests على front-end servers. بيختار server لكل TCP connection random أو حسب load estimates؛ all packets لنفس connection لنفس server، ولو server dies بيوقف استخدامه.",
+      "heldout-en": "Incoming web requests need not all go to one front-end machine. A balancer assigns each TCP connection to a machine, either by chance or estimated workload. That connection's packets stay together on that machine, and a dead machine is no longer selected.",
+      "heldout-ar": "طلبات الويب الجاية بتتقسم بين أجهزة الواجهة عن طريق موزّع حمل. لكل اتصال TCP بيحدد جهاز بالصدفة أو على أساس تقدير الشغل عليه؛ حزم الاتصال ما بتتنقلش بين أجهزة مختلفة. الجهاز اللي يتعطل بيطلعه من الاختيارات.",
+    },
+    incomplete: "A load balancer distributes incoming HTTP requests across several front-end web servers.",
+    contradiction: "The balancer distributes incoming HTTP requests but intentionally sends packets of a single TCP connection to different servers and continues choosing a server after it dies.",
+  },
+  {
+    concept: "stateless-servers",
+    variants: {
+      en: "Stateless web servers make load balancing easier: different requests from one user can go to different servers, provided the database is shared across the web servers. WebSockets instead bind a browser and a web server.",
+      msa: "تجعل خوادم الويب عديمة الحالة موازنة الحمل أسهل؛ يمكن لطلبات مختلفة من المستخدم نفسه أن تصل إلى خوادم مختلفة، بشرط مشاركة قاعدة البيانات بين خوادم الويب. أما WebSockets فتربط المتصفح بخادم ويب.",
+      jordanian: "السيرفرات اللي ما بتحتفظ بحالة بتسهّل موازنة الحمل: طلبات نفس المستخدم ممكن تروح لسيرفرات مختلفة، بس لازم قاعدة البيانات تكون مشتركة بينهم. أما WebSockets بتربط المتصفح بسيرفر ويب.",
+      egyptian: "السيرفرات الـstateless بتسهّل موازنة الحمل؛ طلبات مختلفة لنفس اليوزر ينفع تروح لسيرفرات مختلفة، بس لازم قاعدة البيانات تبقى مشتركة بين السيرفرات. إنما WebSockets بتربط المتصفح بسيرفر ويب.",
+      gulf: "السيرفرات عديمة الحالة تسهّل موازنة الحمل؛ طلبات نفس المستخدم تقدر تروح لسيرفرات مختلفة، بشرط تكون قاعدة البيانات مشتركة بينها. أما WebSockets فتربط المتصفح بسيرفر ويب.",
+      maghrebi: "السيرفرات الـstateless كيسهلو موازنة الحمل؛ طلبات مختلفة ديال نفس المستخدم يقدرو يمشيو لسيرفرات مختلفين، ولكن خاص قاعدة البيانات تكون مشتركة بينهم. أما WebSockets كيربطو المتصفح بسيرفر ويب.",
+      mixed: "Stateless servers بتسهّل load balancing: different requests من نفس user ممكن different servers يعالجوها، بشرط shared database بين web servers. WebSockets بتعمل binding بين browser وweb server.",
+      "heldout-en": "A user need not return to the same web machine for each request when those machines keep no local user state. They must access a common database, which makes balancing easier. A WebSocket does tie the browser to a web server.",
+      "heldout-ar": "لو خوادم الويب ما بتخزنش حالة المستخدم محليًا، مش لازم كل طلب منه يرجع لنفس الخادم؛ يقدر خادم تاني يعالجه، وده بيسهّل موازنة الحمل. قاعدة البيانات لازم تكون مشتركة بينهم. اتصال WebSocket بيربط المتصفح بخادم ويب.",
+    },
+    incomplete: "Stateless servers make load balancing easier because different requests from a user can go to different servers.",
+    contradiction: "With stateless servers, every request from the same user must reach the same server, and each web server must have a separate unshared database. WebSockets do not bind browsers to web servers.",
+  },
+  {
+    concept: "sharding",
+    variants: {
+      en: "Data sharding spreads a database over scale-out instances. Each piece is a shard. The application must partition data among multiple independent databases, which adds complexity.",
+      msa: "يوزع تقسيم البيانات قاعدة البيانات على مثيلات توسع أفقي، وتسمى كل قطعة شظية بيانات أو shard. يجب على التطبيق تقسيم البيانات بين قواعد بيانات مستقلة متعددة، مما يزيد التعقيد.",
+      jordanian: "بالـsharding بنقسّم قاعدة البيانات على كذا instance، وكل قطعة اسمها shard. التطبيق لازم يوزّع البيانات على قواعد بيانات مستقلة متعددة، وهاد بزيد التعقيد.",
+      egyptian: "الـsharding بيفرّق قاعدة البيانات على instances متعددة، وكل حتة اسمها shard. التطبيق لازم يقسّم الداتا بين قواعد بيانات مستقلة، وده بيزوّد التعقيد.",
+      gulf: "بالـsharding نوزّع قاعدة البيانات على instances متعددة، وكل جزء يسمّى shard. التطبيق لازم يقسّم البيانات بين قواعد بيانات مستقلة، وهالشي يزيد التعقيد.",
+      maghrebi: "فالـsharding كنقسمو قاعدة البيانات على instances بزاف، وكل طرف سميتو shard. التطبيق خاصو يقسم الداتا بين قواعد بيانات مستقلين، وهاد الشي كيزيد التعقيد.",
+      mixed: "Data sharding يعني spread database على scale-out instances؛ كل piece هي shard. الـapplication لازم partition data بين independent databases متعددة، وده adds complexity.",
+      "heldout-en": "Rather than leaving the whole database on one instance, divide it into pieces called shards across several instances. The software has to decide how data is partitioned among these independent databases, so the application becomes more complex.",
+      "heldout-ar": "مش بنسيب قاعدة البيانات كلها على جهاز واحد؛ بنوزّع أجزاء منها على أكتر من نسخة، والجزء اسمه shard. مسؤولية البرنامج يقسّم البيانات بين القواعد المستقلة دي، وده بيخلّي التطبيق أعقد.",
+    },
+    incomplete: "Sharding spreads pieces of a database over multiple instances.",
+    contradiction: "Sharding places the entire database on just one instance instead of splitting it. Applications never need to partition data among independent databases, so sharding removes that complexity.",
+  },
+  {
+    concept: "replication",
+    variants: {
+      en: "Replication keeps more than one copy of data to tolerate failures; three copies are common.",
+      msa: "يحتفظ التكرار بأكثر من نسخة من البيانات لتحمل الأعطال؛ ومن الشائع الاحتفاظ بثلاث نسخ.",
+      jordanian: "بالـreplication بنحتفظ بأكتر من نسخة من البيانات عشان نتحمّل الأعطال؛ ثلاث نسخ إشي شائع.",
+      egyptian: "الـreplication بيخلّينا نحتفظ بأكتر من نسخة للداتا عشان نتحمّل الأعطال؛ تلات نسخ ده عدد شائع.",
+      gulf: "بالـreplication نخلي أكثر من نسخة من البيانات عشان نتحمّل الأعطال؛ ثلاث نسخ شي شائع.",
+      maghrebi: "فالـreplication كنخليو كثر من نسخة ديال الداتا باش نتحملو الأعطال؛ ثلاث نسخ عدد شائع.",
+      mixed: "Replication يعني keep multiple copies of data عشان tolerate failures؛ three copies شائعة.",
+      "heldout-en": "Having duplicate data means a failure need not leave us without a copy. The slides describe keeping several copies, commonly three.",
+      "heldout-ar": "لو نسخة من البيانات راحت بسبب عطل، وجود نسخ تانية بيساعدنا نتحمل العطل؛ عشان كده بنكرر البيانات، والشائع نحتفظ بتلات نسخ.",
+    },
+    incomplete: "Replication means keeping more than one copy of data.",
+    contradiction: "Replication tolerates failures by keeping exactly one data copy and deleting all additional copies.",
+  },
+  {
+    concept: "caching",
+    variants: {
+      en: "The key-value cache stores results of recent database queries, with arbitrary blobs as keys and values. Writes still go to the DBMS, so they gain no performance improvement; cache misses still hurt performance. Software must manage consistency, for example by flushing relevant cached data when the database changes.",
+      msa: "تخزن ذاكرة التخزين المؤقت ذات المفتاح والقيمة نتائج الاستعلامات الحديثة، والمفاتيح والقيم كتل بيانات اعتباطية. تظل الكتابات تذهب إلى نظام إدارة قاعدة البيانات فلا يتحسن أداؤها، ويظل غياب النتيجة من الذاكرة المؤقتة يضر الأداء. يجب أن يدير البرنامج الاتساق، مثل حذف البيانات المؤقتة المعنية عند تعديل قاعدة البيانات.",
+      jordanian: "كاش الـkey-value بخزّن نتائج استعلامات قاعدة البيانات الحديثة، والمفاتيح والقيم ممكن تكون blobs اعتباطية. الكتابة بتضل تروح للـDBMS فما بتتحسّن سرعتها، والـcache miss بضل يضر الأداء. البرنامج لازم يدير الاتساق، مثلًا يمسح الكاش المتعلق ببيانات تغيّرت بقاعدة البيانات.",
+      egyptian: "كاش الـkey-value بيخزّن نتايج استعلامات الداتا بيز الأخيرة، والـkeys والـvalues ممكن يبقوا blobs بأي شكل. الكتابة لسه بتروح للـDBMS فمش بتكسب تحسين أداء، والـcache miss لسه بيضر الأداء. السوفتوير مسؤول عن الاتساق، زي إنه يمسح الكاش الخاص بالداتا اللي اتعدلت في الداتا بيز.",
+      gulf: "كاش الـkey-value يخزّن نتائج استعلامات قاعدة البيانات الأخيرة، والمفاتيح والقيم blobs اعتباطية. الكتابات تظل تروح للـDBMS فما يتحسن أداؤها، والـcache miss يظل يضر الأداء. البرنامج لازم يدير الاتساق، مثل يمسح الكاش المتعلق بالبيانات إذا تعدلت بقاعدة البيانات.",
+      maghrebi: "كاش الـkey-value كيخزن نتائج استعلامات قاعدة البيانات الأخيرة، والمفاتيح والقيم يقدرو يكونو blobs بأي شكل. الكتابة كتبقى تمشي للـDBMS يعني الأداء ديالها ما كيتحسنش، والـcache miss باقي كيضر الأداء. البرنامج خاصو يسيّر الاتساق، بحال يمسح الكاش ديال الداتا اللي تبدلات فقاعدة البيانات.",
+      mixed: "Key-value cache بيخزّن recent database query results؛ keys وvalues arbitrary blobs. Writes still go to DBMS فمفيش write performance improvement، وcache misses hurt performance. Software manages consistency: flush relevant memcache data لما database تتعدل.",
+      "heldout-en": "Recent query answers can be kept in a key-value store whose identifiers and contents are arbitrary blobs. This does not speed up database writes, which still reach the DBMS, and a missing cached answer still costs performance. The program must keep the cached answers consistent by removing affected entries after database modifications.",
+      "heldout-ar": "بدل تكرار نتيجة استعلام حديث ممكن نحفظها مؤقتًا بمفتاح وقيمة، والاتنين بيانات بأي شكل. لو النتيجة مش موجودة ده لسه بيضر الأداء؛ والكتابة أصلًا بتوصل لنظام قاعدة البيانات فالكاش مش بيحسّن أداء الكتابة. لازم البرنامج يحافظ على الاتساق ويمسح النتائج المؤقتة المتأثرة لما بيانات القاعدة تتغير.",
+    },
+    incomplete: "A key-value cache stores results of recent database queries.",
+    contradiction: "A key-value cache stores recent query results, but all writes go only to the cache and never to the DBMS. Cache misses cannot hurt performance, and software never needs to invalidate cached results after database changes.",
+  },
+];
+
+export function expandGroups(groups = equivalentGroups) {
+  return groups.flatMap(group => [
+    ...Object.entries(group.variants).map(([variant, text]) => ({
+      id: `${group.concept}/${variant}`, name: `${group.concept}: ${variant}`,
+      concept: group.concept, expect: "supported", text,
+      equivalenceGroup: group.concept, variant,
+      split: variant.startsWith("heldout-") ? "heldout" : "acceptance",
+    })),
+    ...["incomplete", "contradiction"].map(kind => ({
+      id: `${group.concept}/${kind}`, name: `${group.concept}: ${kind}`,
+      concept: group.concept, expect: kind === "incomplete" ? "partially_understood" : "contradicted",
+      text: group[kind], split: "control", variant: "en",
+    })),
+  ]);
+}

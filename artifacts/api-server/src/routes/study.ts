@@ -1,6 +1,6 @@
 import OpenAI from "openai";
 import { raw, Router, type IRouter, type RequestHandler } from "express";
-import { EvaluateStudyBody, PrepareStudyBody } from "@workspace/api-zod";
+import { EvaluateStudyBody, PrepareStudyBody, GetStudyAllowanceResponse } from "@workspace/api-zod";
 import {
   SendDemoMessageBody,
   SendDemoMessageResponse,
@@ -17,10 +17,13 @@ import {
   matchesApprovedPdf, referenceText, sourceMetadata, validSourceToken,
 } from "../lib/approved-demo";
 import { checkWithFallback } from "../lib/checker-fallback";
+import { budgetSession, parseBudgetCookie, readEvaluationAllowance, reserveEvaluation } from "../lib/evaluation-budget";
+import { createAllowanceReadThrottle } from "../lib/allowance-read-throttle";
 
 const router: IRouter = Router();
 const lastEvaluationByClient = new Map<string, number>();
 const inFlight = new Set<string>();
+const throttleAllowanceRead = createAllowanceReadThrottle();
 
 // The authored demo does not call AI or microphone providers. Keep the legacy
 // routes below separate so this approved step does not silently alter other services.
@@ -81,11 +84,11 @@ router.post("/report", (req, res) => {
 function getAssessmentProviders(): { name: "OpenAI" | "Gemini"; model: string; client: OpenAI }[] {
   const providers: ReturnType<typeof getAssessmentProviders> = [];
   if (process.env.OPENAI_API_KEY) providers.push({
-    name: "OpenAI", model: "gpt-4.1-mini",
+    name: "OpenAI", model: process.env.STUDY_OPENAI_MODEL || "gpt-4.1-mini",
     client: new OpenAI({ apiKey: process.env.OPENAI_API_KEY, timeout: 15_000, maxRetries: 0 }),
   });
   if (process.env.GEMINI_API_KEY) providers.push({
-    name: "Gemini", model: "gemini-3.1-flash-lite",
+    name: "Gemini", model: process.env.STUDY_GEMINI_MODEL || "gemini-3.1-flash-lite",
     client: new OpenAI({
       apiKey: process.env.GEMINI_API_KEY,
       baseURL: "https://generativelanguage.googleapis.com/v1beta/openai/",
@@ -145,7 +148,36 @@ router.post("/study/prepare", (req, res) => {
   res.json(initialMap());
 });
 
-router.post("/study/evaluate", async (req, res) => {
+router.get("/study/allowance", parseBudgetCookie, async (req, res) => {
+  res.setHeader("Cache-Control", "private, no-store");
+  res.vary("Cookie");
+  try {
+    // Identity is derived only from our signed HttpOnly cookie, never query input.
+    const session = budgetSession(req, res);
+    const retryAfterSeconds = throttleAllowanceRead(session);
+    if (retryAfterSeconds) {
+      res.setHeader("Retry-After", String(retryAfterSeconds));
+      res.status(429).json({
+        code: "allowance_read_throttled",
+        retryAfterSeconds,
+        error: "طلبات عرض الرصيد كثيرة. حاول بعد قليل؛ يمكنك متابعة الكتابة. Too many allowance reads. Retry shortly; you can still edit your draft.",
+      });
+      return;
+    }
+    const allowance = await readEvaluationAllowance(session);
+    res.json(GetStudyAllowanceResponse.parse(allowance));
+  } catch (error) {
+    req.log.error({ errorType: error instanceof Error ? error.name : "UnknownError" }, "Evaluation allowance unavailable");
+    res.setHeader("Retry-After", "60");
+    res.status(503).json({
+      code: "evaluation_budget_unavailable",
+      error: "تعذر عرض الرصيد الآن. يمكنك متابعة الكتابة وتنزيل تقريرك السابق. Checking allowance is unavailable. You can still edit and download your previous report.",
+    });
+  }
+});
+
+router.post("/study/evaluate", parseBudgetCookie, async (req, res) => {
+  res.setHeader("Cache-Control", "no-store");
   const input = EvaluateStudyBody.safeParse(req.body);
   if (!input.success || !checkSource(input.data) || !input.data.transcript.trim()) {
     res.status(400).json({ error: "A verified source and a non-empty explanation are required. Select the PDF again if your session expired." });
@@ -174,6 +206,30 @@ router.post("/study/evaluate", async (req, res) => {
   lastEvaluationByClient.set(clientKey, now);
   inFlight.add(clientKey);
   try {
+    // Persist both reservations before any paid call; fail closed on storage errors.
+    let budget;
+    try {
+      budget = await reserveEvaluation(budgetSession(req, res));
+    } catch (error) {
+      req.log.error({ errorType: error instanceof Error ? error.name : "UnknownError" }, "Evaluation budget unavailable");
+      res.setHeader("Retry-After", "60");
+      res.status(503).json({
+        code: "evaluation_budget_unavailable",
+        error: "تعذّر التحقق من الحد اليومي. حاول بعد دقيقة؛ شرحك وتقريرك السابق محفوظان. Daily limit storage is unavailable. Retry in one minute; your draft and previous report are unchanged.",
+      });
+      return;
+    }
+    if (!budget.allowed) {
+      res.setHeader("Retry-After", String(budget.retryAfterSeconds));
+      res.status(429).json({
+        code: "evaluation_budget_exceeded",
+        scope: budget.scope,
+        retryAt: budget.retryAt,
+        retryAfterSeconds: budget.retryAfterSeconds,
+        error: `تم بلوغ الحد اليومي ${budget.scope === "session" ? "لهذه الجلسة" : "للخدمة"}. يمكنك المحاولة عند ${budget.retryAt} (UTC). شرحك وتقريرك السابق محفوظان. The ${budget.scope === "session" ? "session" : "service"} daily checking limit has been reached. Retry at ${budget.retryAt} (UTC). Your draft and previous report are unchanged.`,
+      });
+      return;
+    }
     const checked = await checkWithFallback(providers, async provider => {
       const result = await provider.client.chat.completions.create({
       model: provider.model, max_completion_tokens: 8192, response_format: { type: "json_object" },
@@ -213,6 +269,9 @@ router.post("/study/evaluate", async (req, res) => {
       }, "AI checker failed; trying next configured provider");
     });
     res.setHeader("X-Hearo-Checker", checked.provider.name);
+    // Evaluations pin the actual server-selected model, including fallback.
+    // Never accept a caller-selected model or weaken source validation for tests.
+    res.setHeader("X-Hearo-Model", checked.provider.model);
     res.setHeader("X-Hearo-Fallback", String(checked.fallbackUsed));
     res.json(checked.result);
   } catch (err) {

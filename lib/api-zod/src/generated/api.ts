@@ -9,6 +9,24 @@ import * as zod from 'zod';
 
 
 /**
+ * @summary Read this signed browser session's daily allowance without running AI
+ */
+export const getStudyAllowanceResponseRemainingChecksMin = 0;
+
+export const getStudyAllowanceResponseDailyLimitMin = 0;
+
+
+
+export const GetStudyAllowanceResponse = zod.object({
+  "remainingChecks": zod.number().int().min(getStudyAllowanceResponseRemainingChecksMin).describe('Remaining reservations for this browser session, including failed paid attempts'),
+  "dailyLimit": zod.number().int().min(getStudyAllowanceResponseDailyLimitMin),
+  "resetAt": zod.coerce.date().describe('Next midnight UTC, measured by the database'),
+  "available": zod.boolean().describe('Both this session and the shared service have allowance at the time of reading'),
+  "blockedBy": zod.enum(['session', 'overall']).optional()
+})
+
+
+/**
  * @summary Get the fixed English lecture source and AI availability
  */
 
@@ -379,6 +397,9 @@ export const PrepareStudyResponse = zod.object({
 
 
 /**
+ * Paid checks reserve one session and overall allowance before any provider call.
+ * Limits are 30 checks per signed browser session and 500 overall per UTC day.
+ * Failed provider attempts consume allowance. Storage failures fail closed.
  * @summary Check the learner's explanation against the reference
  */
 export const evaluateStudyBodyTopicMax = 120;
