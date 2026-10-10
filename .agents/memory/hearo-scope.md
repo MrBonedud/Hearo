@@ -38,3 +38,9 @@ Keep voice-service work in TypeScript unless the team authorizes a change; do no
 **Why:** The team selected shared tooling, and the latest brief prioritizes the actual repository over architectural assumptions.
 
 **How to apply:** Reuse the current app and services and avoid new infrastructure unless the next working increment requires it.
+
+Keep this Replit project and its existing GitHub repository as the development foundation. Do not migrate to a new repository, replace the project, or disconnect/change the existing origin. Synchronization must preserve local and remote histories, teammate branches, uncommitted work and required ignored assets.
+
+**Why:** The team explicitly rejected the proposed repository migration and requested publishing the existing application safely to the same repository.
+
+**How to apply:** Inspect and protect work first, obtain approval before consequential remote operations, and never force-push, reset, clean or discard work. Verify synchronization and implementation before rewriting the README; independent teammate workspaces come after that baseline is agreed.

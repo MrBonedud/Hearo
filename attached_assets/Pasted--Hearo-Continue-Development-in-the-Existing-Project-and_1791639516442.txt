@@ -1,0 +1,51 @@
+## Hearo — Continue Development in the Existing Project and Repository
+
+I want to keep the existing setup exactly as the foundation of our work.
+
+### 1. Keep the current project and repository
+- Continue developing in this exact Replit project and preserve all existing application code and work.
+- Keep using the existing GitHub repository: `MrBonedud/Hearo` (`https://github.com/MrBonedud/Hearo.git`).
+- Do not create a new repository, replace the project, or migrate to another repository.
+- Do not disconnect or replace the current Git remote.
+- The complete application currently exists in this Replit workspace, while the GitHub repository's `main` was previously found to contain only a README. Resolve this safely by publishing the existing project to the same repository.
+
+### 2. Preserve everything before publishing
+- Inspect the current branch, working tree, commit history, and all local branches.
+- Preserve relevant commits and work on `replit-agent`, `subrepl-a4ojvlfm`, and `subrepl-fx7jvnlm`.
+- Preserve the ignored demo PDF and any other required project assets.
+- Do not force-push, reset, clean, delete branches, discard changes, or overwrite remote history.
+- Determine a safe way to publish the complete application to the existing repository without losing any work.
+- If the publishing operation could affect existing history or teammate contributions, explain the exact plan and ask for my approval before executing it.
+
+### 3. Continue developing Hearo in this same Replit project
+- Keep this workspace as the main development environment for the existing application.
+- Continue the already planned tasks: bilingual AI answer assessment, source-grounded evidence, and saving/reopening learner explanations and reports.
+- Preserve the approved single-PDF restriction and both existing Arabic and English source packs.
+- Do not restart or recreate features that already exist.
+- Test each increment and report actual results and remaining blockers.
+- Commit and push completed changes to the existing `MrBonedud/Hearo` repository using a safe Git workflow. Never claim changes were pushed unless the push succeeds.
+
+### 4. Update the README last
+Do not prioritize README changes now. Once the main implementation and GitHub synchronization are verified, update the README to describe the actual implemented product, setup instructions, available features, limitations, and required environment variables. Do not claim unfinished features are complete.
+
+### 5. Prepare four independent team workspaces after that
+Only after the existing project is safely synchronized and the README is updated, prepare these branches and separate Replit workspaces:
+
+- Aya — `feature/aya-voice`
+- Faisal — `feature/faisal-ai-engine`
+- Rama — `feature/rama-source-map`
+- Lana — `feature/lana-conversation-report`
+
+All four workspaces must use the same existing repository and start from the agreed complete baseline. Each teammate must be able to work independently on their assigned branch and submit a pull request to `main`.
+
+Creating four Git branches alone does not satisfy this requirement. Verify that four genuinely separate Replit workspaces exist and that each is connected to the correct branch. If workspace creation requires manual steps, provide exact instructions for me and each teammate.
+
+### 6. Work order and reporting
+Follow this order:
+1. Inspect and protect the current project and Git history.
+2. Safely synchronize the existing project with `MrBonedud/Hearo`.
+3. Continue and verify the planned application development in this same Replit project.
+4. Update the README last.
+5. Set up and verify the four independent team workspaces.
+
+Do not create a new repository or Replit project. Do not make destructive Git changes. Start by reporting the current Git state and the safest immediate next action. Ask for approval before any consequential remote operation. Clearly distinguish completed work from proposed work.

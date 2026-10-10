@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useEvaluateStudy, usePrepareStudy } from '@workspace/api-client-react';
 import type { StudyEdge, StudyEvaluation, StudyMap } from '@workspace/api-client-react';
 import {
@@ -9,6 +9,10 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ErrorBoundary } from '@/components/error-boundary';
 import { ApprovedPdfSource, SourcePassages, type SelectedSource } from '@/components/approved-pdf-source';
 import { AssessmentEvidence } from '@/components/assessment-evidence';
+import {
+  citationsMatchSource, createSourceIdentity, deleteSavedStudy, matchesSource,
+  readSavedStudy, writeSavedStudy, type SavedStudySession, type StudySourceIdentity,
+} from '@/lib/study-session-storage';
 import { Toaster } from '@/components/ui/toaster';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import NotFound from '@/pages/not-found';
@@ -97,6 +101,11 @@ function App() {
   const [micMessage, setMicMessage] = useState('');
   const [error, setError] = useState('');
   const [feedbackOpen, setFeedbackOpen] = useState<string | null>(null);
+  const [savedStudy, setSavedStudy] = useState<SavedStudySession | null>(null);
+  const [savedStudyLoaded, setSavedStudyLoaded] = useState(false);
+  const [sourceIdentity, setSourceIdentity] = useState<StudySourceIdentity | null>(null);
+  const [storageMessage, setStorageMessage] = useState('');
+  const [sourceIdentityError, setSourceIdentityError] = useState('');
   const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
   const supportsSpeech = useMemo(() => {
     if (typeof window === 'undefined') return false;
@@ -108,17 +117,95 @@ function App() {
 
   useEffect(() => () => { recognitionRef.current?.abort(); }, []);
   useEffect(() => {
+    const result = readSavedStudy();
+    if (result.status === 'valid') setSavedStudy(result.value);
+    else if (result.status === 'invalid') setStorageMessage('A damaged or unsupported saved session was removed from this browser. Your current study is unaffected.');
+    else if (result.status === 'unavailable') setStorageMessage('This browser could not read saved study data. Your current answer will stay on screen, but may not survive a reload.');
+    setSavedStudyLoaded(true);
+  }, []);
+  useEffect(() => {
+    let current = true;
+    if (!selectedSource) {
+      setSourceIdentity(null);
+      setSourceIdentityError('');
+      return;
+    }
+    setSourceIdentity(null);
+    setSourceIdentityError('');
+    void createSourceIdentity(selectedSource.source, selectedSource.pdfSha256).then(identity => {
+      if (current) setSourceIdentity(identity);
+    }).catch(() => {
+      if (current) setSourceIdentityError('This browser cannot create a secure source fingerprint, so saved progress cannot be reopened safely.');
+    });
+    return () => { current = false; };
+  }, [selectedSource]);
+  useEffect(() => {
     const url = selectedSource?.fileUrl;
     return () => { if (url) URL.revokeObjectURL(url); };
   }, [selectedSource?.fileUrl]);
+  useLayoutEffect(() => {
+    if (!studyMap || !selectedSource || !sourceIdentity
+      || sourceIdentity.id !== selectedSource.source.id
+      || sourceIdentity.pdfSha256 !== selectedSource.pdfSha256) return;
+    const citedPassageIds = evaluation?.assessments
+      ? [...new Set(evaluation.assessments.flatMap(item => item.sourceLineIds))]
+      : [];
+    const saved: SavedStudySession = {
+      version: 1,
+      savedAt: Date.now(),
+      source: sourceIdentity,
+      map: studyMap,
+      transcript,
+      evaluation,
+      phase: phase === 'review' && evaluation ? 'review' : 'session',
+      citedPassageIds,
+    };
+    try {
+      writeSavedStudy(saved);
+      setSavedStudy(saved);
+      setStorageMessage('');
+    } catch {
+      setStorageMessage('This browser could not save your progress. Your answer remains on screen; copy it before leaving or reloading.');
+    }
+  }, [studyMap, transcript, evaluation, phase, selectedSource, sourceIdentity]);
 
   const beginStudy = () => {
     setError('');
     if (!selectedSource) { setError('اختر ملف PDF المعتمد أولًا. Select and verify the approved PDF first.'); return; }
+    if (savedStudy && !window.confirm('Starting a new study will replace the saved explanation and report in this browser. Continue?')) return;
     prepareStudy.mutate({ data: { topic, referenceText, sourceToken: selectedSource.sourceToken } }, {
-      onSuccess: result => { setStudyMap(result); setEvaluation(null); setTranscript(''); setInterim(''); setPhase('session'); },
+      onSuccess: result => { setSavedStudy(null); setStudyMap(result); setEvaluation(null); setTranscript(''); setInterim(''); setPhase('session'); },
       onError: issue => setError(errorMessage(issue)),
     });
+  };
+
+  const reopenSavedStudy = () => {
+    if (!savedStudy || !selectedSource || !sourceIdentity) return;
+    if (!matchesSource(savedStudy, sourceIdentity)) {
+      setStorageMessage('This saved explanation belongs to a different PDF or source version. It was not opened or attached to this source.');
+      return;
+    }
+    if (!citationsMatchSource(savedStudy, selectedSource.source)) {
+      setStorageMessage('This saved report cites passages that are not in the verified source. It was not opened.');
+      return;
+    }
+    setStudyMap(savedStudy.map);
+    setTranscript(savedStudy.transcript);
+    setEvaluation(savedStudy.evaluation);
+    setPhase(savedStudy.phase);
+    setError('');
+    setStorageMessage('');
+  };
+
+  const removeSavedStudy = () => {
+    if (!window.confirm('Delete the saved explanation and assessment report from this browser? This cannot be undone.')) return;
+    try {
+      deleteSavedStudy();
+      setSavedStudy(null);
+      setStorageMessage('Saved explanation and report deleted from this browser.');
+    } catch {
+      setStorageMessage('The browser could not delete the saved study. Try clearing this site’s browser data.');
+    }
   };
 
   const startListening = async () => {
@@ -204,11 +291,25 @@ function App() {
       <div className="setup-card enter-delay">
         <div className="card-kicker"><span>LET’S SET THE TABLE</span><span className="mono">01—03</span></div>
         <ApprovedPdfSource selected={selectedSource} onChange={setSelectedSource} disabled={prepareStudy.isPending} />
+        {savedStudyLoaded && savedStudy && <section className="saved-study" aria-label="Saved study">
+          <strong>{savedStudy.evaluation ? 'A saved assessment report is available' : 'A saved draft is available'}</strong>
+          <p>Saved in this browser on {new Date(savedStudy.savedAt).toLocaleString()}. Verify the same approved PDF again before reopening. This browser copy is not linked to an account.</p>
+          {selectedSource && sourceIdentity && matchesSource(savedStudy, sourceIdentity)
+            ? <button className="upload-button" type="button" onClick={reopenSavedStudy} data-testid="button-reopen-saved-study">
+                {savedStudy.evaluation ? 'Reopen saved report' : 'Resume saved draft'}
+              </button>
+            : selectedSource && sourceIdentity
+              ? <p className="saved-study-warning" role="status">This is a different PDF or source version. The saved study will not be attached to it.</p>
+              : <p className="saved-study-hint">Choose and verify the same approved PDF to reopen this study.</p>}
+          <button className="saved-study-delete" type="button" onClick={removeSavedStudy} data-testid="button-delete-saved-study">Delete saved explanation and report</button>
+        </section>}
+        {sourceIdentityError && <p className="saved-study-warning" role="status">{sourceIdentityError}</p>}
+        {storageMessage && <p className="saved-study-status" role="status" data-testid="status-storage">{storageMessage}</p>}
         {error && <div className="inline-error" role="alert" data-testid="status-setup-error"><span>!</span>{error}<button type="button" onClick={() => setError('')} aria-label="Dismiss message"><X size={14} /></button></div>}
         <button className="primary-button start-button" type="button" onClick={beginStudy} disabled={prepareStudy.isPending || !selectedSource} data-testid="button-prepare">
           {prepareStudy.isPending ? <><span className="button-loader" /> Opening the study workspace…</> : <>ابدأ الشرح · Start explaining <ArrowRight size={16} /></>}
         </button>
-        <p className="privacy-line"><span className="privacy-dot" /> The PDF is checked in memory, not stored. Answers and source passages are sent to the AI provider only when you request a check. This session is not saved after a reload.</p>
+        <p className="privacy-line"><span className="privacy-dot" /> The PDF is checked in memory and never saved here. Your draft and report are saved in this browser’s local storage on this device, not on a Hearo account or server. Anyone with access to this browser profile may see them; delete the saved copy here or clear this site’s browser data. Answers and selected source passages go to the AI provider only when you request a check.</p>
       </div>
       <div className="how-strip" id="how-it-works">
         <div className="how-title"><span className="mono">A SMALL PROMISE</span><p>We won’t interrupt<br />your train of thought.</p></div>
@@ -231,6 +332,8 @@ function App() {
         <section className="explain-panel panel">
           <div className="panel-heading"><div><span className="panel-index">01</span><h2>Explain it your way</h2></div><span className="silence-tag"><span /> SILENT MODE</span></div>
           <p className="panel-hint" dir="auto">اكتب بالعربية أو الإنجليزية. Type in Arabic, English, or both. Checking happens only when you request it.</p>
+          {sourceIdentityError && <p className="saved-study-warning" role="status">{sourceIdentityError}</p>}
+          {storageMessage && <p className="saved-study-status" role="status" data-testid="status-storage">{storageMessage}</p>}
           {selectedSource && !selectedSource.source.aiAvailable && <p className="ai-unavailable" role="status">AI checking is not connected yet. You can still read and draft; your answer will not receive a simulated verdict.</p>}
           {supportsSpeech && <div className="mic-row">
             <button className={`mic-button ${listening ? 'mic-active' : ''}`} type="button" disabled={evaluateStudy.isPending} onClick={listening ? stopListening : startListening} data-testid="button-microphone">
@@ -254,7 +357,7 @@ function App() {
           <button type="button" className="primary-button finish-button" onClick={finishStudy} disabled={evaluateStudy.isPending} data-testid="button-finish">
             {evaluateStudy.isPending ? <><span className="button-loader" /> Checking meaning against the source…</> : <>Check my explanation <ArrowRight size={16} /></>}
           </button>
-          <p className="finish-note">The check happens only when you choose to finish.</p>
+          <p className="finish-note">The check happens only when you choose to finish. Your draft is saved in this browser’s local storage; the PDF and authorization token are not saved.</p>
         </section>
         <aside className="map-panel panel">
           <div className="panel-heading"><div><span className="panel-index">02</span><h2>Your concept map</h2></div><span className="node-count mono">{studyMap.nodes.length} IDEAS</span></div>
@@ -299,6 +402,7 @@ function App() {
         <p dir="auto">{transcript}</p>
       </section>
       {error && <div className="inline-error review-error" role="alert" data-testid="status-review-error"><span>!</span>{error}<button type="button" onClick={() => setError('')} aria-label="Dismiss message"><X size={14} /></button></div>}
+      {storageMessage && <p className="saved-study-status" role="status" data-testid="status-storage">{storageMessage}</p>}
       <div className="review-actions"><p>Good learning leaves room for a second telling.</p><button className="primary-button" type="button" onClick={resetStudy} data-testid="button-new-session">Start a new session <ArrowRight size={16} /></button></div>
     </section>}
     <footer className="site-footer"><span>HEARO <i>·</i> A STUDY SPACE</span><span>English source · Arabic or English answers</span></footer>
