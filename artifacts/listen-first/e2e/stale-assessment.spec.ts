@@ -7,13 +7,19 @@ const originalAnswer = 'Load balancing spreads requests across servers to improv
 const editedAnswer = 'A single server handles every request with no distribution of work.';
 const staleMarker = 'STALE_RESPONSE_MUST_NOT_APPEAR';
 const freshMarker = 'Fresh assessment for the current explanation.';
+const prefixMarker = 'Assessment for the checked prefix only.';
+const appendedWords = ' It also keeps the service available when one server fails.';
+const appendedAnswer = originalAnswer + appendedWords;
 
 const firstSource = {
   id: 'verified-first', title: 'Distributed Systems', author: 'Test fixture',
   filename: 'first.pdf', downloadUrl: 'https://example.test/first.pdf',
   byteLength: firstPdf.byteLength, pageCount: 10, scope: 'Slides 4–10',
   referenceText: 'Load balancing distributes requests across servers.',
-  referenceLines: [{ id: 'S01', page: 4, text: 'Load balancing distributes requests across servers.' }],
+  referenceLines: [
+    { id: 'S01', page: 4, text: 'Load balancing distributes requests across servers.' },
+    { id: 'S03', page: 6, text: 'Other servers can continue serving requests when one server fails.' },
+  ],
   aiAvailable: true,
 };
 const secondSource = {
@@ -64,12 +70,17 @@ async function verifyAndPrepare(page: Page, buffer: Buffer, name: string) {
   await expect(page.getByTestId('input-transcript')).toBeVisible();
 }
 
-async function installFixtures(page: Page) {
+async function installFixtures(page: Page, delayFinal = false) {
   const started = deferred();
   const release = deferred();
   const delivered = deferred();
+  const finalStarted = deferred();
+  const finalRelease = deferred();
   let attempts = 0;
   const requests: Array<{ sourceToken: string; transcript: string }> = [];
+  await page.route('**/api/study/allowance', route => route.fulfill({
+    json: { remainingChecks: 50, dailyLimit: 50, resetAt: '2099-01-01T00:00:00.000Z', available: true },
+  }));
   await page.route('**/api/study/demo', route => route.fulfill({ json: firstSource }));
   await page.route('**/api/study/demo/upload', route => {
     const bytes = route.request().postDataBuffer();
@@ -92,15 +103,28 @@ async function installFixtures(page: Page) {
     if (isFirst) {
       started.resolve();
       await release.promise;
+    } else if (delayFinal) {
+      finalStarted.resolve();
+      await finalRelease.promise;
     }
     const selected = input.sourceToken === 'first-token' ? firstSource : secondSource;
     await route.fulfill({
-      json: assessment(selected.title, input.transcript, selected.referenceLines[0].id,
-        isFirst ? staleMarker : freshMarker),
+      json: assessment(selected.title, input.transcript,
+        delayFinal && !isFirst ? 'S03' : selected.referenceLines[0].id,
+        isFirst ? delayFinal ? prefixMarker : staleMarker : freshMarker),
     });
     if (isFirst) delivered.resolve();
   });
-  return { started, release, delivered, requests };
+  return { started, release, delivered, finalStarted, finalRelease, requests };
+}
+
+async function downloadText(page: Page, button: string) {
+  const downloadEvent = page.waitForEvent('download');
+  await page.getByTestId(button).click();
+  const stream = await (await downloadEvent).createReadStream();
+  const chunks: Buffer[] = [];
+  for await (const chunk of stream!) chunks.push(Buffer.from(chunk));
+  return Buffer.concat(chunks).toString('utf8');
 }
 
 async function expectUnassessed(page: Page, answer: string) {
@@ -142,12 +166,7 @@ async function expectFreshReport(page: Page, answer: string, sourceId: string) {
       evidence: study?.evaluation?.assessments[0]?.studentEvidence,
     };
   }).toEqual({ phase: 'review', explanation: freshMarker, evidence: answer });
-  const downloadEvent = page.waitForEvent('download');
-  await page.getByTestId('button-download-report').click();
-  const stream = await (await downloadEvent).createReadStream();
-  const chunks: Buffer[] = [];
-  for await (const chunk of stream!) chunks.push(Buffer.from(chunk));
-  const report = Buffer.concat(chunks).toString('utf8');
+  const report = await downloadText(page, 'button-download-report');
   expect(report).toContain(answer);
   expect(report).toContain(freshMarker);
   expect(report).not.toContain(staleMarker);
@@ -169,6 +188,88 @@ test('a delayed result cannot grade replaced text or become its saved report', a
   await expectFreshReport(page, editedAnswer, firstSource.id);
   expect(pending.requests).toHaveLength(2);
   expect(pending.requests[1]).toMatchObject({ sourceToken: 'first-token', transcript: editedAnswer });
+});
+
+test('a delayed checked prefix stays separate from appended draft words until the exact final check', async ({ page }) => {
+  const pending = await installFixtures(page, true);
+  await page.goto('/');
+  await page.getByTestId('button-start-live').click();
+  await verifyAndPrepare(page, firstPdf, 'first.pdf');
+  await page.getByTestId('input-transcript').fill(originalAnswer);
+  await pending.started.promise;
+  expect(pending.requests).toEqual([expect.objectContaining({
+    sourceToken: 'first-token', transcript: originalAnswer,
+  })]);
+
+  // Append rather than replace: the old result is valid live prefix feedback.
+  await page.getByTestId('input-transcript').press('End');
+  await page.getByTestId('input-transcript').pressSequentially(appendedWords);
+  await expect(page.getByTestId('input-transcript')).toHaveValue(appendedAnswer);
+  await expect.poll(async () => (await savedStudies(page))[0]?.transcript).toBe(appendedAnswer);
+  pending.release.resolve();
+  await pending.delivered.promise;
+  await expect(page.getByTestId('assessment-load-balancing')).toContainText(prefixMarker);
+  await expect(page.getByTestId('assessment-load-balancing')).toContainText(originalAnswer);
+  await expect(page.getByTestId('assessment-load-balancing')).not.toContainText(appendedWords.trim());
+  await expect(page.getByTestId('status-live-check')).toContainText('More words awaiting a check');
+  // Keep the next check explicit so both pending snapshots can be inspected.
+  await page.getByTestId('toggle-live-session').uncheck();
+
+  const prefixEvaluation = assessment(firstSource.title, originalAnswer, 'S01', prefixMarker);
+  const expectAppendedDraft = async () => {
+    await expect.poll(async () => await savedStudies(page)).toEqual([
+      expect.objectContaining({
+        transcript: appendedAnswer,
+        phase: 'session',
+        evaluation: null,
+        citedPassageIds: [],
+        map: studyMap(firstSource.title),
+        previousReport: { transcript: originalAnswer, evaluation: prefixEvaluation },
+      }),
+    ]);
+  };
+  await expectAppendedDraft();
+  const previousDownload = await downloadText(page, 'button-download-previous-report');
+  expect(previousDownload).toContain(`Your explanation:\n${originalAnswer}\n`);
+  expect(previousDownload).toContain(`You said: ${originalAnswer}\n`);
+  expect(previousDownload).toContain(prefixMarker);
+  expect(previousDownload).toContain('Reference S01, slide 4:');
+  expect(previousDownload).not.toContain(appendedWords.trim());
+  expect(previousDownload).not.toContain(freshMarker);
+  expect(previousDownload).not.toContain('Reference S03');
+
+  await page.getByTestId('button-finish').click();
+  await pending.finalStarted.promise;
+  expect(pending.requests).toHaveLength(2);
+  expect(pending.requests[1]).toMatchObject({ sourceToken: 'first-token', transcript: appendedAnswer });
+  await expect(page.getByTestId('button-finish')).toContainText('Completing your final check');
+  await expect(page.getByTestId('button-download-report')).toHaveCount(0);
+  await expectAppendedDraft();
+
+  pending.finalRelease.resolve();
+  await expect(page.getByTestId('button-download-report')).toBeVisible();
+  const finalEvaluation = assessment(firstSource.title, appendedAnswer, 'S03', freshMarker);
+  await expect.poll(async () => await savedStudies(page)).toEqual([
+    expect.objectContaining({
+      transcript: appendedAnswer,
+      phase: 'review',
+      evaluation: finalEvaluation,
+      citedPassageIds: ['S03'],
+      map: { topic: finalEvaluation.topic, nodes: finalEvaluation.nodes, edges: finalEvaluation.edges },
+      previousReport: { transcript: appendedAnswer, evaluation: finalEvaluation, overflowText: '' },
+    }),
+  ]);
+  await expect(page.getByTestId('assessment-load-balancing')).toContainText(appendedAnswer);
+  await expect(page.getByTestId('assessment-load-balancing')).toContainText(freshMarker);
+  await expect(page.getByText(prefixMarker)).toHaveCount(0);
+  const finalDownload = await downloadText(page, 'button-download-report');
+  expect(finalDownload).toContain(`Your explanation:\n${appendedAnswer}\n`);
+  expect(finalDownload).toContain(`You said: ${appendedAnswer}\n`);
+  expect(finalDownload).toContain(freshMarker);
+  expect(finalDownload).toContain('Reference S03, slide 6:');
+  expect(finalDownload).not.toContain(prefixMarker);
+  expect(finalDownload).not.toContain('Reference S01');
+  expect(pending.requests).toHaveLength(2);
 });
 
 test('a delayed result from another verified source is ignored even for identical text', async ({ page }) => {

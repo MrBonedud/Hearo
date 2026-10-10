@@ -49,6 +49,9 @@ const successfulAssessment = {
 test('a failed assessment leaves a reloaded draft retryable and source-bound', async ({ page }) => {
   let assessmentAttempts = 0;
 
+  await page.route('**/api/study/allowance', route => route.fulfill({
+    json: { remainingChecks: 50, dailyLimit: 50, resetAt: '2099-01-01T00:00:00.000Z', available: true },
+  }));
   await page.route('**/api/study/demo', route => route.fulfill({
     status: 200,
     contentType: 'application/json',
