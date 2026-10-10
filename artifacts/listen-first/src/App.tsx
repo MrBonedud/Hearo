@@ -15,8 +15,9 @@ import { useSpeechTranscription } from '@/hooks/use-speech-transcription';
 import { isCheckedPrefix } from '@/lib/assessment-queue';
 import { studyReportText } from '@/lib/study-report';
 import {
-  citationsMatchSource, createSourceIdentity, deleteSavedStudy, matchesSource,
-  readSavedStudy, writeSavedStudy, type SavedStudySession, type StudySourceIdentity,
+  citationsMatchSource, clearSavedStudies, createSavedStudyId, createSourceIdentity,
+  deleteSavedStudy, matchesSource, readSavedStudies, writeSavedStudy,
+  type SavedStudySession, type StudySourceIdentity,
 } from '@/lib/study-session-storage';
 import { Toaster } from '@/components/ui/toaster';
 import { TooltipProvider } from '@/components/ui/tooltip';
@@ -234,7 +235,8 @@ function App() {
   const [transcript, setTranscript] = useState('');
   const [error, setError] = useState('');
   const [feedbackOpen, setFeedbackOpen] = useState<string | null>(null);
-  const [savedStudy, setSavedStudy] = useState<SavedStudySession | null>(null);
+  const [savedStudies, setSavedStudies] = useState<SavedStudySession[]>([]);
+  const [activeSavedStudyId, setActiveSavedStudyId] = useState<string | null>(null);
   const [savedStudyLoaded, setSavedStudyLoaded] = useState(false);
   const [sourceIdentity, setSourceIdentity] = useState<StudySourceIdentity | null>(null);
   const [storageMessage, setStorageMessage] = useState('');
@@ -274,8 +276,8 @@ function App() {
   const claims = useMemo(() => (transcript + (interim ? ` ${interim}` : '')).split(/(?<=[.!?])\s+/).filter(Boolean).slice(-5), [transcript, interim]);
 
   useEffect(() => {
-    const result = readSavedStudy();
-    if (result.status === 'valid') setSavedStudy(result.value);
+    const result = readSavedStudies();
+    if (result.status === 'valid') setSavedStudies(result.value);
     else if (result.status === 'invalid') setStorageMessage('A damaged or unsupported saved session was removed from this browser. Your current study is unaffected.');
     else if (result.status === 'unavailable') setStorageMessage('This browser could not read saved study data. Your current answer will stay on screen, but may not survive a reload.');
     setSavedStudyLoaded(true);
@@ -310,6 +312,7 @@ function App() {
       ? [...new Set(currentEvaluation.assessments.flatMap(item => item.sourceLineIds))]
       : [];
     const saved: SavedStudySession = {
+      id: activeSavedStudyId ?? createSavedStudyId(),
       version: 1,
       savedAt: Date.now(),
       source: sourceIdentity,
@@ -322,13 +325,13 @@ function App() {
       previousReport,
     };
     try {
-      writeSavedStudy(saved);
-      setSavedStudy(saved);
+      setSavedStudies(writeSavedStudy(saved));
+      if (!activeSavedStudyId) setActiveSavedStudyId(saved.id);
       setStorageMessage('');
     } catch {
       setStorageMessage('This browser could not save your progress. Your answer remains on screen; copy it before leaving or reloading.');
     }
-  }, [studyMap, evaluation, checkedTranscript, phase, selectedSource, sourceIdentity, voiceOverflow, previousReport]);
+  }, [studyMap, evaluation, checkedTranscript, phase, selectedSource, sourceIdentity, voiceOverflow, previousReport, activeSavedStudyId]);
   useLayoutEffect(() => {
     const draft = [transcript, interim.trim()].filter(Boolean).join(' ');
     saveCurrentStudy(draft.slice(0, 12000));
@@ -337,15 +340,14 @@ function App() {
   const beginStudy = () => {
     setError('');
     if (!selectedSource) { setError('اختر ملف PDF المعتمد أولًا. Select and verify the approved PDF first.'); return; }
-    if (savedStudy && !window.confirm('Starting a new study will replace the saved explanation and report in this browser. Continue?')) return;
     prepareStudy.mutate({ data: { topic, referenceText, sourceToken: selectedSource.sourceToken } }, {
-      onSuccess: result => { setSavedStudy(null); setStudyMap(result); setEvaluation(null); setCheckedTranscript(''); setPreviousReport(undefined); changeTranscript(''); setVoiceOverflow(''); setPhase('session'); },
+      onSuccess: result => { setActiveSavedStudyId(createSavedStudyId()); setStudyMap(result); setEvaluation(null); setCheckedTranscript(''); setPreviousReport(undefined); changeTranscript(''); setVoiceOverflow(''); setPhase('session'); },
       onError: issue => setError(errorMessage(issue)),
     });
   };
 
-  const reopenSavedStudy = () => {
-    if (!savedStudy || !selectedSource || !sourceIdentity) return;
+  const reopenSavedStudy = (savedStudy: SavedStudySession) => {
+    if (!selectedSource || !sourceIdentity) return;
     if (!matchesSource(savedStudy, sourceIdentity)) {
       setStorageMessage('This saved explanation belongs to a different PDF or source version. It was not opened or attached to this source.');
       return;
@@ -363,18 +365,29 @@ function App() {
     setCheckedTranscript(savedStudy.evaluation ? savedStudy.transcript.trim() : '');
     setVoiceOverflow(savedStudy.overflowText ?? '');
     setPhase(savedStudy.phase);
+    setActiveSavedStudyId(savedStudy.id);
     setError('');
     setStorageMessage('');
   };
 
-  const removeSavedStudy = () => {
-    if (!window.confirm('Delete the saved explanation and assessment report from this browser? This cannot be undone.')) return;
+  const removeSavedStudy = (id: string) => {
+    if (!window.confirm('Delete this saved explanation and report from this browser? This cannot be undone.')) return;
     try {
-      deleteSavedStudy();
-      setSavedStudy(null);
-      setStorageMessage('Saved explanation and report deleted from this browser.');
+      setSavedStudies(deleteSavedStudy(id));
+      setStorageMessage('Saved study deleted from this browser.');
     } catch {
       setStorageMessage('The browser could not delete the saved study. Try clearing this site’s browser data.');
+    }
+  };
+
+  const removeAllSavedStudies = () => {
+    if (!window.confirm('Delete all saved explanations and reports from this browser? This cannot be undone.')) return;
+    try {
+      clearSavedStudies();
+      setSavedStudies([]);
+      setStorageMessage('All saved studies deleted from this browser.');
+    } catch {
+      setStorageMessage('The browser could not clear saved studies. Try clearing this site’s browser data.');
     }
   };
 
@@ -403,6 +416,7 @@ function App() {
     if (finishing || prepareStudy.isPending) return;
     await stopListening();
     saveCurrentStudy(transcriptRef.current);
+    setActiveSavedStudyId(null);
     setPhase('setup'); setEvaluation(null); setCheckedTranscript(''); setPreviousReport(undefined); setStudyMap(null); changeTranscript('');
     setError(''); setMicMessage(''); setSelectedSource(null);
   };
@@ -449,17 +463,34 @@ function App() {
       <div className="setup-card enter-delay">
         <div className="card-kicker"><span>LET’S SET THE TABLE</span><span className="mono">01—03</span></div>
         <ApprovedPdfSource selected={selectedSource} onChange={setSelectedSource} disabled={prepareStudy.isPending} />
-        {savedStudyLoaded && savedStudy && <section className="saved-study" aria-label="Saved study">
-          <strong>{savedStudy.evaluation ? 'A saved assessment report is available' : 'A saved draft is available'}</strong>
-          <p>Saved in this browser on {new Date(savedStudy.savedAt).toLocaleString()}. Verify the same approved PDF again before reopening. This browser copy is not linked to an account.</p>
-          {selectedSource && sourceIdentity && matchesSource(savedStudy, sourceIdentity)
-            ? <button className="upload-button" type="button" onClick={reopenSavedStudy} data-testid="button-reopen-saved-study">
-                {savedStudy.evaluation ? 'Reopen saved report' : 'Resume saved draft'}
-              </button>
-            : selectedSource && sourceIdentity
-              ? <p className="saved-study-warning" role="status">This is a different PDF or source version. The saved study will not be attached to it.</p>
-              : <p className="saved-study-hint">Choose and verify the same approved PDF to reopen this study.</p>}
-          <button className="saved-study-delete" type="button" onClick={removeSavedStudy} data-testid="button-delete-saved-study">Delete saved explanation and report</button>
+        {savedStudyLoaded && <section className="saved-study saved-study-history" aria-label="Saved studies">
+          <div className="saved-study-history-heading">
+            <div><strong>Your saved studies</strong><p>Drafts and reports stay in this browser. Verify the matching PDF before reopening.</p></div>
+            {savedStudies.length > 0 && <button className="saved-study-delete" type="button" onClick={removeAllSavedStudies} data-testid="button-clear-saved-studies">Clear all</button>}
+          </div>
+          {savedStudies.length === 0
+            ? <p className="saved-study-hint">Your explanations and reports will appear here as you work.</p>
+            : <ul className="saved-study-list">{savedStudies.map(savedStudy => {
+              const sourceMatches = Boolean(selectedSource && sourceIdentity && matchesSource(savedStudy, sourceIdentity));
+              const citationsAreValid = Boolean(selectedSource && citationsMatchSource(savedStudy, selectedSource.source));
+              return <li className="saved-study-item" key={savedStudy.id} data-testid={`saved-study-${savedStudy.id}`}>
+                <div className="saved-study-item-copy">
+                  <strong>{savedStudy.source.title}</strong>
+                  <span>{savedStudy.evaluation ? 'Assessment report' : 'Draft'} · {new Date(savedStudy.savedAt).toLocaleString()}</span>
+                  <p dir="auto">{savedStudy.transcript.trim() || 'No explanation text yet.'}</p>
+                </div>
+                {sourceMatches && citationsAreValid
+                  ? <button className="upload-button" type="button" onClick={() => reopenSavedStudy(savedStudy)} data-testid={`button-reopen-saved-study-${savedStudy.id}`}>
+                      {savedStudy.evaluation ? 'Reopen report' : 'Resume draft'}
+                    </button>
+                  : selectedSource && sourceIdentity && sourceMatches
+                    ? <p className="saved-study-warning" role="status">This saved study cites passages that are not in this verified source. It was not opened.</p>
+                    : selectedSource && sourceIdentity
+                      ? <p className="saved-study-warning" role="status">Verify the same PDF and source version to reopen this study.</p>
+                      : <p className="saved-study-hint">Choose and verify the same approved PDF to reopen.</p>}
+                <button className="saved-study-delete" type="button" onClick={() => removeSavedStudy(savedStudy.id)} data-testid={`button-delete-saved-study-${savedStudy.id}`}>Delete</button>
+              </li>;
+            })}</ul>}
         </section>}
         {sourceIdentityError && <p className="saved-study-warning" role="status">{sourceIdentityError}</p>}
         {storageMessage && <p className="saved-study-status" role="status" data-testid="status-storage">{storageMessage}</p>}
@@ -468,7 +499,7 @@ function App() {
         <button className="primary-button start-button" type="button" onClick={beginStudy} disabled={prepareStudy.isPending || !selectedSource} data-testid="button-prepare">
           {prepareStudy.isPending ? <><span className="button-loader" /> Opening the study workspace…</> : <>ابدأ الشرح · Start explaining <ArrowRight size={16} /></>}
         </button>
-        <p className="privacy-line"><span className="privacy-dot" /> With live checks enabled, your text and selected source passages go to OpenAI first, with Gemini used if OpenAI fails. Checks happen automatically after a pause. You can turn live checks off and request only a final review. Your browser’s speech service handles microphone audio and may process it remotely; Hearo does not store audio or the PDF. Drafts and reports are saved in this browser, not in an account. Anyone using this browser profile may see them; delete the saved copy here or clear this site’s browser data.</p>
+        <p className="privacy-line"><span className="privacy-dot" /> With live checks enabled, your text and selected source passages go to OpenAI first, with Gemini used if OpenAI fails. Checks happen automatically after a pause. You can turn live checks off and request only a final review. Your browser’s speech service handles microphone audio and may process it remotely; Hearo does not store audio, PDF bytes, or verification tokens. Drafts and reports are saved in this browser, not in an account. Anyone using this browser profile may see them; delete individual saved studies or clear all here, or clear this site’s browser data.</p>
       </div>
       <div className="how-strip" id="how-it-works">
         <div className="how-title"><span className="mono">A SMALL PROMISE</span><p>We won’t interrupt<br />your train of thought.</p></div>

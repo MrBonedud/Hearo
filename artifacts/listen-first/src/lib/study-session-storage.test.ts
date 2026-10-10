@@ -1,6 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { deleteSavedStudy, readSavedStudy, writeSavedStudy, type SavedStudySession } from './study-session-storage';
+import {
+  clearSavedStudies, deleteSavedStudy, readSavedStudy, readSavedStudies, writeSavedStudy,
+  type SavedStudySession,
+} from './study-session-storage';
 import { studyReportText } from './study-report';
 import type { DemoSource } from '@workspace/api-client-react';
 
@@ -11,28 +14,60 @@ function memoryStorage() {
     removeItem: (key: string) => { values.delete(key); } };
 }
 function draft(): SavedStudySession {
-  return { version: 1, savedAt: 123, source: { id: 'test', title: 'Test',
+  return { id: 'study-1', version: 1, savedAt: 123, source: { id: 'test', title: 'Test',
     pdfSha256: '0'.repeat(64), contentSha256: '1'.repeat(64) },
     map: { topic: 'Test', nodes: [], edges: [] }, transcript: 'هذا شرح اصطناعي', evaluation: null,
     phase: 'session', citedPassageIds: [], overflowText: 'كلمات زائدة محفوظة' };
 }
 
-test('draft and unassessed overflow survive saving, reading and deletion', () => {
+test('multiple drafts and reports remain independent, reopenable, and individually deletable', () => {
   const storage = memoryStorage();
-  const value = draft();
-  writeSavedStudy(value, storage);
-  const loaded = readSavedStudy(storage);
+  const first = draft();
+  const second = { ...draft(), id: 'study-2', savedAt: 456, transcript: 'Second explanation' };
+  writeSavedStudy(first, storage);
+  writeSavedStudy(second, storage);
+  const loaded = readSavedStudies(storage);
   assert.equal(loaded.status, 'valid');
-  if (loaded.status === 'valid') assert.deepEqual(loaded.value, value);
-  deleteSavedStudy(storage);
-  assert.equal(readSavedStudy(storage).status, 'empty');
+  if (loaded.status === 'valid') {
+    assert.deepEqual(loaded.value, [second, first]);
+    assert.deepEqual(loaded.value[1], first);
+  }
+  const remaining = deleteSavedStudy(first.id, storage);
+  assert.deepEqual(remaining, [second]);
+  const reopened = readSavedStudies(storage);
+  assert.equal(reopened.status, 'valid');
+  if (reopened.status === 'valid') assert.deepEqual(reopened.value, [second]);
 });
 
 test('legacy saved drafts without the optional overflow field still load', () => {
   const storage = memoryStorage();
   const value = draft(); delete value.overflowText;
   writeSavedStudy(value, storage);
-  assert.equal(readSavedStudy(storage).status, 'valid');
+  assert.equal(readSavedStudies(storage).status, 'valid');
+});
+
+test('legacy single-study saves migrate without losing drafts', () => {
+  const storage = memoryStorage();
+  const legacy = { ...draft() } as Record<string, unknown>;
+  delete legacy.id;
+  storage.setItem('hearo.saved-study.v1', JSON.stringify(legacy));
+  const result = readSavedStudies(storage);
+  assert.equal(result.status, 'valid');
+  if (result.status === 'valid') {
+    assert.equal(result.value.length, 1);
+    assert.equal(result.value[0].id, 'legacy-123');
+    assert.equal(result.value[0].transcript, 'هذا شرح اصطناعي');
+  }
+  assert.equal(storage.values.has('hearo.saved-study.v1'), false);
+});
+
+test('clear all removes the full history and any legacy copy', () => {
+  const storage = memoryStorage();
+  writeSavedStudy(draft(), storage);
+  storage.setItem('hearo.saved-study.v1', 'legacy');
+  clearSavedStudies(storage);
+  assert.equal(readSavedStudies(storage).status, 'empty');
+  assert.equal(storage.values.size, 0);
 });
 
 test('newer unassessed draft retains the last report with its original checked text', () => {
@@ -56,9 +91,40 @@ test('invalid overflow, report without assessment, and corrupt JSON are rejected
   const storage = memoryStorage();
   assert.throws(() => writeSavedStudy({ ...draft(), overflowText: 1 } as unknown as SavedStudySession, storage));
   assert.throws(() => writeSavedStudy({ ...draft(), phase: 'review' }, storage));
-  storage.setItem('hearo.saved-study.v1', 'broken');
-  assert.equal(readSavedStudy(storage).status, 'invalid');
+  storage.setItem('hearo.saved-studies.v2', 'broken');
+  assert.equal(readSavedStudies(storage).status, 'invalid');
   assert.equal(storage.values.size, 0);
+});
+
+test('browser history persists fingerprints and citation IDs, never transient authorization or PDF data', () => {
+  const storage = memoryStorage();
+  const evaluation = {
+    topic: 'Test',
+    nodes: [],
+    edges: [],
+    feedback: [],
+    assessments: [{
+      conceptId: 'concept',
+      verdict: 'supported' as const,
+      confidence: 'high' as const,
+      studentEvidence: 'Evidence',
+      sourceLineIds: ['S01'],
+      explanation: 'Supported by the source.',
+      followUp: 'What connects these ideas?',
+    }],
+  };
+  const saved = {
+    ...draft(), phase: 'review' as const, evaluation, citedPassageIds: ['S01'],
+    sourceToken: 'transient-token', pdfBytes: 'transient-pdf',
+  };
+  writeSavedStudy(saved as unknown as SavedStudySession, storage);
+  const raw = [...storage.values.values()].join('');
+  assert.ok(raw.includes(saved.source.pdfSha256));
+  assert.ok(raw.includes('S01'));
+  assert.equal(raw.includes('sourceToken'), false);
+  assert.equal(raw.includes('transient-token'), false);
+  assert.equal(raw.includes('pdfBytes'), false);
+  assert.equal(raw.includes('transient-pdf'), false);
 });
 
 test('report exports exact quotations, cited slide, follow-up and unassessed overflow', () => {

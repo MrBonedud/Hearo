@@ -5,8 +5,9 @@ import type {
   StudyMap,
 } from '@workspace/api-client-react';
 
-const STORAGE_KEY = 'hearo.saved-study.v1';
+const STORAGE_KEY = 'hearo.saved-studies.v2';
 
+const LEGACY_STORAGE_KEY = 'hearo.saved-study.v1';
 export type StudySourceIdentity = {
   id: string;
   title: string;
@@ -15,6 +16,7 @@ export type StudySourceIdentity = {
 };
 
 export type SavedStudySession = {
+  id: string;
   version: 1;
   savedAt: number;
   source: StudySourceIdentity;
@@ -75,7 +77,7 @@ function isEvaluation(value: unknown): value is StudyEvaluation {
     && typeof item.explanation === 'string');
 }
 
-function isSavedStudySession(value: unknown): value is SavedStudySession {
+function isSavedStudySession(value: unknown, allowMissingId = false): value is SavedStudySession {
   if (!isRecord(value) || !isRecord(value.source)) return false;
   const source = value.source;
   if (value.previousReport !== undefined && (!isRecord(value.previousReport)
@@ -85,7 +87,9 @@ function isSavedStudySession(value: unknown): value is SavedStudySession {
     || (value.previousReport.overflowText !== undefined && typeof value.previousReport.overflowText !== 'string'))) return false;
   if (!Array.isArray(value.citedPassageIds) || !value.citedPassageIds.every(id => typeof id === 'string')) return false;
   const citedPassageIds = value.citedPassageIds as string[];
-  if (value.version !== 1
+  if ((!allowMissingId && (typeof value.id !== 'string' || !value.id))
+    || (allowMissingId && value.id !== undefined && (typeof value.id !== 'string' || !value.id))
+    || value.version !== 1
     || (value.overflowText !== undefined && typeof value.overflowText !== 'string')
     || typeof value.savedAt !== 'number'
     || !Number.isFinite(value.savedAt)
@@ -109,6 +113,50 @@ function isSavedStudySession(value: unknown): value is SavedStudySession {
     && expectedCitations.every(id => citedPassageIds.includes(id));
 }
 
+function normalizeEvaluation(value: StudyEvaluation): StudyEvaluation {
+  return {
+    topic: value.topic,
+    nodes: value.nodes.map(({ id, label, description, status, evidence }) => ({ id, label, description, status, evidence })),
+    edges: value.edges.map(({ from, to, label }) => ({ from, to, label })),
+    feedback: value.feedback.map(({ statement, status, explanation }) => ({ statement, status, explanation })),
+    ...(value.assessments ? {
+      assessments: value.assessments.map(({ conceptId, verdict, confidence, studentEvidence, sourceLineIds, explanation, followUp }) => ({
+        conceptId, verdict, confidence, studentEvidence, sourceLineIds: [...sourceLineIds], explanation, followUp,
+      })),
+    } : {}),
+  };
+}
+
+function normalizeSavedStudy(value: SavedStudySession): SavedStudySession {
+  return {
+    id: value.id,
+    version: 1,
+    savedAt: value.savedAt,
+    source: {
+      id: value.source.id,
+      title: value.source.title,
+      pdfSha256: value.source.pdfSha256,
+      contentSha256: value.source.contentSha256,
+    },
+    map: {
+      topic: value.map.topic,
+      nodes: value.map.nodes.map(({ id, label, description, status, evidence }) => ({ id, label, description, status, evidence })),
+      edges: value.map.edges.map(({ from, to, label }) => ({ from, to, label })),
+    },
+    transcript: value.transcript,
+    evaluation: value.evaluation ? normalizeEvaluation(value.evaluation) : null,
+    phase: value.phase,
+    citedPassageIds: [...value.citedPassageIds],
+    ...(value.overflowText !== undefined ? { overflowText: value.overflowText } : {}),
+    ...(value.previousReport ? {
+      previousReport: {
+        transcript: value.previousReport.transcript,
+        evaluation: normalizeEvaluation(value.previousReport.evaluation),
+        ...(value.previousReport.overflowText !== undefined ? { overflowText: value.previousReport.overflowText } : {}),
+      },
+    } : {}),
+  };
+}
 export async function createSourceIdentity(source: DemoSource, pdfSha256: string): Promise<StudySourceIdentity> {
   const content = JSON.stringify({
     id: source.id,
@@ -131,23 +179,127 @@ export async function sha256(value: string | ArrayBuffer): Promise<string> {
   return Array.from(new Uint8Array(digest), byte => byte.toString(16).padStart(2, '0')).join('');
 }
 
+export type SavedStudiesRead =
+  | { status: 'empty' }
+  | { status: 'valid'; value: SavedStudySession[] }
+  | { status: 'invalid' }
+  | { status: 'unavailable' };
 export function readSavedStudy(storage?: StorageLike): SavedStudyRead {
-  let target: StorageLike;
+  const result = readSavedStudies(storage);
+  if (result.status === 'valid') return { status: 'valid', value: result.value[0] };
+  if (result.status === 'empty') return { status: 'empty' };
+  return { status: result.status };
+}
+
+export function writeSavedStudy(value: SavedStudySession, storage?: StorageLike): SavedStudySession[] {
+  if (!isSavedStudySession(value)) throw new Error('The saved study data is invalid.');
+  const safeValue = normalizeSavedStudy(value);
+  const target = resolveStorage(storage);
+  if (!target) throw new Error('Saved study storage is unavailable.');
+  const existing = readSavedStudies(target);
+  if (existing.status === 'unavailable') throw new Error('Saved study storage is unavailable.');
+  const values = existing.status === 'valid' ? existing.value : [];
+  const next = [safeValue, ...values.filter(item => item.id !== safeValue.id)]
+    .sort((a, b) => b.savedAt - a.savedAt);
+  target.setItem(STORAGE_KEY, JSON.stringify(next));
   try {
-    target = storage ?? window.localStorage;
+    target.removeItem(LEGACY_STORAGE_KEY);
+  } catch {
+    // The v2 history has been saved successfully; a stale legacy copy is harmless.
+  }
+  return next;
+}
+
+export function deleteSavedStudy(id: string, storage?: StorageLike): SavedStudySession[] {
+  const target = resolveStorage(storage);
+  if (!target) throw new Error('Saved study storage is unavailable.');
+  const existing = readSavedStudies(target);
+  if (existing.status === 'unavailable') throw new Error('Saved study storage is unavailable.');
+  const next = (existing.status === 'valid' ? existing.value : []).filter(item => item.id !== id);
+  if (next.length) target.setItem(STORAGE_KEY, JSON.stringify(next));
+  else target.removeItem(STORAGE_KEY);
+  return next;
+}
+
+export function clearSavedStudies(storage?: StorageLike): void {
+  const target = resolveStorage(storage);
+  if (!target) throw new Error('Saved study storage is unavailable.');
+  target.removeItem(STORAGE_KEY);
+  target.removeItem(LEGACY_STORAGE_KEY);
+}
+export function matchesSource(saved: SavedStudySession, current: StudySourceIdentity): boolean {
+  return saved.source.id === current.id
+    && saved.source.pdfSha256 === current.pdfSha256
+    && saved.source.contentSha256 === current.contentSha256;
+}
+
+export function citationsMatchSource(saved: SavedStudySession, source: DemoSource): boolean {
+  const availableIds = new Set(source.referenceLines.map(line => line.id));
+  return saved.citedPassageIds.every(id => availableIds.has(id))
+    && (saved.previousReport?.evaluation.assessments ?? []).every(item => item.sourceLineIds.every(id => availableIds.has(id)));
+}
+
+function readLegacyStudy(target: StorageLike): SavedStudiesRead {
+  let raw: string | null;
+  try {
+    raw = target.getItem(LEGACY_STORAGE_KEY);
   } catch {
     return { status: 'unavailable' };
   }
+  if (raw === null) return { status: 'empty' };
+  let parsed: unknown = null;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    // Fall through and remove the malformed legacy payload.
+  }
+  if (isSavedStudySession(parsed, true)) {
+    const migrated = normalizeSavedStudy({ ...parsed, id: parsed.id || `legacy-${parsed.savedAt}` });
+    try {
+      target.setItem(STORAGE_KEY, JSON.stringify([migrated]));
+      target.removeItem(LEGACY_STORAGE_KEY);
+      return { status: 'valid', value: [migrated] };
+    } catch {
+      return { status: 'unavailable' };
+    }
+  }
+  try {
+    target.removeItem(LEGACY_STORAGE_KEY);
+    return { status: 'invalid' };
+  } catch {
+    return { status: 'unavailable' };
+  }
+}
+
+export function readSavedStudies(storage?: StorageLike): SavedStudiesRead {
+  let target: StorageLike;
+  const resolved = resolveStorage(storage);
+  if (!resolved) {
+    return { status: 'unavailable' };
+  }
+  target = resolved;
   let raw: string | null;
   try {
     raw = target.getItem(STORAGE_KEY);
   } catch {
     return { status: 'unavailable' };
   }
-  if (raw === null) return { status: 'empty' };
+  if (raw === null) return readLegacyStudy(target);
   try {
     const parsed: unknown = JSON.parse(raw);
-    if (isSavedStudySession(parsed)) return { status: 'valid', value: parsed };
+    if (Array.isArray(parsed)) {
+      const values = parsed.filter(item => isSavedStudySession(item)).map(normalizeSavedStudy);
+      const normalizedJson = JSON.stringify(values);
+      if (raw !== normalizedJson) {
+        try {
+          target.setItem(STORAGE_KEY, normalizedJson);
+        } catch {
+          return { status: 'unavailable' };
+        }
+      }
+      if (values.length) return { status: 'valid', value: values };
+      if (parsed.length === 0) return { status: 'empty' };
+    }
   } catch {
     // Treat malformed JSON like any other invalid versioned payload.
   }
@@ -159,23 +311,15 @@ export function readSavedStudy(storage?: StorageLike): SavedStudyRead {
   }
 }
 
-export function writeSavedStudy(value: SavedStudySession, storage?: StorageLike): void {
-  if (!isSavedStudySession(value)) throw new Error('The saved study data is invalid.');
-  (storage ?? window.localStorage).setItem(STORAGE_KEY, JSON.stringify(value));
+export function createSavedStudyId(): string {
+  return globalThis.crypto?.randomUUID?.()
+    ?? `study-${Date.now()}-${Math.random().toString(36).slice(2)}`;
 }
 
-export function deleteSavedStudy(storage?: StorageLike): void {
-  (storage ?? window.localStorage).removeItem(STORAGE_KEY);
-}
-
-export function matchesSource(saved: SavedStudySession, current: StudySourceIdentity): boolean {
-  return saved.source.id === current.id
-    && saved.source.pdfSha256 === current.pdfSha256
-    && saved.source.contentSha256 === current.contentSha256;
-}
-
-export function citationsMatchSource(saved: SavedStudySession, source: DemoSource): boolean {
-  const availableIds = new Set(source.referenceLines.map(line => line.id));
-  return saved.citedPassageIds.every(id => availableIds.has(id))
-    && (saved.previousReport?.evaluation.assessments ?? []).every(item => item.sourceLineIds.every(id => availableIds.has(id)));
+function resolveStorage(storage?: StorageLike): StorageLike | null {
+  try {
+    return storage ?? window.localStorage;
+  } catch {
+    return null;
+  }
 }
