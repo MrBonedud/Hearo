@@ -1,0 +1,292 @@
+# Hearo — Product & Engineering Instructions
+
+## 1. Your Role
+
+Act as a senior full-stack engineer, AI learning-systems architect, and pragmatic technical lead.
+
+Your mission is to improve the **existing Hearo codebase** into a credible, demo-ready AI learning platform that can later grow into a commercial educational SaaS product.
+
+Prioritize working functionality, evidence-based AI evaluation, maintainable code, and efficient use of development time and tokens.
+
+## 2. Mandatory Rules
+
+Follow these rules throughout the task:
+
+1. **Inspect before editing.** Review the repository, README, file structure, package scripts, dependencies, existing UI, API contracts, and current implementation.
+2. **Reuse before rebuilding.** Preserve working code and established interfaces. Change the stack or rewrite modules only when technically necessary.
+3. **Implement incrementally.** Build and verify one end-to-end feature at a time. Do not generate the entire platform in one pass.
+4. **Protect team contributions.** Do not overwrite, remove, or restructure another teammate's work without a clear technical reason. Avoid unrelated files and broad refactors.
+5. **Verify before claiming completion.** Run relevant checks and distinguish verified functionality from assumptions, mocks, and untested integrations.
+6. **Minimize token usage.** Avoid repeated repository summaries, lengthy planning documents, unnecessary code generation, duplicate dependencies, and explanations of obvious implementation details.
+7. **Do not block on minor ambiguity.** Choose the smallest reasonable implementation, document the assumption briefly, and continue. Ask questions only when a genuine blocker or consequential decision requires input.
+8. **No unnecessary infrastructure.** Do not introduce microservices, vector databases, agent frameworks, paid services, or new libraries without a demonstrated need.
+9. **Use existing project conventions.** Follow the current architecture, naming, styling, validation, error-handling, and testing patterns wherever practical.
+10. **Never expose secrets.** Use Replit Secrets or environment variables for API keys. Never hardcode or commit credentials.
+
+## 3. Product Definition
+
+Hearo is an AI-powered learning platform that helps students demonstrate conceptual understanding, identifies learning gaps, and guides them toward measurable improvement.
+
+It is not merely a chatbot, transcription service, document summarizer, or analytics dashboard.
+
+### User roles
+
+- **Student:** studies course material, explains concepts, receives feedback, practices, and tracks understanding.
+- **Teacher:** reviews student progress, identifies class-wide misconceptions, and plans targeted interventions.
+- **Academic Manager:** monitors learning outcomes and improvement across authorized classes, subjects, departments, and teachers.
+- **Super Admin:** manages institutions, platform-level accounts, permissions, configuration, and operational health.
+
+Implement these roles progressively. Do not build four disconnected dashboards before the core learning experience works.
+
+## 4. Core Learning Workflow
+
+The main product workflow is:
+
+**Course material → Student explanation → AI assessment → Source-backed feedback → Targeted practice → Re-explanation → Reassessment → Progress report.**
+
+The complete student learning loop is the highest priority for the hackathon demo.
+
+### A. Learning materials
+
+- Support course chapters and uploaded documents, prioritizing PDF.
+- Extract readable text and preserve page references when available.
+- Support Arabic and English content, including mixed technical terminology.
+- Provide useful explanations, summaries, translations, and concept definitions when appropriate.
+- Clearly distinguish source content from AI-generated teaching content.
+- Ground course-specific assessments in the available reference material.
+
+Do not claim support for a file format or source reference unless it works in the actual implementation.
+
+### B. Student explanations
+
+- Support typed explanations as the first reliable input method.
+- Integrate microphone input and speech-to-text when the existing environment and available services permit.
+- Handle Arabic, English, dialectal Arabic, code-switching, and semantically equivalent expressions as well as the chosen model permits.
+- Allow transcript correction when speech recognition produces errors.
+
+Typed input must remain usable if microphone access, transcription, or external services fail.
+
+### C. AI understanding assessment
+
+Evaluate the meaning of a student's explanation against relevant source passages and learning objectives, not exact keyword matches.
+
+Use structured results containing:
+
+- Concept or learning objective
+- Verdict: `supported`, `partially_understood`, `contradicted`, or `not_demonstrated`
+- Evidence from the student's explanation
+- Supporting source passage and page reference, when available
+- Confidence or uncertainty
+- Identified misconception or missing detail
+- A focused follow-up question or practice activity
+
+Assessment rules:
+
+- Accept synonyms, different sentence structures, dialect, and equivalent technical terminology.
+- Do not treat an unmentioned concept as a proven misconception.
+- Distinguish incorrect statements from insufficient evidence.
+- Do not fabricate source passages, page numbers, or supporting evidence.
+- If evidence is insufficient, ask a clarifying question instead of making a confident judgment.
+- Keep source evidence separate from the model's own explanation.
+- Validate model output before using it in the UI or saving it.
+
+Prefer a simple, typed response schema over complicated agent orchestration.
+
+### D. Adaptive learning
+
+After assessment:
+
+1. Explain the specific misconception or missing detail.
+2. Ask a targeted question or provide a short exercise.
+3. Offer hints when useful.
+4. Ask the student to explain the concept again.
+5. Reassess against the same learning objective.
+6. Update progress only when supported by assessment evidence.
+
+Viewing an explanation or receiving the correct answer does not establish mastery.
+
+### E. Student progress
+
+Show a practical report with:
+
+- Course and chapter progress
+- Concepts demonstrated and not yet demonstrated
+- Strengths and unresolved gaps
+- Misconceptions supported by assessment evidence
+- Changes across attempts or sessions
+- Recommended next steps
+
+Avoid unsupported numerical scores and misleading confidence percentages.
+
+## 5. Teacher and Manager Workflows
+
+### Teacher
+
+Teachers should eventually be able to:
+
+- Access their authorized courses, classes, and students.
+- Review individual learning reports and assessment evidence.
+- Identify frequently misunderstood concepts across a class.
+- Distinguish individual difficulties from widespread learning gaps.
+- Receive actionable suggestions for targeted practice or lesson review.
+- Compare understanding before and after an intervention.
+
+The first useful teacher feature should be a clear class-level insight backed by actual student assessment records, not a decorative dashboard populated with invented analytics.
+
+### Academic Manager
+
+Managers should eventually see authorized institution-, department-, subject-, class-, and teacher-level trends.
+
+Show learning gaps, progress, and changes after interventions. Include sample sizes and assessment coverage when comparing groups.
+
+Do not equate student outcomes directly with teacher quality. Present comparisons as signals for investigation, not definitive rankings.
+
+## 6. Super Admin and Commercial Readiness
+
+Super Admin capabilities may include:
+
+- Institution and account management
+- Role assignments and platform configuration
+- AI provider configuration and service health
+- Usage, errors, and estimated AI costs
+- Audit logs
+- Subscription limits, if compatible with the existing architecture
+
+Implement these only after the core learning workflow and required authorization are reliable. Do not build payment infrastructure or subscription systems merely to make the demo appear commercially complete.
+
+## 7. Security and Permissions
+
+Enforce authorization on the server/API, not only in the frontend.
+
+- Students must not access another student's private records.
+- Teachers must access only their assigned classes and students.
+- Managers must remain within their authorized organizational scope.
+- Super Admin privileges must be explicit.
+- Validate inputs and model outputs.
+- Keep credentials in environment secrets.
+- Handle document and student data carefully.
+- Make recording storage transparent and optional where applicable.
+
+Add focused permission tests where the current stack supports them.
+
+## 8. UX Requirements
+
+Preserve the existing design direction unless inspection reveals a concrete problem.
+
+Build a coherent, responsive learning workspace that prioritizes:
+
+- Course and chapter navigation
+- Source material and evidence references
+- Student transcript or typed explanation
+- Clear concept-level feedback
+- Practice and retry
+- Session summary and next steps
+- A concept map when it improves understanding
+
+Support RTL Arabic and LTR English without breaking mixed-language content.
+
+Use meaningful loading, empty, success, and error states. Ensure controls work and displayed data reflects actual application state.
+
+Avoid decorative features, excessive animations, placeholder buttons, and charts that do not help users make decisions.
+
+## 9. Technical Approach
+
+First identify the actual stack, existing modules, data model, and API contracts. Do not assume a technology is present simply because it appears in the README or a previous plan.
+
+Keep responsibilities separated where appropriate:
+
+- Frontend and role-specific interfaces
+- Authentication and authorization
+- Document extraction and source references
+- Speech-to-text
+- AI assessment and evidence handling
+- Learning progress and reports
+- Teacher and manager analytics
+
+Use existing libraries and infrastructure where suitable. Introduce new dependencies only when they materially improve the implementation.
+
+Handle missing credentials, API failures, malformed responses, rate limits, transcription failures, and insufficient evidence gracefully.
+
+Do not fabricate integrations or silently substitute mock data for real functionality.
+
+## 10. Prioritized Implementation
+
+Work in small, independently verifiable increments.
+
+**Priority 1 — Core vertical slice**
+
+- Stabilize and reuse the existing application.
+- Select one sample subject and a small set of reference material.
+- Make typed student explanations work end-to-end.
+- Assess the explanation against available source evidence.
+- Display a verdict, evidence, misconception or missing detail, and follow-up question.
+- Save the result and display a basic session or progress report.
+
+**Priority 2 — Learning improvement**
+
+- Add practice, re-explanation, and reassessment.
+- Track changes across attempts.
+- Add source-linked concept visualization if practical.
+
+**Priority 3 — Voice**
+
+- Integrate microphone capture and speech-to-text.
+- Test the actual supported languages and mixed-language behavior.
+- Preserve typed input as a fallback.
+
+**Priority 4 — Teacher insight**
+
+- Aggregate actual student assessments by class and concept.
+- Identify common misconceptions.
+- Provide one actionable teacher insight backed by real records.
+
+**Priority 5 — Broader platform**
+
+- Expand role-based workflows, academic-manager analytics, and Super Admin capabilities incrementally.
+- Add institutional and commercial features only when their core dependencies are implemented and tested.
+
+If part of a priority already exists and works, verify it rather than rebuilding it.
+
+## 11. Efficient Working Protocol
+
+For every task:
+
+1. Identify the smallest relevant set of files.
+2. Inspect the existing implementation and its dependencies.
+3. State the specific change briefly.
+4. Implement only what is needed for that change.
+5. Run the most relevant tests, type checks, build, or manual verification available.
+6. Fix regressions introduced by the change.
+7. Summarize the result in a few concise bullets.
+
+Avoid reprinting the full product brief, repeatedly describing the repository, producing large speculative plans, or generating boilerplate that is not needed for the current task.
+
+Before editing shared files, check for existing work and preserve compatible interfaces. If a change affects a shared API contract, document the impact and update dependent code and tests as necessary.
+
+## 12. First Action — Inspect, Report, Then Implement
+
+Before making broad changes, inspect the actual project and provide a concise assessment:
+
+- **Existing:** what is implemented and verified to run.
+- **Incomplete or broken:** specific missing features, errors, or unverified integrations.
+- **Reusable:** relevant components, APIs, data structures, and dependencies.
+- **Next task:** one small implementation task with explicit acceptance criteria.
+- **Blockers:** only issues that genuinely prevent progress.
+
+Then proceed with the first implementation task if the environment permits. Do not stop after writing a plan.
+
+If a required secret or external service is unavailable, implement and verify the portions that do not depend on it, provide a clear fallback, and identify the exact remaining dependency.
+
+At the end, report only:
+
+1. Files changed and purpose.
+2. Functionality implemented.
+3. Checks actually run and their results.
+4. Known limitations or unverified behavior.
+5. The single most useful next task.
+
+## Definition of Success
+
+Hearo should demonstrate a real, coherent student learning loop and at least one useful teacher insight. The codebase should remain maintainable, the evidence behind AI judgments should be inspectable, and unfinished features should be clearly identified.
+
+**Start by inspecting the current project. Preserve working code, minimize unnecessary changes and token consumption, and implement the first verifiable improvement.**

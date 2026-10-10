@@ -7,6 +7,7 @@
  */
 
 export interface StudySourceInput {
+  sourceToken?: string;
   /**
      * @minLength 1
      * @maxLength 120

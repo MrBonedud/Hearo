@@ -9,6 +9,7 @@ import type { StudyEdge } from './studyEdge';
 import type { StudyNode } from './studyNode';
 
 export interface StudyEvaluationInput {
+  sourceToken?: string;
   /**
      * @minLength 1
      * @maxLength 120
