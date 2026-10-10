@@ -1,0 +1,16 @@
+uploads = []
+generated = []
+
+[[outputs]]
+id = "D9P9CN1WPLY8mSeFCGxyP"
+uri = "file://generated-artifacts/hearo-system-design-ar.pdf"
+type = "pdf"
+title = "Hearo Arabic System Design Demo Guide"
+description = "Three-page Arabic-first reference with 10 numbered lines, six linked concepts, two source-cited misconceptions, and focused review questions. Hearo-authored demo material, not an external textbook."
+logical_id = "4dedd53b-9fe9-4c28-b75f-e88da188067c"
+content_hash = "sha256:36318bb17bb0b6b4a4435522c3c392f11d21947b8ef508e434d65aab0cc51a53"
+size = 235186
+mtime_ms = 1791632810421
+storage_uri = "gcs://replit-rams-assets-kirk/rams/assets/repl:f5eb4a40-0d19-49b7-a42a-e724840955a9/4dedd53b-9fe9-4c28-b75f-e88da188067c/315992ad-5e6b-4e5a-b38e-a9567fef3eb5"
+storage_version_token = "1791632868401335"
+content_type = "application/pdf"
