@@ -7,3 +7,5 @@
 - [Public checking costs](public-checking-costs.md) — Count ambiguous paid attempts conservatively; anonymous session limits are not per-person or exact monetary caps.
 - [Owner checking policy](owner-checking-policy.md) — Trusted operations controls only; limit changes preserve usage and serialize with reservations.
 - [Demo evidence](demo-evidence.md) — Caption replay is not fresh recognition; report failed requests and benchmark interference alongside successful verdicts.
+- [Feedback experience](feedback-experience.md) — Supportive source-backed cards, silent by default, with optional gentle tones rather than game penalties.
+- [Frontend test execution](frontend-test-execution.md) — Bundled React SSR tests need compatible Node requires; discover nested test files and reject zero-test passes.

@@ -9,6 +9,8 @@ import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import { ErrorBoundary } from '@/components/error-boundary';
 import { ApprovedPdfSource, SourcePassages, type SelectedSource } from '@/components/approved-pdf-source';
 import { AssessmentEvidence } from '@/components/assessment-evidence';
+import { FeedbackSoundToggle } from '@/components/feedback-sound-toggle';
+import { useFeedbackSounds } from '@/hooks/use-feedback-sounds';
 import { useLiveAssessment } from '@/hooks/use-live-assessment';
 import { useSpeechTranscription } from '@/hooks/use-speech-transcription';
 import { isCheckedPrefix } from '@/lib/assessment-queue';
@@ -295,6 +297,7 @@ function App() {
     topic: studyMap.topic, referenceText, transcript: transcript.trim(),
     sourceToken: selectedSource.sourceToken, nodes: studyMap.nodes, edges: studyMap.edges,
   } : null;
+  const sounds = useFeedbackSounds(assessmentSessionKey);
   const live = useLiveAssessment({
     input: assessmentInput,
     sessionKey: assessmentSessionKey,
@@ -302,6 +305,7 @@ function App() {
     paused: allowance?.available !== true,
     onSettled: () => { void allowanceQuery.refetch(); },
     onResult: (result, checked) => {
+      sounds.announce(result.assessments ?? []);
       setEvaluation(result);
       setCheckedTranscript(checked);
       setPreviousReport({ transcript: checked, evaluation: result });
@@ -503,6 +507,7 @@ function App() {
         topic: studyMap.topic, referenceText, transcript: text, sourceToken: selectedSource.sourceToken,
         nodes: studyMap.nodes, edges: studyMap.edges,
       }, false, 'final');
+      sounds.announce(result.assessments ?? []);
       setEvaluation(result);
       setCheckedTranscript(text);
       setPreviousReport({ transcript: text, evaluation: result, overflowText: voiceOverflow });
@@ -646,7 +651,7 @@ function App() {
         <section className="explain-panel panel">
           <div className="panel-heading"><div><span className="panel-index">01</span><h2>Explain it your way</h2></div><span className="silence-tag"><span /> SILENT MODE</span></div>
           <p className="panel-hint" dir="auto">اشرح بالعربية أو الإنجليزية. Speak or type in your own words. Live checking updates the map after pauses; Hearo never speaks back.</p>
-          <label className="live-toggle"><input type="checkbox" checked={liveEnabled} disabled={finishing} onChange={event => setLiveEnabled(event.target.checked)} data-testid="toggle-live-session" /><span>التحقق المباشر · Live checking</span></label>
+          <label className="live-toggle"><input type="checkbox" checked={liveEnabled} disabled={finishing} onChange={event => setLiveEnabled(event.target.checked)} data-testid="toggle-live-session" /><span>التحقق المباشر · Live checking</span></label><FeedbackSoundToggle enabled={sounds.enabled} onToggle={sounds.toggle} supported={sounds.supported} />
           <div className={allowance && (!allowance.available || allowance.remainingChecks <= Math.max(1, Math.ceil(allowance.dailyLimit * 0.1))) ? 'saved-study-warning' : 'saved-study-status'} role="status" aria-live="polite" data-testid="status-check-allowance">
             {allowance ? <>
               <p>التحققات المتبقية · Checks remaining in this browser: <strong>{allowance.remainingChecks} / {allowance.dailyLimit}</strong>.</p>
@@ -701,6 +706,8 @@ function App() {
             <div className="live-claims-head"><span className="mini-eye" /><span>WHAT YOU’VE SAID</span><small>Claims appear as you explain</small></div>
             {claims.length ? <ul>{claims.map((claim, index) => <li key={`${index}-${claim.slice(0, 16)}`} data-testid={`claim-${index}`}><span>{String(index + 1).padStart(2, '0')}</span><bdi>{claim}</bdi></li>)}</ul> : <p className="claims-empty">Your ideas will gather here, just as you said them.</p>}
           </div>
+          {hasCheckedPrefix && evaluation?.assessments && checkedTranscript !== transcript.trim() && <p className="panel-hint" data-testid="text-checked-scope">هذه البطاقات تغطي الجزء الذي تم التحقق منه فقط · These cards cover only the checked text; newer words await a check.</p>}
+          {hasCheckedPrefix && evaluation?.assessments && selectedSource && <AssessmentEvidence assessments={evaluation.assessments.filter(item => item.verdict !== 'not_demonstrated')} source={selectedSource.source} fileUrl={selectedSource.fileUrl} map={studyMap} onPractice={() => document.getElementById('transcript-input')?.focus()} />}
           {error && <div className="inline-error" role="alert" data-testid="status-session-error"><span>!</span>{error}<button type="button" onClick={() => setError('')} aria-label="Dismiss message"><X size={14} /></button></div>}
           <button type="button" className="primary-button finish-button" onClick={() => void finishStudy()} disabled={finishing} data-testid="button-finish">
             {finishing ? <><span className="button-loader" /> Completing your final check…</> : <>إنهاء الجلسة وعرض التقرير · Finish &amp; report <ArrowRight size={16} /></>}
@@ -721,7 +728,6 @@ function App() {
             <button type="button" className="back-link" onClick={() => downloadReport(true)} data-testid="button-download-previous-report">تنزيل التقرير السابق · Download previous report</button>
           </div>}
            <ConceptMap map={visibleMap!} assessments={hasCheckedPrefix ? evaluation?.assessments : undefined} assessed={hasCheckedPrefix && Boolean(evaluation)} />
-          {hasCheckedPrefix && evaluation?.assessments && selectedSource && <AssessmentEvidence assessments={evaluation.assessments.filter(item => item.verdict !== 'not_demonstrated')} source={selectedSource.source} fileUrl={selectedSource.fileUrl} map={studyMap} onPractice={() => document.getElementById('transcript-input')?.focus()} />}
           {selectedSource && <SourcePassages source={selectedSource.source} fileUrl={selectedSource.fileUrl} />}
            <div className="map-foot"><span className="map-foot-mark"><BookOpen size={14} /></span><span>Green: supported · Red: contradicted · Amber: partial or unverified · Grey: not mentioned. Earlier checks cover only the words already checked.</span></div>
         </aside>

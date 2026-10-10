@@ -656,3 +656,20 @@ button:disabled { opacity: .58; }
 .s-ok { color: #8fe0b0; } .s-partial { color: #e8c874; } .s-wrong { color: #f2a5a5; } .s-skip { color: #b1aec5; }
 .latency-note { font-size: .78rem; color: #b9b4d4; margin: 6px 0; } .latency-note small { display: block; color: #8d89a8; }
 .rec-file.is-disabled { opacity: .45; cursor: not-allowed; }
+
+.feedback-sound-toggle { display: inline-flex; align-items: center; gap: 6px; margin-inline-start: 10px; padding: 5px 10px; border-radius: 999px; border: 1px solid var(--line); background: transparent; color: inherit; font: inherit; font-size: .8rem; cursor: pointer; }
+.feedback-sound-toggle[aria-pressed="true"] { border-color: var(--green); }
+.feedback-card { padding: 14px; margin: 10px 0; border-radius: 12px; animation: feedback-in .35s ease-out; transition: background-color .2s ease, border-color .2s ease; }
+.feedback-card.verdict-supported { border-inline-start-color: var(--green); }
+.feedback-card.verdict-contradicted { border-inline-start-color: var(--red); }
+.feedback-card.verdict-partially_understood { border-inline-start-color: var(--gold); }
+.feedback-card.verdict-uncertain, .feedback-card.verdict-not_demonstrated { border-inline-start-color: var(--gray); }
+.assessment-verdict { display: inline-flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.feedback-quote span { display: block; font-size: .75rem; opacity: .7; }
+.feedback-ai { margin: 8px 0; }
+.feedback-compare { display: grid; gap: 8px; margin: 8px 0; }
+.feedback-compare > div { padding: 8px; border-radius: 8px; border: 1px solid var(--line); overflow-wrap: anywhere; }
+.feedback-compare span { display: block; font-size: .75rem; opacity: .7; }
+.feedback-details summary { cursor: pointer; padding: 6px 0; }
+@keyframes feedback-in { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { .feedback-card { animation: none; transition: none; } }
