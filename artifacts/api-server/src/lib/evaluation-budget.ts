@@ -47,6 +47,40 @@ type BudgetClient = {
 };
 type BudgetPool = { connect: () => Promise<BudgetClient> };
 
+export async function readEvaluationAllowance(
+  sessionId: string,
+  database?: BudgetPool,
+  limits = { session: DAILY_SESSION_CHECKS, overall: DAILY_GLOBAL_CHECKS },
+) {
+  const pool = database ?? (await import("@workspace/db")).pool;
+  const client = await pool.connect();
+  try {
+    // One read-only snapshot: no reservation, cleanup, AI call or counter lock.
+    const { rows: [row] } = await client.query(`
+      WITH clock AS MATERIALIZED (SELECT clock_timestamp() AS instant)
+      SELECT ((date_trunc('day', instant AT TIME ZONE 'UTC') + interval '1 day')
+          AT TIME ZONE 'UTC') AS reset_at,
+        COALESCE((SELECT used FROM evaluation_daily_budgets
+          WHERE day = (instant AT TIME ZONE 'UTC')::date AND scope = $1), 0) AS session_used,
+        COALESCE((SELECT used FROM evaluation_daily_budgets
+          WHERE day = (instant AT TIME ZONE 'UTC')::date AND scope = 'overall'), 0) >= $2 AS overall_exhausted
+      FROM clock
+    `, [`session:${sessionId}`, limits.overall]);
+    const remainingChecks = Math.max(0, limits.session - Number(row.session_used));
+    const blockedBy = row.overall_exhausted ? "overall" as const
+      : remainingChecks === 0 ? "session" as const : undefined;
+    return {
+      remainingChecks,
+      dailyLimit: limits.session,
+      resetAt: new Date(row.reset_at as string | Date).toISOString(),
+      available: !blockedBy,
+      ...(blockedBy ? { blockedBy } : {}),
+    };
+  } finally {
+    client.release();
+  }
+}
+
 export async function reserveEvaluation(
   sessionId: string,
   database?: BudgetPool,

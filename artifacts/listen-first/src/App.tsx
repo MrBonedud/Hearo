@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { usePrepareStudy } from '@workspace/api-client-react';
 import type { StudyEvaluation, StudyMap } from '@workspace/api-client-react';
 import {
   ArrowLeft, ArrowRight, BookOpen, Check, CheckCircle2, ChevronDown, CircleHelp,
@@ -26,6 +25,7 @@ import { OfflineSample } from '@/components/offline-sample';
 import { LiveWaveform } from '@/components/live-waveform';
 import NotFound from '@/pages/not-found';
 import { Route, Switch, useLocation, Router as WouterRouter } from 'wouter';
+import { getGetStudyAllowanceQueryKey, useGetStudyAllowance, usePrepareStudy } from '@workspace/api-client-react';
 
 const queryClient = new QueryClient();
 type Phase = 'setup' | 'session' | 'review';
@@ -241,6 +241,18 @@ function App() {
   const [sourceIdentity, setSourceIdentity] = useState<StudySourceIdentity | null>(null);
   const [storageMessage, setStorageMessage] = useState('');
   const [sourceIdentityError, setSourceIdentityError] = useState('');
+  const allowanceQuery = useGetStudyAllowance({
+    query: {
+      queryKey: getGetStudyAllowanceQueryKey(),
+      enabled: phase === 'session',
+      staleTime: 0,
+      refetchInterval: phase === 'session' ? 30_000 : false,
+      refetchOnWindowFocus: true,
+      retry: false,
+    },
+  });
+  // Failed reads must not display an old balance as if it were current.
+  const allowance = allowanceQuery.isError ? undefined : allowanceQuery.data;
   const transcriptRef = useRef('');
   const changeTranscript = useCallback((text: string) => {
     transcriptRef.current = text;
@@ -263,6 +275,8 @@ function App() {
   const live = useLiveAssessment({
     input: assessmentInput,
     enabled: phase === 'session' && liveEnabled && !finishing && Boolean(selectedSource?.source.aiAvailable),
+    paused: allowance?.available !== true,
+    onSettled: () => { void allowanceQuery.refetch(); },
     onResult: (result, checked) => {
       setEvaluation(result);
       setCheckedTranscript(checked);
@@ -523,6 +537,20 @@ function App() {
           <div className="panel-heading"><div><span className="panel-index">01</span><h2>Explain it your way</h2></div><span className="silence-tag"><span /> SILENT MODE</span></div>
           <p className="panel-hint" dir="auto">اشرح بالعربية أو الإنجليزية. Speak or type in your own words. Live checking updates the map after pauses; Hearo never speaks back.</p>
           <label className="live-toggle"><input type="checkbox" checked={liveEnabled} disabled={finishing} onChange={event => setLiveEnabled(event.target.checked)} data-testid="toggle-live-session" /><span>التحقق المباشر · Live checking</span></label>
+          <div className={allowance && (!allowance.available || allowance.remainingChecks <= Math.max(1, Math.ceil(allowance.dailyLimit * 0.1))) ? 'saved-study-warning' : 'saved-study-status'} role="status" aria-live="polite" data-testid="status-check-allowance">
+            {allowance ? <>
+              <p>التحققات المتبقية · Checks remaining in this browser: <strong>{allowance.remainingChecks} / {allowance.dailyLimit}</strong>.</p>
+              <p>يتجدد الرصيد · Resets at <time dateTime={allowance.resetAt}>{new Date(allowance.resetAt).toISOString().replace('T', ' ').replace('.000Z', '')} UTC</time>.</p>
+              {!allowance.available ? <p>{allowance.blockedBy === 'overall'
+                ? 'بلغت الخدمة حدها اليومي · The shared service has reached its daily limit, even if this browser has checks left.'
+                : 'انتهى رصيد التحقق اليومي · No checks remain today.'} Automatic checks are paused. You can keep editing and download your last report.</p>
+                : allowance.remainingChecks <= Math.max(1, Math.ceil(allowance.dailyLimit * 0.1))
+                  ? <p>الرصيد أوشك على النفاد · Few checks remain. Pause live checking to save a check for your final report.</p> : null}
+              <p>Live and final checks use the same allowance. Failed AI attempts also count. Shared service availability may change.</p>
+            </> : <p>{allowanceQuery.isError
+              ? 'تعذر عرض الرصيد · Allowance is unavailable; automatic checks are paused. You can still request a final check, edit, and download your last report.'
+              : 'جارٍ تحميل الرصيد · Loading checking allowance…'}</p>}
+          </div>
           {sourceIdentityError && <p className="saved-study-warning" role="status">{sourceIdentityError}</p>}
           {storageMessage && <p className="saved-study-status" role="status" data-testid="status-storage">{storageMessage}</p>}
           {selectedSource && !selectedSource.source.aiAvailable && <p className="ai-unavailable" role="status">AI checking is not connected yet. You can still read and draft; your answer will not receive a simulated verdict.</p>}
@@ -559,7 +587,7 @@ function App() {
           <p className="panel-hint map-hint">Hearo-authored learning objectives grounded in selected passages from slides 4–10.</p>
           <StatusKey />
           <div className="live-check-status" role="status" data-testid="status-live-check">
-            {live.busy ? <><span className="button-loader" /> جارٍ التحقق بصمت · Checking silently…</> : !liveEnabled ? 'التحقق المباشر متوقف · Live checks paused' : live.error ? 'تعذر التحقق؛ تم إيقاف الطلبات التلقائية · Checks paused after an error; retry when ready' : checkedTranscript === transcript.trim() && evaluation ? 'تم التحقق من شرحك الحالي · Current explanation checked' : hasCheckedPrefix ? `تم التحقق من ${checkedTranscript.split(/\s+/).length} كلمة؛ الباقي قيد الانتظار · More words awaiting a check` : 'بانتظار شرحك · Waiting for your explanation'}
+            {live.busy ? <><span className="button-loader" /> جارٍ التحقق بصمت · Checking silently…</> : allowance?.available === false ? 'تم بلوغ الحد اليومي · Live checks paused until the UTC reset' : !liveEnabled ? 'التحقق المباشر متوقف · Live checks paused' : live.error ? 'تعذر التحقق؛ تم إيقاف الطلبات التلقائية · Checks paused after an error; retry when ready' : checkedTranscript === transcript.trim() && evaluation ? 'تم التحقق من شرحك الحالي · Current explanation checked' : hasCheckedPrefix ? `تم التحقق من ${checkedTranscript.split(/\s+/).length} كلمة؛ الباقي قيد الانتظار · More words awaiting a check` : 'بانتظار شرحك · Waiting for your explanation'}
           </div>
           {Boolean(live.error) && liveEnabled && <div className="live-check-error" role="alert"><p>{errorMessage(live.error)}</p><button type="button" className="back-link" disabled={live.busy || finishing} onClick={() => { if (assessmentInput) void live.check(assessmentInput, true).catch(() => undefined); }} data-testid="button-retry-live">إعادة المحاولة · Retry check</button></div>}
           {previousReport && <div className="live-check-error">

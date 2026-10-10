@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { createHmac, randomUUID } from "node:crypto";
 import express from "express";
 import test from "node:test";
-import { budgetSession, BUDGET_COOKIE, reserveEvaluation, verifiedSession } from "./evaluation-budget";
+import { budgetSession, BUDGET_COOKIE, readEvaluationAllowance, reserveEvaluation, verifiedSession } from "./evaluation-budget";
 import type { Request, Response } from "express";
 
 test("session identity is signed and survives a new request/instance", () => {
@@ -47,6 +47,38 @@ test("database failure rolls back and never grants allowance", async () => {
   assert.equal(released, true);
 });
 
+test("allowance reads only the current session, clamps exhausted counts and releases storage", async () => {
+  let queries = 0;
+  let released = 0;
+  let used = 0;
+  let overall = false;
+  const database = { connect: async () => ({
+    query: async (sql: string, values?: unknown[]) => {
+      queries++;
+      assert.doesNotMatch(sql, /\b(INSERT|UPDATE|DELETE|pg_advisory)\b/i);
+      assert.deepEqual(values, ["session:current-session", 5]);
+      return { rows: [{ reset_at: new Date("2026-10-11T00:00:00Z"), session_used: used, overall_exhausted: overall }] };
+    },
+    release: () => { released++; },
+  }) };
+  const read = () => readEvaluationAllowance("current-session", database, { session: 3, overall: 5 });
+  assert.deepEqual(await read(), { remainingChecks: 3, dailyLimit: 3, resetAt: "2026-10-11T00:00:00.000Z", available: true });
+  used = 2;
+  assert.equal((await read()).remainingChecks, 1);
+  used = 9;
+  assert.deepEqual(await read(), { remainingChecks: 0, dailyLimit: 3, resetAt: "2026-10-11T00:00:00.000Z", available: false, blockedBy: "session" });
+  overall = true;
+  used = 0;
+  assert.deepEqual(await read(), { remainingChecks: 3, dailyLimit: 3, resetAt: "2026-10-11T00:00:00.000Z", available: false, blockedBy: "overall" });
+  assert.equal(queries, 4);
+  assert.equal(released, 4);
+  await assert.rejects(readEvaluationAllowance("current-session", { connect: async () => ({
+    query: async () => { throw new Error("Synthetic read failure"); },
+    release: () => { released++; },
+  }) }));
+  assert.equal(released, 5);
+});
+
 test("PostgreSQL: concurrent instances, reconnects, both ceilings, and UTC reset", async () => {
   const { pool } = await import("@workspace/db");
   const originalConnect = pool.connect.bind(pool);
@@ -80,7 +112,9 @@ test("PostgreSQL: concurrent instances, reconnects, both ceilings, and UTC reset
     assert.equal(rows.find(row => row.scope === `session:${id}`).used, 3);
     // Move the exhausted day's counters to yesterday; a new UTC day starts empty.
     await pool.query(`UPDATE "${schema}".evaluation_daily_budgets SET day = day - 1`);
+    assert.equal((await readEvaluationAllowance(id, database, { session: 3, overall: 5 })).remainingChecks, 3);
     assert.equal((await reserveEvaluation(id, database, { session: 3, overall: 5 })).allowed, true);
+    assert.equal((await readEvaluationAllowance(id, database, { session: 3, overall: 5 })).remainingChecks, 2);
 
     // Exercise the real endpoint with exhausted counters, without paid calls.
     const router = (await import("../routes/study")).default;
@@ -113,10 +147,36 @@ test("PostgreSQL: concurrent instances, reconnects, both ceilings, and UTC reset
       headers: { "Content-Type": "application/json", "X-Forwarded-For": ip,
         Cookie: `${BUDGET_COOKIE}=${routeSession}.${signature}` },
     });
+    const allowanceUrl = url.replace("/evaluate", "/allowance");
+    const readAllowance = (cookie = `${BUDGET_COOKIE}=${routeSession}.${signature}`) =>
+      originalFetch(`${allowanceUrl}?sessionId=some-other-session`, { headers: { Cookie: cookie } });
     try {
       await pool.query(`INSERT INTO "${schema}".evaluation_daily_budgets (day, scope, used)
         VALUES ((clock_timestamp() AT TIME ZONE 'UTC')::date, $1, 30)`, [`session:${routeSession}`]);
       Object.defineProperty(pool, "connect", { configurable: true, value: database.connect });
+      const controlBefore = await originalConnect();
+      const before = await controlBefore.query(`SELECT scope, used, day::text FROM "${schema}".evaluation_daily_budgets ORDER BY scope`);
+      controlBefore.release();
+      const exhaustedRead = await readAllowance();
+      assert.equal(exhaustedRead.status, 200);
+      assert.equal(exhaustedRead.headers.get("Cache-Control"), "private, no-store");
+      assert.match(exhaustedRead.headers.get("Vary") ?? "", /Cookie/);
+      assert.equal(exhaustedRead.headers.get("Set-Cookie"), null);
+      const allowance = await exhaustedRead.json() as Record<string, unknown>;
+      assert.deepEqual(Object.keys(allowance).sort(), ["available", "blockedBy", "dailyLimit", "remainingChecks", "resetAt"]);
+      assert.equal(allowance.remainingChecks, 0);
+      assert.equal(allowance.blockedBy, "session");
+      assert.match(String(allowance.resetAt), /T00:00:00\.000Z$/);
+      const otherRead = await readAllowance("");
+      assert.equal((await otherRead.json() as { remainingChecks: number }).remainingChecks, 30);
+      assert.match(otherRead.headers.get("Set-Cookie") ?? "", /HttpOnly/);
+      const tamperedRead = await readAllowance(`${BUDGET_COOKIE}=${routeSession}.forged-signature`);
+      assert.equal((await tamperedRead.json() as { remainingChecks: number }).remainingChecks, 30);
+      assert.ok(tamperedRead.headers.get("Set-Cookie"));
+      const controlAfter = await originalConnect();
+      const after = await controlAfter.query(`SELECT scope, used, day::text FROM "${schema}".evaluation_daily_budgets ORDER BY scope`);
+      controlAfter.release();
+      assert.deepEqual(after.rows, before.rows, "Reads must not consume, insert or clean up counters");
       const sessionResponse = await send("192.0.2.1");
       assert.equal(sessionResponse.status, 429);
       const sessionError = await sessionResponse.json() as {
@@ -134,7 +194,17 @@ test("PostgreSQL: concurrent instances, reconnects, both ceilings, and UTC reset
       const overallResponse = await send("192.0.2.2");
       assert.equal(overallResponse.status, 429);
       assert.equal((await overallResponse.json() as { scope: string }).scope, "overall");
+      const overallRead = await readAllowance("");
+      const overallAllowance = await overallRead.json() as Record<string, unknown>;
+      assert.equal(overallAllowance.blockedBy, "overall");
+      assert.equal(overallAllowance.available, false);
+      assert.equal(overallAllowance.remainingChecks, 30);
+      assert.equal(Object.keys(overallAllowance).length, 5, "Do not expose global counts or session identifiers");
       Object.defineProperty(pool, "connect", { configurable: true, value: async () => { throw new Error("Synthetic database failure"); } });
+      const failedRead = await readAllowance();
+      assert.equal(failedRead.status, 503);
+      assert.equal((await failedRead.json() as { code: string }).code, "evaluation_budget_unavailable");
+      assert.equal(failedRead.headers.get("Cache-Control"), "private, no-store");
       const unavailable = await send("192.0.2.3");
       assert.equal(unavailable.status, 503);
       assert.equal((await unavailable.json() as { code: string }).code, "evaluation_budget_unavailable");

@@ -52,6 +52,8 @@ export * from './demoVerifyInputTopicId';
 export * from './demoVerifyResult';
 export * from './healthStatus';
 export * from './sourceLine';
+export * from './studyAllowance';
+export * from './studyAllowanceBlockedBy';
 export * from './studyCheckError';
 export * from './studyCheckErrorCode';
 export * from './studyCheckErrorScope';

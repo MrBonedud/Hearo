@@ -21,3 +21,12 @@ cookies can obtain another session. Only the shared ceiling bounds total usage.
 
 **How to apply:** Explain that limitation honestly, and do not claim that signing
 a cookie makes anonymous sessions resistant to recreation.
+
+Learner-facing allowance reads should expose only the requesting browser's count
+and whether the shared service can accept checks, not shared usage totals.
+
+**Why:** A shared counter includes other learners' activity; it is not this
+browser's allowance or a guarantee that its remaining checks can be spent.
+
+**How to apply:** Keep session balance distinct from shared-service availability.
+Do not accept a client-supplied session identifier for allowance reads.

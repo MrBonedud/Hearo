@@ -13,6 +13,20 @@ tags:
   - name: study
     description: Reference-grounded spoken study
 paths:
+  /study/allowance:
+    get:
+      operationId: getStudyAllowance
+      tags: [study]
+      summary: Read this signed browser session's daily allowance without running AI
+      responses:
+        "200":
+          description: Session allowance and shared-service availability; never other sessions' usage
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StudyAllowance"
+        "503":
+          description: Allowance storage or session signing is unavailable
   /study/demo:
     get:
       operationId: getDemoSource
@@ -194,6 +208,27 @@ paths:
           description: Invalid evaluation request
 components:
   schemas:
+    StudyAllowance:
+      type: object
+      required: [remainingChecks, dailyLimit, resetAt, available]
+      properties:
+        remainingChecks:
+          type: integer
+          minimum: 0
+          description: Remaining reservations for this browser session, including failed paid attempts
+        dailyLimit:
+          type: integer
+          minimum: 1
+        resetAt:
+          type: string
+          format: date-time
+          description: Next midnight UTC, measured by the database
+        available:
+          type: boolean
+          description: Both this session and the shared service have allowance at the time of reading
+        blockedBy:
+          type: string
+          enum: [session, overall]
     StudyCheckError:
       type: object
       required: [error]

@@ -1,6 +1,6 @@
 import OpenAI from "openai";
 import { raw, Router, type IRouter, type RequestHandler } from "express";
-import { EvaluateStudyBody, PrepareStudyBody } from "@workspace/api-zod";
+import { EvaluateStudyBody, PrepareStudyBody, GetStudyAllowanceResponse } from "@workspace/api-zod";
 import {
   SendDemoMessageBody,
   SendDemoMessageResponse,
@@ -17,7 +17,7 @@ import {
   matchesApprovedPdf, referenceText, sourceMetadata, validSourceToken,
 } from "../lib/approved-demo";
 import { checkWithFallback } from "../lib/checker-fallback";
-import { budgetSession, parseBudgetCookie, reserveEvaluation } from "../lib/evaluation-budget";
+import { budgetSession, parseBudgetCookie, readEvaluationAllowance, reserveEvaluation } from "../lib/evaluation-budget";
 
 const router: IRouter = Router();
 const lastEvaluationByClient = new Map<string, number>();
@@ -144,6 +144,23 @@ router.post("/study/prepare", (req, res) => {
   }
   // Opening the source and its authored objectives never needs an AI service.
   res.json(initialMap());
+});
+
+router.get("/study/allowance", parseBudgetCookie, async (req, res) => {
+  res.setHeader("Cache-Control", "private, no-store");
+  res.vary("Cookie");
+  try {
+    // Identity is derived only from our signed HttpOnly cookie, never query input.
+    const allowance = await readEvaluationAllowance(budgetSession(req, res));
+    res.json(GetStudyAllowanceResponse.parse(allowance));
+  } catch (error) {
+    req.log.error({ errorType: error instanceof Error ? error.name : "UnknownError" }, "Evaluation allowance unavailable");
+    res.setHeader("Retry-After", "60");
+    res.status(503).json({
+      code: "evaluation_budget_unavailable",
+      error: "تعذر عرض الرصيد الآن. يمكنك متابعة الكتابة وتنزيل تقريرك السابق. Checking allowance is unavailable. You can still edit and download your previous report.",
+    });
+  }
 });
 
 router.post("/study/evaluate", parseBudgetCookie, async (req, res) => {

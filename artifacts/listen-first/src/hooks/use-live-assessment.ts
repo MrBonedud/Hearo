@@ -7,14 +7,16 @@ function keyOf(input: StudyEvaluationInput): string {
 }
 
 export function useLiveAssessment({
-  input, enabled, onResult,
+  input, enabled, onResult, onSettled, paused = false,
 }: {
   input: StudyEvaluationInput | null;
   enabled: boolean;
   onResult: (result: StudyEvaluation, checkedTranscript: string) => void;
+  onSettled?: () => void;
+  paused?: boolean;
 }) {
-  const latest = useRef({ input, enabled, onResult });
-  latest.current = { input, enabled, onResult };
+  const latest = useRef({ input, enabled, onResult, onSettled, paused });
+  latest.current = { input, enabled, onResult, onSettled, paused };
   const queue = useRef<AssessmentQueue<StudyEvaluationInput, StudyEvaluation> | null>(null);
   if (!queue.current) queue.current = new AssessmentQueue(data => evaluateStudy(data));
   const mounted = useRef(true);
@@ -46,7 +48,10 @@ export function useLiveAssessment({
       throw issue;
     } finally {
       count.current--;
-      if (mounted.current) setBusy(count.current > 0);
+      if (mounted.current) {
+        setBusy(count.current > 0);
+        latest.current.onSettled?.();
+      }
     }
   }, []);
 
@@ -57,15 +62,15 @@ export function useLiveAssessment({
     if (!enabled) { attempted.current = null; return; }
     // A failed provider request pauses automatic work until an explicit retry.
     // Continuing to type must not keep hitting an exhausted quota.
-    if (error || !input?.transcript.trim() || busy || attempted.current === key) return;
+    if (paused || error || !input?.transcript.trim() || busy || attempted.current === key) return;
     const timer = setTimeout(() => {
-      if (!count.current && latest.current.enabled && latest.current.input
+      if (!count.current && latest.current.enabled && !latest.current.paused && latest.current.input
         && keyOf(latest.current.input) === key) {
         void check(latest.current.input).catch(() => undefined);
       }
     }, 1500);
     return () => clearTimeout(timer);
-  }, [key, enabled, busy, error, check]);
+  }, [key, enabled, paused, busy, error, check]);
 
   return { busy, error, check };
 }
