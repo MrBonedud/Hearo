@@ -10,6 +10,7 @@ export const statusMeta = {
   understood: { label: 'Supported' },
   incorrect: { label: 'Contradicted' },
   partial: { label: 'Partial' },
+  uncertain: { label: 'Uncertain' },
   skipped: { label: 'Not demonstrated' },
   unassessed: { label: 'Not assessed yet' },
 } as const;
@@ -32,8 +33,10 @@ export function ConceptMap({ map, compact = false, assessments, assessed = Boole
     const item = assessments?.find(value => value.conceptId === nodeId);
     const verdict = item?.verdict;
     const low = String(item?.confidence) === 'low';
+    if (low && (verdict === 'supported' || verdict === 'contradicted' || verdict === 'partially_understood')) {
+      return { status: 'uncertain', uncertain: true };
+    }
     if (verdict === 'supported' || verdict === 'contradicted') {
-      if (low) return { status: 'partial', uncertain: true };
       return { status: verdict === 'supported' ? 'understood' : 'incorrect', uncertain: false };
     }
     if (verdict === 'partially_understood') return { status: 'partial', uncertain: false };
