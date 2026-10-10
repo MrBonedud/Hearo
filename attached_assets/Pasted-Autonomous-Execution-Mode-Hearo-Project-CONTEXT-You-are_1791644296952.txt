@@ -1,0 +1,99 @@
+Autonomous Execution Mode — Hearo Project
+
+CONTEXT:
+You are working on the Hearo project in this Replit workspace. 
+The team works together on this single workspace. We want 
+continuous progress without stopping for routine confirmations.
+
+EXECUTION RULES (read carefully):
+
+1. Work autonomously. Do NOT stop to ask for approval on routine 
+   steps like installing packages, running builds, fixing obvious 
+   errors, or starting servers.
+
+2. Do NOT create tasks. Do NOT update task descriptions. Do NOT 
+   write plans. Execute directly.
+
+3. Do NOT stop to report status unless you hit a BLOCKER that 
+   requires credentials, permissions, or a decision you genuinely 
+   cannot make.
+
+4. If you hit a blocker:
+   - Finish every safe step possible first
+   - Then report ONLY: the blocker, the exact action needed, 
+     and what you completed before it
+   - Do NOT retry the same failed action more than once
+
+5. Never show secrets, tokens, or keys in output. Never request 
+   them in chat. If a secret is missing, report the variable NAME 
+   only.
+
+YOUR MISSION (execute in this exact order):
+
+PHASE 1 — STATE INSPECTION (do this once, do not repeat)
+- Run: git status, git branch -a, git log --oneline -20
+- Identify: project structure, package manager, API server location, 
+  frontend location, test setup
+- Check Replit Secrets for: GITHUB_TOKEN, GEMINI_API_KEY, 
+  OPENAI_API_KEY (report only which exist, never values)
+- Report a concise status table. Do NOT stop after reporting — 
+  continue to Phase 2 immediately.
+
+PHASE 2 — CLEANUP (safe, reversible only)
+- Identify backup folders (.local/backups/*), old bundles, 
+  build artifacts
+- Move (do not delete) anything unnecessary to .local/archive/ 
+  with a timestamp
+- Report what was archived. Continue immediately to Phase 3.
+
+PHASE 3 — RUN THE PROJECT
+- Install dependencies if needed
+- Start the API server on its configured port
+- Start the frontend on its configured port
+- Verify both respond
+- If either fails: fix the error if it's a simple config/dependency 
+  issue. If it requires a missing secret or external access, note it 
+  and continue with what works.
+- Report: API URL, frontend URL, status. Continue immediately 
+  to Phase 4.
+
+PHASE 4 — AUDIT AND FIX
+- List all API endpoints and their functionality status
+- List all frontend features and whether they connect to real 
+  backend or mocks
+- List any missing environment variables (names only)
+- Run existing tests; report pass/fail
+- Fix any regression that is clearly a bug and safe to fix
+- Do NOT broaden scope. Do NOT change product behavior.
+- Continue immediately to Phase 5.
+
+PHASE 5 — GIT SYNC (only if GITHUB_TOKEN exists)
+- Verify the current branch and status
+- If the prepared review commit exists locally and is verified, 
+  push it to its review branch (never main)
+- If GITHUB_TOKEN is missing or invalid: do NOT retry. Report 
+  the blocker clearly and skip to Phase 6.
+- Continue immediately to Phase 6.
+
+PHASE 6 — FINAL REPORT
+Report concisely:
+- Project state (running / not running)
+- API URL and frontend URL
+- Features working vs mocked
+- Tests pass/fail count
+- Git sync status (pushed / blocked — reason)
+- Any remaining blocker with the EXACT one action needed 
+  from a human
+- Files changed in this session
+
+CONSTRAINTS (never violate):
+- Never push to main
+- Never force-push
+- Never delete branches or files (archive instead)
+- Never rewrite history
+- Never expose secrets
+- Never request passwords or tokens in chat
+- Never retry a failed auth more than once
+
+Start now with Phase 1 and continue through all phases without 
+stopping for routine confirmations.

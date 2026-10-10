@@ -18,7 +18,7 @@ import {
 } from "../lib/approved-demo";
 
 const router: IRouter = Router();
-const model = "gemini-3-flash-preview";
+const model = "gemini-3.1-flash-lite";
 const lastEvaluationByClient = new Map<string, number>();
 const inFlight = new Set<string>();
 
