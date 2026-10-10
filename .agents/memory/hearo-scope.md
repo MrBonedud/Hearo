@@ -44,3 +44,9 @@ Keep this Replit project and its existing GitHub repository as the development f
 **Why:** The team explicitly rejected the proposed repository migration and requested publishing the existing application safely to the same repository.
 
 **How to apply:** Inspect and protect work first, obtain approval before consequential remote operations, and never force-push, reset, clean or discard work. Verify synchronization and implementation before rewriting the README; independent teammate workspaces come after that baseline is agreed.
+
+The team chose Google Gemini for answer checking after OpenAI provider access was blocked by unavailable API credits.
+
+**Why:** The team explicitly requested replacing OpenAI with Gemini.
+
+**How to apply:** Use Gemini for study assessments. Do not silently fall back to OpenAI; keep the same source restrictions and evidence validation regardless of provider.

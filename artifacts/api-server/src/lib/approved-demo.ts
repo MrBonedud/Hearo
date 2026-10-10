@@ -51,7 +51,6 @@ export function initialMap() {
 }
 
 const assessmentSchema = EvaluateStudyResponse.shape.assessments.unwrap();
-const normalized = (text: string) => text.replace(/\s+/gu, " ").trim();
 
 /** The model chooses passage IDs, never generates source quotations or page numbers. */
 export function groundedEvaluation(raw: unknown, transcript: string) {
@@ -65,8 +64,8 @@ export function groundedEvaluation(raw: unknown, transcript: string) {
     const item = assessments.find(value => value.conceptId === concept.id)!;
     const citesSource = item.sourceLineIds.length > 0
       && item.sourceLineIds.every(id => concept.supportingLines.includes(id));
-    const citesStudent = Boolean(item.studentEvidence?.trim())
-      && normalized(transcript).includes(normalized(item.studentEvidence || ""));
+    const citesStudent = Boolean(item.studentEvidence?.length)
+      && transcript.includes(item.studentEvidence || "");
     if (item.verdict !== "not_demonstrated" && (!citesSource || !citesStudent || item.confidence === "low")) {
       return {
         conceptId: concept.id, verdict: "not_demonstrated" as const, confidence: "low" as const,
