@@ -40,5 +40,16 @@ Metadata, raw PDF upload, and preparation use real routes and response shapes.
 The test also reloads a saved draft, rejects an equal-length one-byte mutation,
 and requires verification of the original PDF before recovery.
 
+The expiration regression advances only the isolated API's clock (using a
+test-only Node preload and an ignored clock file in `generated-artifacts/`).
+It checks the final valid millisecond and the exact two-hour expiry boundary,
+rejects real preparation and evaluation requests after expiry, displays the
+server's re-verification prompts, and preserves the saved multilingual draft.
+Re-uploading the original PDF issues a fresh token and restores preparation and
+draft recovery without reviving the expired token. The clock is reset between
+tests; no production route, authorization lifetime, or normal workflow changes.
+
 AI credentials are blank in the test API process and browser evaluation requests
-are intercepted. The smoke test does not call a paid model or verify AI quality.
+are intercepted. The expiry test sends one explicitly expired evaluation directly
+to the key-free API, then uses that real rejection for the intercepted browser
+request. The smoke tests do not call a paid model or verify AI quality.

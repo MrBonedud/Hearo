@@ -1,6 +1,11 @@
-import { readFileSync } from 'node:fs';
+import { readFileSync, writeFileSync } from 'node:fs';
+import path from 'node:path';
 import { expect, test } from '@playwright/test';
 import pack from '../../../shared/topic-packs/system-design-slides.json' with { type: 'json' };
+
+const clockFile = path.resolve(import.meta.dirname, '../../../generated-artifacts/study-api-clock.json');
+test.beforeEach(() => writeFileSync(clockFile, 'null'));
+test.afterEach(() => writeFileSync(clockFile, 'null'));
 
 test('real API verifies the source, prepares a study, and recovers only with the original PDF', async ({ page }) => {
   const fixture = process.env.TEST_APPROVED_PDF;
@@ -94,4 +99,115 @@ test('real API verifies the source, prepares a study, and recovers only with the
   await page.locator('[data-testid^="button-reopen-saved-study-"]').click();
   await expect(page.getByTestId('input-transcript')).toHaveValue(answer);
   expect(evaluationAttempts).toBe(0);
+});
+
+test('two-hour source expiry rejects checks without losing the saved explanation, and the original PDF restores access', async ({ page }) => {
+  const fixture = process.env.TEST_APPROVED_PDF;
+  if (!fixture) throw new Error('TEST_APPROVED_PDF is required; run with playwright.api.config.ts.');
+  const approvedPdf = readFileSync(fixture);
+  expect(approvedPdf.length).toBe(pack.byteLength);
+  const issuedAt = Date.now();
+  writeFileSync(clockFile, JSON.stringify(issuedAt));
+  const answer = 'A load balancer distributes requests across servers. توزيع الطلبات بين الخوادم.';
+  let expiredEvaluation: { error: string } | undefined;
+  const evaluationRequests: unknown[] = [];
+  // Browser evaluation stays intercepted. Only an explicitly expired request
+  // is sent directly to the real, key-free API below to check its auth guard.
+  await page.route('**/api/study/evaluate', route => {
+    evaluationRequests.push(route.request().postDataJSON());
+    return route.fulfill({
+      status: expiredEvaluation ? 400 : 503,
+      contentType: 'application/json',
+      body: JSON.stringify(expiredEvaluation ?? { error: 'Evaluation disabled in source expiry test.' }),
+    });
+  });
+  const savedStudies = () => page.evaluate(() => {
+    const saved = JSON.parse(localStorage.getItem('hearo.saved-studies.v2') ?? '[]');
+    // Returning to setup legitimately saves again. Compare every persisted
+    // content field and study ID, not the time of that unchanged save.
+    return saved.map(({ savedAt: _savedAt, ...contents }: { savedAt: number; [key: string]: unknown }) => contents);
+  });
+  const uploadOriginal = async () => {
+    const response = page.waitForResponse('**/api/study/demo/upload');
+    await page.getByTestId('input-file').setInputFiles({
+      name: pack.filename, mimeType: 'application/pdf', buffer: approvedPdf,
+    });
+    const uploaded = await response;
+    expect(uploaded.status()).toBe(200);
+    const verified = await uploaded.json();
+    expect(verified.source.aiAvailable).toBe(false);
+    await expect(page.getByTestId('status-source-verified')).toBeVisible();
+    return verified;
+  };
+  const expiresAt = (token: string) => {
+    const payload = JSON.parse(Buffer.from(token.split('.')[0], 'base64url').toString());
+    expect(payload.hash).toBe(pack.sha256);
+    expect(payload.expires).toEqual(expect.any(Number));
+    return payload.expires as number;
+  };
+
+  await page.goto('/');
+  await page.getByTestId('button-start-live').click();
+  await page.getByTestId('toggle-live-setup').uncheck();
+  const verified = await uploadOriginal();
+  expect(expiresAt(verified.sourceToken)).toBe(issuedAt + 2 * 60 * 60 * 1000);
+  const sourceInput = {
+    topic: verified.source.title, referenceText: verified.source.referenceText,
+    sourceToken: verified.sourceToken,
+  };
+  const preparedResponse = page.waitForResponse('**/api/study/prepare');
+  await page.getByTestId('button-prepare').click();
+  const prepared = await preparedResponse;
+  expect(prepared.status()).toBe(200);
+  const map = await prepared.json();
+  await page.getByTestId('input-transcript').fill(answer);
+  await expect.poll(async () => (await savedStudies())[0]?.transcript).toBe(answer);
+  const originalSaved = await savedStudies();
+  expect(originalSaved).toHaveLength(1);
+
+  // At the last valid millisecond it still works; at expiry it must fail.
+  writeFileSync(clockFile, JSON.stringify(expiresAt(verified.sourceToken) - 1));
+  expect((await page.request.post('/api/study/prepare', { data: sourceInput })).status()).toBe(200);
+  writeFileSync(clockFile, JSON.stringify(expiresAt(verified.sourceToken)));
+  const deniedPrepare = await page.request.post('/api/study/prepare', { data: sourceInput });
+  expect(deniedPrepare.status()).toBe(400);
+  expect((await deniedPrepare.json()).error).toContain('two-hour session expired');
+  const evaluationInput = {
+    ...sourceInput, transcript: answer, nodes: map.nodes, edges: map.edges,
+  };
+  const deniedEvaluation = await page.request.post('/api/study/evaluate', { data: evaluationInput });
+  expect(deniedEvaluation.status()).toBe(400);
+  expiredEvaluation = await deniedEvaluation.json();
+  expect(expiredEvaluation?.error).toContain('Select the PDF again if your session expired');
+  await page.getByTestId('button-finish').click();
+  await expect(page.getByTestId('status-session-error')).toContainText(expiredEvaluation!.error);
+  await expect(page.getByTestId('input-transcript')).toHaveValue(answer);
+  expect(evaluationRequests).toEqual([evaluationInput]);
+  expect(await savedStudies()).toEqual(originalSaved);
+
+  // Exercise the preparation prompt too, with a genuinely issued token.
+  await page.getByTestId('button-back-setup').click();
+  await expect(page.locator('[aria-label="Saved studies"]')).toContainText(answer);
+  const setupVerified = await uploadOriginal();
+  writeFileSync(clockFile, JSON.stringify(expiresAt(setupVerified.sourceToken)));
+  const rejectedPreparation = page.waitForResponse('**/api/study/prepare');
+  await page.getByTestId('button-prepare').click();
+  expect((await rejectedPreparation).status()).toBe(400);
+  await expect(page.getByTestId('status-setup-error')).toContainText('If your two-hour session expired, select it again');
+  await expect(page.locator('[aria-label="Saved studies"]')).toContainText(answer);
+  expect(await savedStudies()).toEqual(originalSaved);
+
+  const renewed = await uploadOriginal();
+  expect(renewed.sourceToken).not.toBe(setupVerified.sourceToken);
+  const renewedPrepare = await page.request.post('/api/study/prepare', {
+    data: { ...sourceInput, sourceToken: renewed.sourceToken },
+  });
+  expect(renewedPrepare.status()).toBe(200);
+  expect(await renewedPrepare.json()).toEqual(map);
+  // Re-upload issues a fresh authorization; it must not revive an old one.
+  expect((await page.request.post('/api/study/prepare', { data: sourceInput })).status()).toBe(400);
+  await page.locator('[data-testid^="button-reopen-saved-study-"]').click();
+  await expect(page.getByTestId('input-transcript')).toHaveValue(answer);
+  expect(await savedStudies()).toEqual(originalSaved);
+  expect(evaluationRequests).toHaveLength(1);
 });

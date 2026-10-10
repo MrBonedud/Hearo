@@ -1,4 +1,4 @@
-import { existsSync } from 'node:fs';
+import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { defineConfig } from '@playwright/test';
 import browserConfig from './playwright.config';
@@ -8,6 +8,10 @@ if (!fixture || !existsSync(path.resolve(fixture))) {
   throw new Error('Set TEST_APPROVED_PDF to an existing original approved PDF. This smoke test never substitutes synthetic PDF bytes.');
 }
 
+const clockFile = path.resolve(import.meta.dirname, '../../generated-artifacts/study-api-clock.json');
+mkdirSync(path.dirname(clockFile), { recursive: true });
+writeFileSync(clockFile, 'null');
+
 export default defineConfig({
   ...browserConfig,
   testIgnore: [],
@@ -16,11 +20,15 @@ export default defineConfig({
   use: { ...browserConfig.use, baseURL: 'http://127.0.0.1:4176' },
   webServer: [
     {
-      command: 'pnpm --filter @workspace/api-server run dev',
+      command: 'pnpm --filter @workspace/api-server run build && node --import ./e2e/api-test-clock.mjs ../api-server/dist/index.mjs',
       url: 'http://127.0.0.1:4175/api/study/demo',
       // Never reuse a normal server that might have paid-provider credentials.
       reuseExistingServer: false,
-      env: { PORT: '4175', OPENAI_API_KEY: '', GEMINI_API_KEY: '' },
+      env: {
+        PORT: '4175', NODE_ENV: 'development', OPENAI_API_KEY: '', GEMINI_API_KEY: '',
+        SESSION_SECRET: 'isolated-study-api-test-only',
+        STUDY_TEST_CLOCK_FILE: clockFile,
+      },
       timeout: 120_000,
     },
     {
