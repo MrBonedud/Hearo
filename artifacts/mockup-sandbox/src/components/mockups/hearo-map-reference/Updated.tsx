@@ -13,6 +13,7 @@ export const statusMeta = {
   understood: { label: 'Supported' },
   incorrect: { label: 'Contradicted' },
   partial: { label: 'Partial' },
+  uncertain: { label: 'Uncertain' },
   skipped: { label: 'Not demonstrated' },
   unassessed: { label: 'Not assessed yet' },
 } as const;
@@ -35,8 +36,10 @@ export function ConceptMap({ map, compact = false, assessments, assessed = Boole
     const item = assessments?.find(value => value.conceptId === nodeId);
     const verdict = item?.verdict;
     const low = String(item?.confidence) === 'low';
+    if (low && (verdict === 'supported' || verdict === 'contradicted' || verdict === 'partially_understood')) {
+      return { status: 'uncertain', uncertain: true };
+    }
     if (verdict === 'supported' || verdict === 'contradicted') {
-      if (low) return { status: 'partial', uncertain: true };
       return { status: verdict === 'supported' ? 'understood' : 'incorrect', uncertain: false };
     }
     if (verdict === 'partially_understood') return { status: 'partial', uncertain: false };
@@ -108,4 +111,4 @@ export function ConceptMap({ map, compact = false, assessments, assessed = Boole
   </section>;
 }
 
-export default function Updated(){return <main style={{padding:24,minHeight:'100vh'}}><h2>Connected concept map</h2><p>Illustrative colour states · not a live AI assessment</p><ConceptMap map={{"topic":"Large-Scale Web Applications","nodes":[{"id":"scaling","label":"Scale out vs. scale up","description":"Distinguish adding instances from using a bigger instance, including the work-distribution challenge.","status":"understood","evidence":null},{"id":"load-balancing","label":"Load balancing","description":"Explain distributing incoming requests across web servers and handling a failed server.","status":"incorrect","evidence":null},{"id":"stateless-servers","label":"Stateless servers","description":"Explain why requests from one user can reach different servers and why a shared database matters.","status":"skipped","evidence":null},{"id":"sharding","label":"Data sharding","description":"Explain partitioning data across database instances and the added application complexity.","status":"skipped","evidence":null},{"id":"replication","label":"Replication","description":"Explain keeping more than one copy of data to tolerate failures. Advanced replication and backups are outside this source scope.","status":"skipped","evidence":null},{"id":"caching","label":"Caching and consistency","description":"Explain caching query results, cache misses, writes to the database, and software-managed consistency.","status":"skipped","evidence":null}],"edges":[{"from":"scaling","to":"load-balancing","label":"distribute work"},{"from":"load-balancing","to":"stateless-servers","label":"simpler routing"},{"from":"scaling","to":"sharding","label":"scale storage"},{"from":"sharding","to":"replication","label":"tolerate failures"},{"from":"stateless-servers","to":"caching","label":"shared data access"}]}} assessed /></main>}
+export default function Updated(){return <main style={{padding:24,minHeight:'100vh'}}><h2>Connected concept map</h2><p>Illustrative colour states · not a live AI assessment</p><ConceptMap map={{"topic":"Large-Scale Web Applications","nodes":[{"id":"scaling","label":"Scale out vs. scale up","description":"Distinguish adding instances from using a bigger instance, including the work-distribution challenge.","status":"understood","evidence":null},{"id":"load-balancing","label":"Load balancing","description":"Explain distributing incoming requests across web servers and handling a failed server.","status":"incorrect","evidence":null},{"id":"stateless-servers","label":"Stateless servers","description":"Explain why requests from one user can reach different servers and why a shared database matters.","status":"skipped","evidence":null},{"id":"sharding","label":"Data sharding","description":"Explain partitioning data across database instances and the added application complexity.","status":"skipped","evidence":null},{"id":"replication","label":"Replication","description":"Explain keeping more than one copy of data to tolerate failures. Advanced replication and backups are outside this source scope.","status":"skipped","evidence":null},{"id":"caching","label":"Caching and consistency","description":"Explain caching query results, cache misses, writes to the database, and software-managed consistency.","status":"skipped","evidence":null}],"edges":[{"from":"scaling","to":"load-balancing","label":"distribute work"},{"from":"load-balancing","to":"stateless-servers","label":"simpler routing"},{"from":"scaling","to":"sharding","label":"scale storage"},{"from":"sharding","to":"replication","label":"tolerate failures"},{"from":"stateless-servers","to":"caching","label":"shared data access"}]}} assessments={[{conceptId:'sharding',verdict:'partially_understood',confidence:'high'}]} assessed /></main>}

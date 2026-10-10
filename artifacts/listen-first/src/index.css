@@ -692,13 +692,16 @@ button:disabled { opacity: .58; }
 .concept-node.status-understood small { color: #8ee8c4; }
 .concept-node.status-incorrect { background: #5c1a26; border-color: #ff667f; }
 .concept-node.status-incorrect small { color: #ffb0be; }
-.concept-node.status-partial { background: #2a2d42; border: 1px dashed #b0b2c8; }
+.concept-node.status-partial { background: #685017; border: 1px solid #f3bd64; }
+.concept-node.status-partial small { color: #ffdf93; }
+.concept-node.status-uncertain { background: #2a2d42; border: 1px dashed #b0b2c8; }
 .concept-node.status-skipped { background: #2a2d42; border-color: #6a6d86; }
 .concept-node.status-unassessed { background: #1a1c2e; border: 1px dotted #6a6d86; }
 .concept-node.status-unassessed small { color: #9c9ab2; }
 .concept-node-dot, .concept-node-index { display: none; }
 .unassessed-dot { background: transparent; border: 1px dotted #9c9ab2; }
-.partial-dot { background: #2a2d42; border: 1px dashed #b0b2c8; }
+.partial-dot { background: #f3bd64; border: 1px solid #f3bd64; }
+.uncertain-dot { background: #2a2d42; border: 1px dashed #b0b2c8; }
 .concept-details-slot { min-height: 0; }
 .concept-edge-list { display: none !important; }
 @media (max-width: 900px) {

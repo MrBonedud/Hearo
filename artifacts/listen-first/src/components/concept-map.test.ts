@@ -38,8 +38,15 @@ test('supported and contradicted become full-node status classes, skipped stays 
 test('low confidence and partial never appear as confident green or red', () => {
   const html = render([assessment('a', 'supported', 'low'), assessment('b', 'contradicted', 'low'), assessment('c', 'partially_understood')]);
   assert.doesNotMatch(html, /concept-node status-understood|concept-node status-incorrect/);
-  assert.equal((html.match(/concept-node status-partial/g) || []).length, 3);
+  assert.equal((html.match(/concept-node status-partial/g) || []).length, 1);
+  assert.equal((html.match(/concept-node status-uncertain/g) || []).length, 2);
   assert.match(html, /Uncertain/);
+});
+
+test('low-confidence partial remains uncertain rather than confirmed yellow', () => {
+  const html = render([assessment('a', 'partially_understood', 'low')]);
+  assert.match(html, /concept-node status-uncertain/);
+  assert.doesNotMatch(html, /concept-node status-partial/);
 });
 
 test('unchecked concepts remain distinguishable from evaluated omissions', () => {

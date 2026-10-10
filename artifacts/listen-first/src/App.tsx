@@ -71,7 +71,8 @@ function StatusKey() {
   return <div className="status-key" aria-label="Concept map status key">
     <span><i className="key-dot understood-dot" /> supported</span>
     <span><i className="key-dot incorrect-dot" /> contradicted</span>
-    <span><i className="key-dot partial-dot" /> partial / uncertain</span>
+    <span><i className="key-dot partial-dot" /> partial understanding</span>
+    <span><i className="key-dot uncertain-dot" /> uncertain</span>
     <span><i className="key-dot skipped-dot" /> not demonstrated</span>
     <span><i className="key-dot unassessed-dot" /> not assessed yet</span>
   </div>;
@@ -578,7 +579,7 @@ function App() {
           </div>}
            <ConceptMap map={visibleMap!} assessments={hasCheckedPrefix ? evaluation?.assessments : undefined} assessed={hasCheckedPrefix && Boolean(evaluation)} />
           {selectedSource && <SourcePassages source={selectedSource.source} fileUrl={selectedSource.fileUrl} />}
-           <div className="map-foot"><span className="map-foot-mark"><BookOpen size={14} /></span><span>Green: supported · Red: contradicted · Grey: partial, uncertain, not demonstrated or not assessed yet. Earlier checks cover only the words already checked.</span></div>
+           <div className="map-foot"><span className="map-foot-mark"><BookOpen size={14} /></span><span>Green: supported · Yellow: partial understanding · Red: contradicted · Grey: uncertain, not demonstrated or not assessed yet. Earlier checks cover only the words already checked.</span></div>
         </aside>
       </div>
     </section>}
