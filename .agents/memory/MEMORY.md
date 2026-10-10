@@ -1,0 +1,1 @@
+- [Hearo scope and approvals](hearo-scope.md) — Arabic-first, one approved authored system-design PDF, and explicit permission before each change.
