@@ -1,0 +1,133 @@
+Upgrade the entire Hearo frontend visual design to a premium, visually striking theme called MIDNIGHT NEON PULSE.
+
+Keep all the existing functionality, pages, routes, interactive concept map, demo mode, feedback system, and learning session requirements from my original prompt.
+
+I want this application to look like an award-winning AI startup, with cinematic animations and a futuristic visual identity.
+
+VISUAL STYLE:
+
+Very dark midnight backgrounds: #080914 and #101224
+
+Rich violet gradients: #7C3AED, #8B5CF6, #A78BFA
+
+Soft neon purple lighting and ambient glows
+
+Beautiful glowing gradients and blurred background orbs
+
+Large bold typography
+
+Premium rounded cards with elegant borders
+
+Subtle glass-like panels
+
+Spacious layouts and a polished SaaS aesthetic
+
+ANIMATION REQUIREMENTS:
+
+LANDING PAGE:
+
+Animated purple aurora background with slow-moving gradient lights
+
+Beautiful staggered text-reveal animation on the hero headline
+
+Glowing interactive "Start Explaining" button
+
+Floating 3D-inspired audio visualization in the hero
+
+Mouse-responsive parallax movement on desktop
+
+Smooth scroll-triggered reveals for the feature sections
+
+MICROPHONE:
+
+Large glowing circular microphone button
+
+Animated concentric pulse rings when recording
+
+Real-time audio-responsive waveform using Web Audio API where microphone access is available
+
+Smooth idle, recording, paused, and processing states
+
+Graceful fallback to decorative animation in Demo Mode
+
+CONCEPT MAP:
+
+Animate nodes as they appear
+
+Smoothly animate graph connections
+
+Purple ambient lighting around the graph
+
+Clear status transitions:
+Supported = green
+Contradicted = red
+Unverified = amber
+Not mentioned = grey
+
+Clicking nodes reveals animated detail cards
+
+Do not let decorative purple override the semantic status colors
+
+LIVE TRANSCRIPT:
+
+Smooth appearance of new transcript segments
+
+Animated status highlights when verification updates
+
+Elegant source-evidence card transitions
+
+Auto-scroll to new transcript content without disrupting manual scrolling
+
+RESULTS PAGE:
+
+Animated circular score visualization
+
+Smooth number-counting animation
+
+Staggered result cards
+
+Animated concept map status summary
+
+Beautiful reveal of the targeted review question
+
+PAGE TRANSITIONS:
+
+Use Motion for React / Framer Motion
+
+Elegant transitions between routes
+
+Consistent animation timing and easing
+
+Responsive hover and press effects
+
+DESIGN QUALITY:
+The interface must look premium, memorable, modern, and visually impressive on a projector.
+
+Avoid generic Tailwind dashboard templates.
+
+The main visual signature of Hearo should be a glowing purple voice visualization connected to a living concept map.
+
+PERFORMANCE:
+
+Prefer lightweight CSS, SVG, and Motion animations
+
+Avoid heavy 3D rendering libraries unless absolutely necessary
+
+Keep animations smooth and avoid excessive GPU usage
+
+Respect prefers-reduced-motion
+
+Prioritize usability and readable content
+
+Ensure no animation blocks buttons or causes layout shifts
+
+IMPORTANT:
+This is a real React frontend implementation, not a mockup.
+Implement the animations in code.
+Keep all existing features functional.
+Ensure Demo Mode works reliably without a microphone or backend.
+Test the complete end-to-end demo flow.
+
+Make the frontend feel visually exciting while retaining excellent accessibility and a clean professional appearance.
+
+Start implementing the upgraded design immediately.

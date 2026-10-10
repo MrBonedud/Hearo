@@ -23,6 +23,7 @@ export type SavedStudySession = {
   evaluation: StudyEvaluation | null;
   phase: 'session' | 'review';
   citedPassageIds: string[];
+  overflowText?: string;
 };
 
 export type SavedStudyRead =
@@ -78,6 +79,7 @@ function isSavedStudySession(value: unknown): value is SavedStudySession {
   if (!Array.isArray(value.citedPassageIds) || !value.citedPassageIds.every(id => typeof id === 'string')) return false;
   const citedPassageIds = value.citedPassageIds as string[];
   if (value.version !== 1
+    || (value.overflowText !== undefined && typeof value.overflowText !== 'string')
     || typeof value.savedAt !== 'number'
     || !Number.isFinite(value.savedAt)
     || typeof source.id !== 'string'

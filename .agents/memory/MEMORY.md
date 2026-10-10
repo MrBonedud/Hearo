@@ -2,3 +2,4 @@
 - [Git provider authentication](git-provider-auth.md) — Integration health and public reads do not prove Git push authentication; resolve connections per collaborator.
 - [Git backup integrity](git-backup-integrity.md) — Bundle prepared commits before approval pauses and assert the Git directory to prevent parent-repository fallback.
 - [Live model verification](live-model-verification.md) — A saved API key or listed model does not prove completions work; verify the configured model live before semantic claims.
+- [Assessment snapshots](assessment-snapshots.md) — Live feedback may cover a checked prefix; saved reports must match the whole current explanation exactly.
