@@ -1,0 +1,115 @@
+# Hearo — Complete the Entire Repository and Team Workspace Setup
+
+You are responsible for finishing this task end-to-end, not merely creating plans, updating task descriptions, or reporting intended actions.
+
+## 1. Non-negotiable requirements
+
+- Continue working in the exact existing Hearo Replit project. Do not recreate, replace, migrate, or abandon it.
+- Use the existing GitHub repository only: `https://github.com/MrBonedud/Hearo.git`.
+- Never create a new repository or change the existing remote to another repository.
+- Never force-push, rewrite existing history, delete branches, reset existing branches, or push directly to `main`.
+- Preserve all application code, local branches, commits, internal/backup remotes, untracked work, and relevant assets.
+- Preserve the Arabic demo PDF and other required project files, including ignored files and the latest development brief. Inspect them and preserve their contents; do not accidentally publish private information, secrets, credentials, or unrelated local files.
+- Do not modify the README until the implementation baseline and repository synchronization have been verified.
+- Do not mark tasks complete unless the corresponding work has actually been performed and verified.
+- Do not repeatedly retry failed authentication with the same credentials.
+- Never request passwords, personal access tokens, API keys, or other secrets in chat.
+
+## 2. First, inspect the actual current state
+
+Recheck the repository and project from scratch. Do not rely on stale task descriptions or previous assumptions.
+
+Inspect:
+- Current directory, Git status, configured remotes, local branches, commit history, and upstream configuration.
+- Existing GitHub `main` and the actual state of the previously prepared review branch, if it exists.
+- The prepared commit `f246697662aeeaf027764bab2ba6a521bc9ec53f`, the bundle at `.local/backups/hearo-sync-20261010T134553Z-857c9bc/review-commit.bundle`, and all related backups.
+- The four existing local branches `replit-agent`, `subrepl-a4ojvlfm`, `subrepl-fx7jvnlm`, and `subrepl-phbja6zq`. Preserve their histories and inspect whether their commits are represented in the proposed integration baseline.
+- All untracked, ignored, and potentially sensitive files relevant to the application and synchronization.
+
+Do not assume that a bundle exists, a push succeeded, a branch is on GitHub, or a backup is complete. Verify each fact.
+
+## 3. Resolve GitHub synchronization safely
+
+The last reported push failed with `Invalid username or token`. Nothing was pushed in that attempt, and the previous report stated that GitHub `main` remained unchanged. Verify the current state instead of assuming it is unchanged.
+
+- Diagnose whether the failure is caused by an unavailable or expired GitHub authentication session, missing repository write permission, or another identifiable issue.
+- Use only the already configured, supported secure authentication mechanisms. Never expose credentials or put secrets in commands, logs, commits, or the README.
+- Do not keep retrying invalid credentials.
+- If authentication cannot be repaired through an available secure flow, continue all possible local preparation and verification, then provide the exact single manual action needed from an authenticated repository owner. Clearly identify the actual blocker. Do not pretend the remote operation succeeded.
+
+Prepare a review branch that preserves both existing Git histories and all required work without rewriting either history. Use a separate checkout or another demonstrably safe approach if needed.
+
+Before any remote write:
+- Create and verify backups of all relevant branches, refs, and assets.
+- Inspect the complete diff and the commit ancestry.
+- Check for secrets, private data, unrelated files, generated files that should not be committed, and missing application assets.
+- Confirm the exact destination repository, branch name, commit ID, and expected file changes.
+- Keep `main` untouched.
+- Require explicit approval for any consequential remote write if the environment requests it. Do not bypass approval mechanisms.
+
+If a review branch has already been pushed, verify its actual remote commit and contents before deciding whether anything else is necessary. Do not replace it merely because a newly generated commit has different metadata.
+
+## 4. Verify the application before declaring the baseline ready
+
+Inspect the current application, dependencies, configuration, and existing tests. Run the relevant available checks, including build, lint, and tests where supported. Fix regressions caused by this workflow only when the fix is safe and within scope.
+
+For the Arabic-or-English answer assessment feature, verify the actual behavior and available test evidence. Distinguish real semantic AI assessment from structural tests or mocked responses. If a provider or secret is unavailable, report that blocker honestly; do not fabricate successful AI results.
+
+Preserve the existing approved-PDF restrictions and source identity rules. Do not broaden PDF ingestion or change unrelated product behavior.
+
+## 5. Create four genuinely independent Replit workspaces
+
+After the final implementation baseline has been verified and the repository synchronization is complete, prepare four distinct teammate Replit projects. The current Hearo project must remain the primary integration project.
+
+Use the same repository for every teammate:
+`https://github.com/MrBonedud/Hearo.git`
+
+Required assignments:
+
+1. Aya — `feature/aya-voice`
+   Voice recording, speech-to-text, and transcript submission.
+
+2. Faisal — `feature/faisal-ai-engine`
+   AI assessment, misconception detection, and source-grounded evaluation.
+
+3. Rama — `feature/rama-source-map`
+   Source viewer, evidence highlighting, and concept map.
+
+4. Lana — `feature/lana-conversation-report`
+   Conversation UI, follow-up questions, saved sessions, and learner reports.
+
+Requirements:
+- Inspect existing remote and local branches before creating anything.
+- Create only missing assigned branches. Never overwrite, reset, or force-push an existing branch.
+- Each branch must start from the agreed verified baseline unless an existing branch requires reconciliation; obtain approval before reconciling any existing branch.
+- Import each workspace from the existing repository, using the supported Replit import flow.
+- Select and verify the assigned branch in each workspace's Git pane.
+- Verify four genuinely distinct project URLs, actual owners, the same repository origin, assigned branch, and baseline commit.
+- Do not count task-agent environments, branches, duplicated browser tabs, or the primary project as four independent teammate projects.
+- Do not impersonate teammates, share credentials, or claim collaborator permissions exist without checking.
+- Each teammate must authenticate as themselves. If GitHub collaborator access is missing, provide the precise steps for the repository owner to grant access securely.
+- If the available tools cannot create projects owned by teammates or cannot verify ownership, do not stop at an abstract plan. Prepare all safe prerequisites, then give each teammate the exact manual import and branch-selection steps, listing what remains unverified.
+
+## 6. Update documentation last
+
+Only after the repository baseline, application checks, and workspace setup have been verified, update `README.md` to accurately describe the real application, setup instructions, supported features, limitations, and team workflow.
+
+Do not claim features, AI accuracy, deployment status, or completed workspace setup that has not been verified. Keep the README consistent with the actual code.
+
+## 7. Finish with a verified completion report
+
+Work through the available steps rather than stopping after creating or reorganizing tasks.
+
+At the end, report:
+- What was actually completed and the evidence for each result.
+- The current GitHub `main` commit and review branch commit, if accessible.
+- Whether the review branch was actually pushed.
+- Which checks passed or failed.
+- The exact state and owner of each of the four Replit workspaces, with verified project URLs where available.
+- Whether each teammate can access and push to their assigned branch, based on actual verification.
+- README status.
+- Any remaining blocker that genuinely requires a human action, with the exact action and reason.
+
+Do not ask me to choose between routine implementation details. Make safe, reversible decisions independently. Ask for approval only when required for a consequential remote action, access change, or irreversible decision. If blocked by missing credentials or permissions, finish every safe local step first and explain the minimum action needed to unblock the remaining work.
+
+**Start by inspecting the current state and executing the safest available steps. Do not simply rewrite this plan or create more tasks.**

@@ -18,11 +18,11 @@ import {
 } from "../lib/approved-demo";
 
 const router: IRouter = Router();
-const model = "gpt-5-mini";
+const model = "gemini-3-flash-preview";
 const lastEvaluationByClient = new Map<string, number>();
 const inFlight = new Set<string>();
 
-// The authored demo does not call OpenAI or microphone providers. Keep the legacy
+// The authored demo does not call AI or microphone providers. Keep the legacy
 // routes below separate so this approved step does not silently alter other services.
 router.post("/study/messages", (req, res) => {
   const input = SendDemoMessageBody.safeParse(req.body);
@@ -78,19 +78,21 @@ router.post("/report", (req, res) => {
   }
 });
 
-function getOpenAIClient(): OpenAI | null {
-  const managedKey = process.env.AI_INTEGRATIONS_OPENAI_API_KEY;
-  const baseURL = process.env.AI_INTEGRATIONS_OPENAI_BASE_URL;
-  if (managedKey && baseURL) {
-    return new OpenAI({ apiKey: managedKey, baseURL, timeout: 60_000, maxRetries: 1 });
-  }
-  const apiKey = process.env.OPENAI_API_KEY;
-  return apiKey ? new OpenAI({ apiKey, timeout: 60_000, maxRetries: 1 }) : null;
+function getGeminiClient(): OpenAI | null {
+  // Google's documented OpenAI-compatible API reuses the existing SDK.
+  // Never fall back to the previous OpenAI account.
+  const apiKey = process.env.GEMINI_API_KEY;
+  return apiKey ? new OpenAI({
+    apiKey,
+    baseURL: "https://generativelanguage.googleapis.com/v1beta/openai/",
+    timeout: 60_000,
+    maxRetries: 1,
+  }) : null;
 }
 
 router.get("/study/demo", (_req, res) => {
   res.setHeader("Cache-Control", "no-store");
-  res.json(sourceMetadata(Boolean(getOpenAIClient())));
+  res.json(sourceMetadata(Boolean(getGeminiClient())));
 });
 
 const parsePdf = raw({ type: "application/pdf", limit: approvedDemo.byteLength, inflate: false });
@@ -120,7 +122,7 @@ router.post("/study/demo/upload", receivePdf, (req, res) => {
     return;
   }
   res.setHeader("Cache-Control", "no-store");
-  res.json({ source: sourceMetadata(Boolean(getOpenAIClient())), sourceToken: issueSourceToken() });
+  res.json({ source: sourceMetadata(Boolean(getGeminiClient())), sourceToken: issueSourceToken() });
 });
 
 function checkSource(input: { sourceToken?: string; topic: string; referenceText: string }) {
@@ -144,9 +146,9 @@ router.post("/study/evaluate", async (req, res) => {
     res.status(400).json({ error: "A verified source and a non-empty explanation are required. Select the PDF again if your session expired." });
     return;
   }
-  const client = getOpenAIClient();
+  const client = getGeminiClient();
   if (!client) {
-    res.status(503).json({ error: "AI checking is not connected yet. Your answer is unchanged. The workspace owner must configure an OpenAI connection before answers can be assessed." });
+    res.status(503).json({ error: "Gemini checking is not connected yet. Your answer is unchanged. The workspace owner must configure GEMINI_API_KEY through Replit Secrets before answers can be assessed." });
     return;
   }
   const clientKey = req.ip || "unknown";
@@ -197,6 +199,19 @@ router.post("/study/evaluate", async (req, res) => {
   } catch (err) {
     // Do not log source text, student answers, or provider request bodies.
     req.log.error({ errorType: err instanceof Error ? err.name : "UnknownError" }, "Study assessment failed");
+    const providerError = err as { status?: unknown; code?: unknown };
+    if (providerError.status === 429) {
+      res.status(503).json({
+        error: "Gemini has reached an API quota or rate limit. Your text is unchanged; no assessment was recorded. Check the connected Google project's quota, then retry.",
+      });
+      return;
+    }
+    if (providerError.status === 503) {
+      res.status(503).json({
+        error: "Gemini is temporarily unavailable. Your text is unchanged; no assessment was recorded. Please retry shortly.",
+      });
+      return;
+    }
     res.status(502).json({ error: "The answer could not be assessed reliably. Your text is unchanged; please retry. No assessment was recorded." });
   } finally {
     inFlight.delete(clientKey);

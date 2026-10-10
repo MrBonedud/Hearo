@@ -150,7 +150,7 @@ paths:
         "400":
           description: Invalid study material
         "503":
-          description: OpenAI key is not configured
+          description: AI provider is unavailable
   /study/evaluate:
     post:
       operationId: evaluateStudy
@@ -172,7 +172,7 @@ paths:
         "400":
           description: Invalid evaluation request
         "503":
-          description: OpenAI key is not configured
+          description: Gemini is not configured or its API quota is unavailable
 components:
   schemas:
     DemoEvidence:

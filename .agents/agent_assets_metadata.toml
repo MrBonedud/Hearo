@@ -14,3 +14,17 @@ mtime_ms = 1791632810421
 storage_uri = "gcs://replit-rams-assets-kirk/rams/assets/repl:f5eb4a40-0d19-49b7-a42a-e724840955a9/4dedd53b-9fe9-4c28-b75f-e88da188067c/315992ad-5e6b-4e5a-b38e-a9567fef3eb5"
 storage_version_token = "1791632868401335"
 content_type = "application/pdf"
+
+[[outputs]]
+id = "iYXxcpYhLxWc0XRFZtOSx"
+uri = "file://generated-artifacts/hearo-verified-owner-handoff.md"
+type = "text"
+title = "Hearo verification and owner handoff"
+description = "Verified checks, protected backups, exact guarded review-branch publishing instructions, and remaining setup gates. No credentials included."
+logical_id = "f36c16af-a6e1-42e9-ac77-45020688b96c"
+content_hash = "sha256:8842817f9fb0aacea472a188451d6e8411b2e5dfd5b4853c0390574a518fcb4a"
+size = 5690
+mtime_ms = 1791642086277
+storage_uri = "gcs://replit-rams-assets-kirk/rams/assets/repl:f5eb4a40-0d19-49b7-a42a-e724840955a9/f36c16af-a6e1-42e9-ac77-45020688b96c/fdf1e0dc-7112-400a-a64d-9bc87b768d84"
+storage_version_token = "1791642137933626"
+content_type = "text/markdown"

@@ -37,9 +37,9 @@ const statusMeta = {
 
 function errorMessage(error: unknown) {
   const apiError = error as { status?: number; data?: unknown; message?: string };
-  if (apiError?.status === 503) return 'AI checking is not connected yet. Your answer is unchanged. Ask the workspace owner to configure an OpenAI connection.';
-  if (apiError?.status === 401 || apiError?.status === 403) return 'The study service could not authorize this request. Check the API setup and try again.';
   const data = apiError?.data as { message?: string; error?: string } | undefined;
+  if (apiError?.status === 503) return data?.message || data?.error || 'Gemini checking is not connected yet. Your answer is unchanged. Ask the workspace owner to configure a Gemini connection.';
+  if (apiError?.status === 401 || apiError?.status === 403) return 'The study service could not authorize this request. Check the API setup and try again.';
   return data?.message || data?.error || apiError?.message || 'Something interrupted the study check. Your notes are still here; please try again.';
 }
 

@@ -80,6 +80,16 @@ test("evidence validation preserves Arabic and English quotations without transl
   // These test structural grounding, not the accuracy of a live language model.
 });
 
+test("student evidence must be an exact contiguous excerpt from the original transcript", () => {
+  const transcript = "A load balancer  distributes requests.";
+  const rows = outputFor("A load balancer distributes requests.");
+  const result = groundedEvaluation(rows, transcript);
+  const item = result.assessments!.find(value => value.conceptId === "load-balancing")!;
+  assert.equal(item.verdict, "not_demonstrated");
+  assert.equal(item.studentEvidence, null);
+  assert.deepEqual(item.sourceLineIds, []);
+});
+
 test("invented student quotes, invalid source IDs, and low confidence never produce mastery", () => {
   for (const override of [
     { studentEvidence: "words never spoken" },
@@ -108,6 +118,17 @@ test("partial understanding is distinct from supported and from a misconception"
   assert.equal(result.feedback.length, 0);
 });
 
+test("a verified contradiction remains distinct from missing evidence", () => {
+  const transcript = "A balancer sends one connection's packets to different servers.";
+  const rows = outputFor(transcript);
+  rows.find(row => row.conceptId === "load-balancing")!.verdict = "contradicted";
+  const result = groundedEvaluation(rows, transcript);
+  const item = result.assessments!.find(row => row.conceptId === "load-balancing")!;
+  assert.equal(item.verdict, "contradicted");
+  assert.equal(result.nodes.find(node => node.id === item.conceptId)!.status, "incorrect");
+  assert.equal(result.feedback.find(row => row.statement === transcript)!.status, "incorrect");
+});
+
 test("malformed verdicts, duplicate, missing, or unknown objectives are rejected", () => {
   const rows = outputFor("answer");
   assert.throws(() => groundedEvaluation(rows.slice(1), "answer"));
@@ -117,7 +138,7 @@ test("malformed verdicts, duplicate, missing, or unknown objectives are rejected
   assert.throws(() => groundedEvaluation(null, "answer"));
 });
 
-test("HTTP upload and preparation enforce the fixed PDF and preserve unavailable-AI semantics", { skip: !fixture }, async () => {
+test("HTTP upload and preparation enforce the fixed PDF and source authorization", { skip: !fixture }, async () => {
   const { default: app } = await import("../app");
   const server = app.listen(0, "127.0.0.1");
   await new Promise<void>((resolve, reject) => { server.once("listening", resolve); server.once("error", reject); });
