@@ -23,6 +23,11 @@ import { Toaster } from '@/components/ui/toaster';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { LandingExperience } from '@/components/landing-experience';
 import { OfflineSample } from '@/components/offline-sample';
+import { RecordedAudioPanel } from '@/components/recorded-audio-panel';
+import { ArabicRehearsalLab } from '@/components/arabic-rehearsal-lab';
+import { CheckLatencyNote } from '@/components/check-latency';
+import { ReportScoreCard } from '@/components/report-score-card';
+import { useAudioRecorder } from '@/hooks/use-audio-recorder';
 import { LiveWaveform } from '@/components/live-waveform';
 import NotFound from '@/pages/not-found';
 import { Route, Switch, useLocation, Router as WouterRouter } from 'wouter';
@@ -264,16 +269,28 @@ function App() {
     transcriptRef.current = text;
     setTranscript(text);
   }, []);
-  const speech = useSpeechTranscription(text => {
+  const [labBusy, setLabBusy] = useState(false);
+  const [replayCaptions, setReplayCaptions] = useState(0);
+  const [replayActive, setReplayActive] = useState(false);
+  const recorder = useAudioRecorder();
+  const recorderNoteRef = useRef(recorder.noteCaption);
+  recorderNoteRef.current = recorder.noteCaption;
+  const stopSpeechRef = useRef<() => Promise<void>>(async () => undefined);
+  const appendToTranscript = useCallback((text: string, fromSpeech: boolean) => {
     const next = [transcriptRef.current.trimEnd(), text].filter(Boolean).join(' ');
     changeTranscript(next.slice(0, 12000));
     if (next.length > 12000) {
       setVoiceOverflow(previous => `${previous} ${next.slice(12000)}`.trim());
-      setTimeout(() => void speech.stop(), 0);
+      if (fromSpeech) setTimeout(() => void stopSpeechRef.current(), 0);
     }
+  }, [changeTranscript]);
+  const speech = useSpeechTranscription((text, isFinal) => {
+    if (isFinal) recorderNoteRef.current(text);
+    appendToTranscript(text, true);
   });
   const { supported: supportsSpeech, listening, interim, message: micMessage, setMessage: setMicMessage,
     start: startListening, stop: stopListening } = speech;
+  stopSpeechRef.current = stopListening;
   const assessmentInput = studyMap && selectedSource ? {
     topic: studyMap.topic, referenceText, transcript: transcript.trim(),
     sourceToken: selectedSource.sourceToken, nodes: studyMap.nodes, edges: studyMap.edges,
@@ -323,20 +340,20 @@ function App() {
     const url = selectedSource?.fileUrl;
     return () => { if (url) URL.revokeObjectURL(url); };
   }, [selectedSource?.fileUrl]);
-  const saveCurrentStudy = useCallback((text: string) => {
+  const saveCurrentStudy = useCallback((text: string, archive = false): boolean => {
     if (!studyMap || !selectedSource || !sourceIdentity
       || sourceIdentity.id !== selectedSource.source.id
-      || sourceIdentity.pdfSha256 !== selectedSource.pdfSha256) return;
+      || sourceIdentity.pdfSha256 !== selectedSource.pdfSha256) return false;
     // A prior/prefix result must never be saved as the report for edited text.
     const currentEvaluation = checkedTranscript === text.trim() ? evaluation : null;
     const citedPassageIds = currentEvaluation?.assessments
       ? [...new Set(currentEvaluation.assessments.flatMap(item => item.sourceLineIds))]
       : [];
     const saved: SavedStudySession = {
-      id: activeSavedStudyId ?? createSavedStudyId(),
+      id: archive ? createSavedStudyId() : activeSavedStudyId ?? createSavedStudyId(),
       version: 1,
       savedAt: Date.now(),
-      ...(activeSavedStudyLabel.trim() ? { label: activeSavedStudyLabel.trim().slice(0, MAX_STUDY_LABEL_LENGTH) } : {}),
+      ...(archive ? { label: 'Archived draft before caption replay' } : activeSavedStudyLabel.trim() ? { label: activeSavedStudyLabel.trim().slice(0, MAX_STUDY_LABEL_LENGTH) } : {}),
       source: sourceIdentity,
       map: currentEvaluation ? studyMap : uncheckedMap(studyMap),
       transcript: text,
@@ -348,10 +365,12 @@ function App() {
     };
     try {
       setSavedStudies(writeSavedStudy(saved));
-      if (!activeSavedStudyId) setActiveSavedStudyId(saved.id);
-      setStorageMessage('');
+      if (!activeSavedStudyId && !archive) setActiveSavedStudyId(saved.id);
+      setStorageMessage(archive ? 'Your previous draft was saved as an archived study before replay.' : '');
+      return true;
     } catch {
       setStorageMessage('This browser could not save your progress. Your answer remains on screen; copy it before leaving or reloading.');
+      return false;
     }
   }, [studyMap, evaluation, checkedTranscript, phase, selectedSource, sourceIdentity, voiceOverflow, previousReport, activeSavedStudyId, activeSavedStudyLabel]);
   useLayoutEffect(() => {
@@ -477,12 +496,13 @@ function App() {
     setError('');
     try {
       await stopListening();
+      await recorder.stop();
       const text = transcriptRef.current.trim();
       if (!text) { setError('أضف شرحًا أولًا. Add a few words before opening your report.'); return; }
       const result = await live.check({
         topic: studyMap.topic, referenceText, transcript: text, sourceToken: selectedSource.sourceToken,
         nodes: studyMap.nodes, edges: studyMap.edges,
-      });
+      }, false, 'final');
       setEvaluation(result);
       setCheckedTranscript(text);
       setPreviousReport({ transcript: text, evaluation: result, overflowText: voiceOverflow });
@@ -495,6 +515,9 @@ function App() {
   const resetStudy = async () => {
     if (finishing || prepareStudy.isPending) return;
     await stopListening();
+    await recorder.stop();
+    recorder.clearTake();
+    setReplayCaptions(0);
     saveCurrentStudy(transcriptRef.current);
     setAssessmentSessionKey(key => key + 1);
     setActiveSavedStudyId(null);
@@ -643,7 +666,7 @@ function App() {
           {selectedSource && !selectedSource.source.aiAvailable && <p className="ai-unavailable" role="status">AI checking is not connected yet. You can still read and draft; your answer will not receive a simulated verdict.</p>}
           {supportsSpeech && <div className="mic-row">
             <label className="speech-language">لغة الصوت<select value={speech.language} disabled={listening || finishing} onChange={event => speech.setLanguage(event.target.value)} data-testid="select-speech-language"><option value="ar-SA">العربية</option><option value="en-US">English</option></select></label>
-            <button className={`mic-button ${listening ? 'mic-active' : ''}`} type="button" disabled={finishing} onClick={listening ? () => void stopListening() : startListening} data-testid="button-microphone">
+            <button className={`mic-button ${listening ? 'mic-active' : ''}`} type="button" disabled={finishing || labBusy || replayActive} onClick={listening ? () => void stopListening() : startListening} data-testid="button-microphone">
               {listening ? <><span className="recording-wave"><i /><i /><i /><i /><i /></span> Pause listening</> : <><Mic size={17} /> Start explaining aloud</>}
             </button>
             {listening && <span className="listening-caption"><i className="pulse-dot" /> Microphone active · Hearo does not store audio</span>}
@@ -651,7 +674,22 @@ function App() {
           </div>}
           {!supportsSpeech && <p className="mic-notice" role="status">التفريغ الصوتي غير متاح في هذا المتصفح. يمكنك الكتابة أو استخدام Chrome. Speech transcription is unavailable here; typed explanations receive the same checks.</p>}
           {micMessage && <div className="mic-notice" role="status" data-testid="status-mic-message"><MicOff size={15} />{micMessage}<button onClick={() => setMicMessage('')} type="button" aria-label="Dismiss message"><X size={14} /></button></div>}
-          <label className="field-label transcript-label" htmlFor="transcript-input">{supportsSpeech ? 'Your running transcript' : 'Your explanation'}</label>
+          <RecordedAudioPanel recorder={recorder} language={speech.language} busy={finishing || labBusy} hasDraft={Boolean(transcript.trim())}
+            onCaption={text => { appendToTranscript(text, false); setReplayCaptions(count => count + 1); }}
+            onReplayingChange={setReplayActive}
+            onBeforeReplay={async replace => {
+              await stopListening();
+              await recorder.stop();
+              if (replace && transcriptRef.current.trim()) {
+                const draft = [transcriptRef.current, voiceOverflow].filter(Boolean).join(' ');
+                if (!saveCurrentStudy(draft.slice(0, 12000), true)) return false;
+                changeTranscript(''); setVoiceOverflow('');
+              }
+              setReplayCaptions(0);
+              return true;
+            }} />
+          <ArabicRehearsalLab blocked={listening || recorder.recording || finishing} onBusyChange={setLabBusy} />
+          <label className="field-label transcript-label" htmlFor="transcript-input">{supportsSpeech ? 'Your running transcript' : 'Your explanation'}{replayCaptions > 0 && <em> · includes {replayCaptions} captured captions from a recording, not fresh speech recognition</em>}</label>
           <div className="transcript-wrap">
             <textarea id="transcript-input" dir="auto" readOnly={finishing} value={transcript} onChange={event => changeTranscript(event.target.value.slice(0, 12000))} maxLength={12000} placeholder="اشرح الفكرة بأسلوبك… / Explain the idea in your own words…" data-testid="input-transcript" />
             {interim && <div className="interim-line"><span className="pulse-dot" />{interim}</div>}
@@ -676,6 +714,7 @@ function App() {
           <div className="live-check-status" role="status" data-testid="status-live-check">
             {live.busy ? <><span className="button-loader" /> جارٍ التحقق بصمت · Checking silently…</> : allowance?.available === false ? 'تم بلوغ الحد اليومي · Live checks paused until the UTC reset' : !liveEnabled ? 'التحقق المباشر متوقف · Live checks paused' : live.error ? 'تعذر التحقق؛ تم إيقاف الطلبات التلقائية · Checks paused after an error; retry when ready' : checkedTranscript === transcript.trim() && evaluation ? 'تم التحقق من شرحك الحالي · Current explanation checked' : hasCheckedPrefix ? `تم التحقق من ${checkedTranscript.split(/\s+/).length} كلمة؛ الباقي قيد الانتظار · More words awaiting a check` : 'بانتظار شرحك · Waiting for your explanation'}
           </div>
+          <CheckLatencyNote latency={live.latency} />
           {Boolean(live.error) && liveEnabled && <div className="live-check-error" role="alert"><p>{errorMessage(live.error)}</p><button type="button" className="back-link" disabled={live.busy || finishing} onClick={() => { if (assessmentInput) void live.check(assessmentInput, true).catch(() => undefined); }} data-testid="button-retry-live">إعادة المحاولة · Retry check</button></div>}
           {previousReport && <div className="live-check-error">
             <p>التقرير السابق يخص الشرح الذي تم التحقق منه فقط، وليس المسودة الحالية. Your previous report covers only its checked explanation, not the current draft.</p>
@@ -697,6 +736,8 @@ function App() {
         <p className="review-description">Here’s what your explanation showed about <strong>{studyMap.topic}</strong>. A map to guide your next pass, not a grade.</p>
         {voiceOverflow && <p className="saved-study-warning" role="status">This report checks only the first 12,000 characters. Extra spoken words are preserved in the download as unassessed text: <bdi>{voiceOverflow}</bdi></p>}
         <button className="upload-button" type="button" onClick={() => downloadReport()} data-testid="button-download-report">تنزيل التقرير · Download report</button>
+        <ReportScoreCard evaluation={evaluation} />
+        <CheckLatencyNote latency={live.latency} />
       </div>
       <div className="review-summary">
         <div className="summary-intro"><span className="mono">YOUR MAP, UPDATED</span><h2 className="serif">Understanding<br />has its own shape.</h2><StatusKey /></div>

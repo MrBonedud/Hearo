@@ -1,3 +1,4 @@
+import { scoreReport, scoreReportLines } from './report-score';
 import type { DemoSource, StudyEvaluation } from '@workspace/api-client-react';
 
 export function studyReportText(evaluation: StudyEvaluation, transcript: string, source: DemoSource, overflow = ''): string {
@@ -8,6 +9,7 @@ export function studyReportText(evaluation: StudyEvaluation, transcript: string,
     `Source: ${source.title}`, `Original PDF: ${source.downloadUrl}`,
     `Concepts demonstrated correctly: ${supported}/${total}`,
     'Partial understanding is not counted as mastery.', '',
+    ...scoreReportLines(scoreReport(evaluation)), '',
     'Your explanation:', transcript, '', 'Source-backed assessment:',
   ];
   for (const item of evaluation.assessments ?? []) {

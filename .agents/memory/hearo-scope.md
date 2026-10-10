@@ -51,8 +51,8 @@ Repository and team setup must be performed and verified, not reported complete 
 
 **How to apply:** Keep current-source identity and private material safe; do not count the primary project, task-agent environments or multiple browser tabs as independent teammate workspaces. Every teammate uses their own account and permissions, and unverified URLs or access stay explicitly unverified.
 
-The team chose Google Gemini for answer checking after OpenAI provider access was blocked by unavailable API credits.
+The earlier Gemini-only choice was superseded: the team requested OpenAI-first checking with Gemini fallback, using Gemini 3.1 Flash Lite for Gemini requests.
 
-**Why:** The team explicitly requested replacing OpenAI with Gemini.
+**Why:** The team explicitly authorized using both providers after adding its own OpenAI key, with Gemini when OpenAI does not work.
 
-**How to apply:** Use Gemini for study assessments. Do not silently fall back to OpenAI; keep the same source restrictions and evidence validation regardless of provider.
+**How to apply:** Preserve the authorized order and disclose the actual successful provider/model. A stored key does not prove usable quota. Keep source restrictions and evidence validation identical across providers.

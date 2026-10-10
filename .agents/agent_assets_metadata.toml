@@ -42,3 +42,17 @@ mtime_ms = 1791645660368
 storage_uri = "gcs://replit-rams-assets-kirk/rams/assets/repl:f5eb4a40-0d19-49b7-a42a-e724840955a9/163eb113-cec4-4475-bc70-0c44f6187d59/a0e0c241-0825-4f84-8d75-4f13a79da553"
 storage_version_token = "1791646435615740"
 content_type = "text/plain"
+
+[[outputs]]
+id = "tKRDR57-ztQ-52IejgWsJ"
+uri = "file://generated-artifacts/hearo-demo-readiness.html"
+type = "html"
+title = "Hearo — Live Demo Readiness Results"
+description = "Ten-case text sample: successful verdict agreement, latency, all failures and development-restart caveats. Not a speech-accuracy claim."
+logical_id = "fa0fe008-4028-4047-9dd8-085174b50876"
+content_hash = "sha256:a447c40ccb973fbfb1f145586cba3971fb5cd79d2549af15a51934c02af13cc5"
+size = 4123
+mtime_ms = 1791649315005
+storage_uri = "gcs://replit-rams-assets-kirk/rams/assets/repl:f5eb4a40-0d19-49b7-a42a-e724840955a9/fa0fe008-4028-4047-9dd8-085174b50876/8f65d92d-b09d-4005-8cb3-c8424bcb7f1e"
+storage_version_token = "1791649343278388"
+content_type = "text/html"

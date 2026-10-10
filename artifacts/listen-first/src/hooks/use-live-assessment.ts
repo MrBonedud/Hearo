@@ -6,6 +6,8 @@ function keyOf(input: StudyEvaluationInput): string {
   return JSON.stringify([input.sourceToken, input.topic, input.referenceText, input.transcript.trim()]);
 }
 
+export type CheckLatency = { ms: number; ok: boolean; kind: 'live' | 'final' | 'retry' };
+
 export function useLiveAssessment({
   input, enabled, sessionKey, onResult, onSettled, paused = false,
 }: {
@@ -25,13 +27,15 @@ export function useLiveAssessment({
   const attempted = useRef<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<unknown>(null);
+  const [latency, setLatency] = useState<CheckLatency | null>(null);
 
   useEffect(() => {
     mounted.current = true;
     return () => { mounted.current = false; };
   }, []);
 
-  const check = useCallback(async (snapshot: StudyEvaluationInput, force = false) => {
+  const check = useCallback(async (snapshot: StudyEvaluationInput, force = false, kind: CheckLatency['kind'] = force ? 'retry' : 'live') => {
+    const startedAt = performance.now();
     const owner = latest.current.sessionKey;
     // Even identical input belongs to the activation that requested it.
     const requestKey = JSON.stringify([owner, keyOf(snapshot)]);
@@ -40,6 +44,7 @@ export function useLiveAssessment({
     if (mounted.current) { setBusy(true); setError(null); }
     try {
       const result = await queue.current!.request(requestKey, snapshot, force);
+      if (mounted.current && latest.current.sessionKey === owner) setLatency({ ms: performance.now() - startedAt, ok: true, kind });
       const current = latest.current;
       if (mounted.current && current.enabled && current.input
         && current.sessionKey === owner
@@ -49,6 +54,7 @@ export function useLiveAssessment({
       }
       return result;
     } catch (issue) {
+      if (mounted.current && latest.current.sessionKey === owner) setLatency({ ms: performance.now() - startedAt, ok: false, kind });
       if (mounted.current && latest.current.sessionKey === owner
         && latest.current.input?.sourceToken === snapshot.sourceToken) setError(issue);
       throw issue;
@@ -64,6 +70,7 @@ export function useLiveAssessment({
   const key = input ? keyOf(input) : '';
   const sourceKey = input?.sourceToken ?? '';
   useEffect(() => { attempted.current = null; setError(null); }, [sourceKey, sessionKey]);
+  useEffect(() => { setLatency(null); }, [sourceKey, sessionKey]);
   useEffect(() => {
     if (!enabled) { attempted.current = null; return; }
     // A failed provider request pauses automatic work until an explicit retry.
@@ -78,5 +85,5 @@ export function useLiveAssessment({
     return () => clearTimeout(timer);
   }, [key, enabled, paused, busy, error, check, sessionKey]);
 
-  return { busy, error, check };
+  return { busy, error, check, latency };
 }

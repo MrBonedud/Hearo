@@ -184,6 +184,7 @@ export async function main(args = process.argv.slice(2), env = process.env, dela
         assert.ok(report.budget.usedHttpAttempts < report.budget.maxHttpAttempts, "Evaluation HTTP attempt budget exhausted.");
         report.budget.usedHttpAttempts++;
       }
+      const requestStarted = performance.now();
       try {
         const { response, body } = await apiJson(`${base}/study/evaluate`, {
           method: "POST", headers: { "Content-Type": "application/json" },
@@ -202,7 +203,8 @@ export async function main(args = process.argv.slice(2), env = process.env, dela
         // Do not include request bodies/headers/source tokens in error logs.
         result = { status: 0, response: { error: error.name === "TimeoutError" ? "Request timed out." : "Transport failure." }, attempts: attempt + 1, checker: null };
       }
-      attemptHistory.push({ attempt: attempt + 1, status: result.status, checker: result.checker });
+      result.latencyMs = Math.round(performance.now() - requestStarted);
+      attemptHistory.push({ attempt: attempt + 1, status: result.status, checker: result.checker, latencyMs: result.latencyMs });
       if (![429, 503].includes(result.status) || result.response?.code === "evaluation_budget_exceeded" || attempt === options.retries) break;
       await delay(3000 * 2 ** attempt);
     }

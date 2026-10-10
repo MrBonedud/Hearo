@@ -1,5 +1,10 @@
 # Opt-in model-change regression evaluation
 
+Live runs now record `latencyMs` for each evaluation HTTP attempt. Summarize a
+completed demo subset with `node scripts/study-live/demo-metrics.mjs <report.json>`.
+This separates availability failures from target-verdict agreement and reports
+successful round-trip p50/p95, including fallback but excluding speech recognition.
+
 This suite checks **76 authored cases**: the original ten, 54 equivalent
 explanations (nine per objective), and 12 incomplete/contradiction controls.
 It covers all six objectives in the unchanged English source pack. Dialect

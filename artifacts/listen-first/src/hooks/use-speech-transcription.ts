@@ -14,7 +14,7 @@ type SpeechWindow = Window & {
   webkitSpeechRecognition?: new () => Recognition;
 };
 
-export function useSpeechTranscription(append: (text: string) => void) {
+export function useSpeechTranscription(append: (text: string, isFinal?: boolean) => void) {
   const [language, setLanguage] = useState('ar-SA');
   const [listening, setListening] = useState(false);
   const [interim, setInterim] = useState('');
@@ -34,7 +34,7 @@ export function useSpeechTranscription(append: (text: string) => void) {
   const flush = () => {
     const pending = interimRef.current.trim();
     interimRef.current = '';
-    if (pending) appendRef.current(pending);
+    if (pending) appendRef.current(pending, false);
     setInterim('');
   };
 
@@ -100,7 +100,7 @@ export function useSpeechTranscription(append: (text: string) => void) {
             if (!consumed.has(i)) { finalized.push(result[0].transcript); consumed.add(i); }
           } else provisional.push(result[0].transcript);
         }
-        if (finalized.length) appendRef.current(finalized.join(' ').trim());
+        if (finalized.length) appendRef.current(finalized.join(' ').trim(), true);
         interimRef.current = provisional.join(' ');
         setInterim(interimRef.current);
       };
