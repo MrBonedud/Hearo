@@ -1,13 +1,14 @@
 import { useMemo, useReducer } from 'react';
 import { motion, useReducedMotion } from 'framer-motion';
-import { ArrowLeft, ArrowRight, BookOpen, RotateCcw } from 'lucide-react';
+import { ArrowLeft, ArrowRight, RotateCcw } from 'lucide-react';
+import type { StudyEvaluation, StudyMap } from '@workspace/api-client-react';
+import { ConceptMap } from '@/components/concept-map';
 import { offlineSampleSource as fixture, offlineSampleSteps as steps, initialOfflineSampleState, offlineSampleReducer } from '@/lib/offline-sample';
 
 const arabicLabels: Record<string, string> = { scaling: 'التوسّع', 'load-balancing': 'توزيع الحمل', 'stateless-servers': 'الخوادم عديمة الحالة', sharding: 'تقسيم البيانات', replication: 'تكرار البيانات', caching: 'التخزين المؤقت والاتساق' };
 const labels: Record<string, [string, string]> = Object.fromEntries(
   fixture.concepts.map(concept => [concept.id, [arabicLabels[concept.id] ?? concept.label, concept.label]]),
 );
-const statusLabels = { supported: 'Supported · مؤيّد', partial: 'Caveat · تفصيل مهم', contradicted: 'Contradicted · متعارض', waiting: 'Waiting · بانتظارك' };
 
 export function OfflineSample({ onExit }: { onExit: () => void }) {
   const [{ step, finished }, dispatch] = useReducer(offlineSampleReducer, initialOfflineSampleState);
@@ -15,6 +16,25 @@ export function OfflineSample({ onExit }: { onExit: () => void }) {
   const visibleSteps = useMemo(() => step < 0 ? [] : steps.slice(0, step + 1), [step]);
   const current = step >= 0 ? steps[step] : null;
   const lineMap = new Map(fixture.referenceLines.map(line => [line.id, line]));
+  // Illustrative statuses; relationships come from the same approved source as live sessions.
+  const sampleMap: StudyMap = useMemo(() => ({
+    topic: fixture.title,
+    edges: fixture.edges,
+    nodes: fixture.concepts.map(concept => {
+      const entry = visibleSteps.find(item => item.conceptId === concept.id);
+      const lines = entry ? entry.lineIds.map(id => lineMap.get(id)?.text).filter(Boolean).join('\n') : '';
+      return {
+        id: concept.id, label: labels[concept.id]?.[0] ?? concept.label,
+        description: `${labels[concept.id]?.[1] ?? concept.label} · ${entry ? entry.statusLabel : 'Not visited in this sample yet'}`,
+        status: 'skipped' as const, evidence: lines || null,
+      };
+    }),
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }), [visibleSteps]);
+  const sampleAssessments = useMemo(() => visibleSteps.map(item => ({
+    conceptId: item.conceptId, confidence: 'high', sourceLineIds: item.lineIds,
+    verdict: item.status === 'supported' ? 'supported' : item.status === 'contradicted' ? 'contradicted' : 'partially_understood',
+  })) as unknown as StudyEvaluation['assessments'], [visibleSteps]);
   const start = () => dispatch('start');
   const advance = () => dispatch('next');
   const currentEvidence = current?.lineIds.map(id => lineMap.get(id)).filter((line): line is NonNullable<typeof line> => Boolean(line));
@@ -59,22 +79,11 @@ export function OfflineSample({ onExit }: { onExit: () => void }) {
       <aside className="sample-map" aria-label="Illustrative concept map" data-testid="sample-concept-map">
         <div className="panel-heading"><div><span className="panel-index">SAMPLE</span><h2>خريطة المفاهيم</h2></div><span className="node-count mono">{visibleSteps.length}/{fixture.concepts.length}</span></div>
         <p className="panel-hint" dir="auto">ألوان العينة توضيحية فقط، وليست حكمًا على شرح متعلّم.</p>
-        <div className="status-key"><span><i className="key-dot understood-dot" /> supported</span><span><i className="key-dot incorrect-dot" /> contradicted</span><span><i className="key-dot" style={{ background: 'var(--gold)' }} /> caveat</span><span><i className="key-dot skipped-dot" /> waiting</span></div>
-        <div className="concept-list">
-          {fixture.concepts.map((concept, index) => {
-            const sampleEntry = visibleSteps.find(item => item.conceptId === concept.id);
-            const state = sampleEntry?.status ?? 'waiting';
-            return <article key={concept.id} className={`concept-row sample-visible sample-state-row-${state} status-${state === 'supported' ? 'understood' : state === 'contradicted' ? 'incorrect' : 'skipped'}`} data-testid={`sample-node-${concept.id}`}>
-              <div className="concept-index">{String(index + 1).padStart(2, '0')}</div>
-              <div className="concept-body">
-                <h3 dir="auto">{labels[concept.id]?.[0]} <span className="sample-label-en">· {labels[concept.id]?.[1]}</span></h3>
-                <p dir="auto">{sampleEntry ? statusLabels[state] : 'Not visited in this sample yet'}</p>
-                {sampleEntry && <div className={`sample-state state-${state}`}><span className="key-dot" />{statusLabels[state]}</div>}
-                {visibleSteps.some((item, itemIndex) => item.conceptId === concept.id && itemIndex === step) && <span className="edge-label"><BookOpen size={12} /> linked example</span>}
-              </div>
-            </article>;
-          })}
-        </div>
+        <ConceptMap map={sampleMap} assessments={sampleAssessments} assessed={false} />
+        <details className="sample-source-access" data-testid="details-sample-source">
+          <summary>المرجع · Reference excerpts ({fixture.referenceLines.length})</summary>
+          <ol dir="ltr">{fixture.referenceLines.map(line => <li key={line.id}><bdi>{line.id} · Slide {line.page}:</bdi> {line.text}</li>)}</ol>
+        </details>
       </aside>
     </div>
   </section>;

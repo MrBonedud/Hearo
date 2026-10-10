@@ -673,3 +673,45 @@ button:disabled { opacity: .58; }
 .feedback-details summary { cursor: pointer; padding: 6px 0; }
 @keyframes feedback-in { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
 @media (prefers-reduced-motion: reduce) { .feedback-card { animation: none; transition: none; } }
+
+/* Connected concept graph: directed branch layout, transcript left / graph right */
+.workspace-grid { grid-template-columns: minmax(0,.9fr) minmax(0,1.5fr); }
+.map-panel { position: sticky; top: 16px; }
+.session-source { font-size: 15px; font-weight: 600; margin: 14px 0 0; color: #f3efff; }
+.session-source > span { display: block; font: 10px var(--app-font-mono); letter-spacing: .12em; color: #aaa0d3; text-transform: uppercase; margin-bottom: 4px; }
+.concept-map-scroll { overflow-x: auto; overflow-y: hidden; max-width: 100%; padding: 4px 0 10px; border-radius: 14px; background: #0b0d1b; border: 1px solid #2c2a42; }
+.concept-map-canvas { position: relative; display: block; padding: 0; margin: 0 auto; }
+.concept-map-links { position: absolute; left: 0; top: 0; overflow: visible; pointer-events: none; z-index: 0; }
+.concept-map-links path { fill: none; stroke: #b8b5cc; stroke-width: 1.8; opacity: .95; }
+.concept-map-links marker path { fill: #d0cde0; stroke: none; opacity: 1; }
+.concept-map-links text { fill: #d6d2e6; font: 10px var(--app-font-mono); paint-order: stroke; stroke: #0b0d1b; stroke-width: 4px; }
+.concept-map-canvas .concept-node { position: absolute; z-index: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; padding: 6px 10px; text-align: center; border-radius: 8px; border: 1px solid #5a5d78; background: #2a2d42; color: #f4f1ff; }
+.concept-node strong { font-size: 13px; line-height: 1.3; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+.concept-node small { font-size: 10px; color: #c9c6d9; }
+.concept-node.status-understood { background: #17512f; border-color: #42d6a0; }
+.concept-node.status-understood small { color: #8ee8c4; }
+.concept-node.status-incorrect { background: #5c1a26; border-color: #ff667f; }
+.concept-node.status-incorrect small { color: #ffb0be; }
+.concept-node.status-partial { background: #2a2d42; border: 1px dashed #b0b2c8; }
+.concept-node.status-skipped { background: #2a2d42; border-color: #6a6d86; }
+.concept-node.status-unassessed { background: #1a1c2e; border: 1px dotted #6a6d86; }
+.concept-node.status-unassessed small { color: #9c9ab2; }
+.concept-node-dot, .concept-node-index { display: none; }
+.unassessed-dot { background: transparent; border: 1px dotted #9c9ab2; }
+.partial-dot { background: #2a2d42; border: 1px dashed #b0b2c8; }
+.concept-details-slot { min-height: 0; }
+.concept-edge-list { display: none !important; }
+@media (max-width: 900px) {
+  .workspace-grid { grid-template-columns: 1fr; }
+  .map-panel { position: static; order: -1; }
+}
+@media (max-width: 640px) {
+  .concept-map-links { display: block !important; }
+  .concept-map-canvas, .concept-map-canvas.no-edges { margin: 0; }
+  .concept-map-scroll { -webkit-overflow-scrolling: touch; }
+}
+.sample-map .concept-map-scroll { margin-top: 12px; }
+.sample-source-access { margin-top: 14px; font-size: 12px; color: #c0bdd2; }
+.sample-source-access summary { cursor: pointer; font-weight: 600; padding: 6px 0; }
+.sample-source-access ol { list-style: none; margin: 0; padding: 0 6px 0 0; max-height: 240px; overflow-y: auto; }
+.sample-source-access li { padding: 9px 0; border-top: 1px solid #302d48; line-height: 1.6; }
