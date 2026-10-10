@@ -6,7 +6,7 @@ import { allCases, main, parseArgs } from "../verify-study-live.mjs";
 import { expandGroups } from "./corpus.mjs";
 import {
   fingerprint, validateCorpus, inspectResult, summarize, compareReports,
-  questionReviewTemplate, applyQuestionReview,
+  questionReviewTemplate, applyQuestionReview, analyzeRepeats,
 } from "./analysis.mjs";
 
 const pack = JSON.parse(await readFile(new URL("../../shared/topic-packs/system-design-slides.json", import.meta.url), "utf8"));
@@ -39,6 +39,116 @@ function report(items = allCases, model = "synthetic-model-a") {
     caseIds: items.map(item => item.id), results: items.map(item => synthetic(item, model)),
     semanticReview: "pending" };
 }
+
+function repeatedReport(items = [allCases[0]], trials = 3) {
+  const run = report(items);
+  return { ...run, schemaVersion: 3, repeatTrials: trials,
+    results: Array.from({ length: trials }, (_, i) => run.results.map(row => ({ ...structuredClone(row), trial: i + 1 }))).flat() };
+}
+
+test("repeat trial budgeting is separate opt-in and rejects invalid flags before any network calls", async () => {
+  for (const args of [
+    ["--live", "--repeat-trials", "2"], ["--live", "--max-http-attempts", "10"],
+    ["--list", "--repeat-trials", "2", "--max-http-attempts", "10"],
+    ...["1", "11", "2.5", "NaN", "0"].map(n => ["--live", "--repeat-trials", n, "--max-http-attempts", "100"]),
+    ...["0", "-1", "2.5", "Infinity"].map(n => ["--live", "--repeat-trials", "2", "--max-http-attempts", n]),
+  ]) assert.throws(() => parseArgs(args));
+  assert.equal(parseArgs(["--live"]).repeatTrials, undefined);
+  assert.equal(parseArgs(["--live", "--repeat-trials", "2", "--max-http-attempts", "4"]).repeatTrials, 2);
+  const originalFetch = globalThis.fetch;
+  let requests = 0;
+  globalThis.fetch = async () => { requests++; throw new Error("Unexpected network"); };
+  try {
+    await assert.rejects(main(["--live", "--split", "control", "--concept", "replication",
+      "--repeat-trials", "2", "--retries", "1", "--max-http-attempts", "7"], {}), /requires up to 8/);
+    assert.equal(requests, 0);
+  } finally { globalThis.fetch = originalFetch; }
+});
+
+test("within-model pairwise variability separates verdicts, question wording and pending review", () => {
+  const run = repeatedReport();
+  let result = analyzeRepeats(run);
+  assert.equal(result.comparedTrialPairs, 3);
+  assert.equal(result.comparedVerdicts, 3 * pack.concepts.length);
+  assert.equal(result.verdictDisagreements, 0);
+  assert.equal(result.pendingQuestionPairs, 3 * pack.concepts.length);
+  assert.equal(result.reviewedQuestionPairs, 0);
+  run.results[2].response.assessments[1].verdict = "contradicted";
+  run.results[2].response.assessments[1].followUp = "A different focused question?";
+  result = analyzeRepeats(run);
+  assert.equal(result.verdictDisagreements, 2);
+  assert.equal(result.questionWordingChanges, 2);
+  assert.equal(result.questionFocusDisagreements, 0, "Wording change does not establish semantic regression.");
+  assert.ok(result.differences.every(row => row.trials.includes(3)));
+  assert.match(result.caveat, /not calibrated accuracy/);
+});
+
+test("repeat analysis never mixes actual models or cases and excludes unavailable/malformed responses", () => {
+  const run = repeatedReport([allCases[0], allCases[1]]);
+  run.results[2].checker.model = "other-model";
+  run.results[4].status = 503;
+  run.results[5].response.assessments = [null];
+  const result = analyzeRepeats(run);
+  assert.equal(result.comparedTrialPairs, 1);
+  assert.equal(result.identities.length, 6);
+  assert.equal(result.identities[2].checker.model, "other-model");
+  assert.equal(result.excluded.length, 2);
+  assert.equal(result.verdictDisagreements, 0);
+  const malformed = repeatedReport();
+  malformed.results[1].response.assessments.pop();
+  assert.equal(analyzeRepeats(malformed).malformedPairs, 2);
+  const changed = repeatedReport();
+  changed.results[1].transcript = "Changed fixture";
+  assert.throws(() => analyzeRepeats(changed), /transcript changed/);
+  const duplicate = repeatedReport();
+  duplicate.results[1].trial = 1;
+  assert.throws(() => analyzeRepeats(duplicate), /Duplicate/);
+});
+
+test("review judgments are bound per trial and repeated comparisons retain within-model counts", () => {
+  const run = repeatedReport();
+  const review = questionReviewTemplate(run, pack);
+  assert.equal(review.rows.length, 3 * pack.concepts.length);
+  review.reviewer = "Synthetic review, not semantic evidence";
+  for (const row of review.rows) Object.assign(row, { focus: "pass", evidenceSufficiency: "pass", rationale: "Synthetic." });
+  review.rows.find(row => row.trial === 3 && row.conceptId === pack.concepts[1].id).focus = "fail";
+  review.rows.find(row => row.trial === 2 && row.conceptId === pack.concepts[1].id).evidenceSufficiency = "fail";
+  const reviewed = applyQuestionReview(run, review, pack);
+  assert.equal(reviewed.repeatAnalysis.questionFocusDisagreements, 2);
+  assert.equal(reviewed.repeatAnalysis.evidenceReviewDisagreements, 2);
+  assert.equal(reviewed.repeatAnalysis.pendingQuestionPairs, 0);
+  assert.equal(reviewed.semanticReview.failures[0].trial, 2);
+  const comparison = compareReports(run, reviewed);
+  assert.equal(comparison.withinModel.candidate.questionFocusDisagreements, 2);
+  assert.ok(comparison.differences.every(row => row.trial >= 1));
+  for (const mutate of [
+    copy => { copy.rows[0].trial = 2; },
+    copy => { copy.rows[0].checker.model = "other"; },
+    copy => { copy.rows[0].question = "Changed?"; },
+  ]) {
+    const copy = structuredClone(review);
+    mutate(copy);
+    assert.throws(() => applyQuestionReview(run, copy, pack));
+  }
+  for (const mutate of [
+    copy => { copy.repeatTrials = 2; },
+    copy => { copy.results.pop(); },
+    copy => { copy.results[1].trial = 1; },
+    copy => { copy.results[1].checker.model = "fallback"; },
+  ]) {
+    const copy = structuredClone(run);
+    mutate(copy);
+    assert.throws(() => compareReports(run, copy));
+  }
+  const candidate = structuredClone(run);
+  candidate.expectedChecker.model = "synthetic-model-b";
+  for (const row of candidate.results) row.checker.model = "synthetic-model-b";
+  candidate.results[2].response.assessments[1].verdict = "contradicted";
+  const drift = compareReports(run, candidate);
+  assert.equal(drift.verdictDisagreements, 1, "Cross-model paired-trial disagreement is separate.");
+  assert.equal(drift.withinModel.candidate.verdictDisagreements, 2);
+  assert.equal(drift.withinModel.baseline.verdictDisagreements, 0);
+});
 
 test("reviewed corpus covers every objective and dialect, with separately held-out pairs", () => {
   assert.equal(allCases.length, 76);
@@ -217,6 +327,7 @@ test("opted-in runner uses source flow, persists results without token, then com
   const logs = [];
   const paths = [];
   const uploads = [];
+  let scenario = "normal", scenarioCalls = 0;
   const sourceToken = "synthetic-private-source-token";
   const budgetCookie = "hearo_check_session=synthetic-private-budget-session";
   const env = { STUDY_API_BASE: "https://synthetic.invalid/api", TEST_APPROVED_PDF: process.env.TEST_APPROVED_PDF,
@@ -230,17 +341,25 @@ test("opted-in runner uses source flow, persists results without token, then com
     assert.equal(body.sourceToken, sourceToken);
     if (url.endsWith("/prepare")) return json({ topic: pack.title, nodes: [], edges: [] });
     assert.ok(url.endsWith("/evaluate"));
+    scenarioCalls++;
     if (paths.filter(value => value.endsWith("/evaluate")).length === 2) assert.equal(options.headers.Cookie, budgetCookie);
     const item = allCases.find(value => value.text === body.transcript);
     assert.ok(item, "Runner sends the unchanged fixture, not a translation.");
     assert.equal("model" in body, false);
+    if (scenario === "retry" && scenarioCalls === 1) return new Response(JSON.stringify({ error: "Unavailable" }), {
+      status: 503, headers: { "X-Hearo-Checker": "Synthetic", "X-Hearo-Model": "attempt-model" },
+    });
+    if ((scenario === "quota" && scenarioCalls === 3) || (scenario === "quota-final" && scenarioCalls === 4)) return new Response(JSON.stringify({ code: "evaluation_budget_exceeded" }), { status: 429 });
+    if ((scenario === "drift" && scenarioCalls === 3) || (scenario === "drift-final" && scenarioCalls === 4)) return json(synthetic(item).response, {
+      "X-Hearo-Checker": "Synthetic", "X-Hearo-Model": "unexpected-model", "X-Hearo-Fallback": "true",
+    });
     return json(synthetic(item).response, { "X-Hearo-Checker": "Synthetic", "X-Hearo-Model": "synthetic-model-a", "X-Hearo-Fallback": "false",
       "Set-Cookie": `${budgetCookie}; HttpOnly; Path=/api/study` });
   };
   console.log = text => logs.push(text);
   try {
     const output = `${dir}/run.json`;
-    await main(["--live", "--split", "control", "--concept", "replication", "--output", output], env);
+    await main(["--live", "--split", "control", "--concept", "replication", "--output", output], env, async () => {});
     const saved = JSON.parse(await readFile(output, "utf8"));
     assert.equal(saved.complete, true);
     assert.equal(saved.results.length, 2);
@@ -258,12 +377,71 @@ test("opted-in runner uses source flow, persists results without token, then com
     await assert.rejects(main(["--live", "--split", "control", "--concept", "replication", "--output", output], env), /already exists/);
     assert.equal(paths.length, count, "Output collision must stop before paid requests.");
     await main(["--live", "--split", "control", "--concept", "replication", "--output", `${dir}/wrong-model.json`],
-      { ...env, STUDY_EXPECT_MODEL: "wrong-model" });
+      { ...env, STUDY_EXPECT_MODEL: "wrong-model" }, async () => {});
     const wrong = JSON.parse(await readFile(`${dir}/wrong-model.json`, "utf8"));
     assert.equal(wrong.complete, false);
     assert.equal(wrong.results.length, 1, "Wrong checker stops further cost.");
     assert.equal(wrong.results[0].failures.at(-1).category, "modelIdentity");
     assert.equal(process.exitCode, 1);
+    for (const mode of ["normal", "retry", "quota", "drift", "quota-final", "drift-final"]) {
+      scenario = mode;
+      scenarioCalls = 0;
+      process.exitCode = 0;
+      const repeatOutput = `${dir}/repeat-${mode}.json`;
+      await main(["--live", "--split", "control", "--concept", "replication", "--repeat-trials", "2",
+        "--max-http-attempts", "8", "--retries", "1", "--output", repeatOutput,
+        ...(mode.endsWith("-final") ? ["--baseline", `${dir}/repeat-normal.json`] : [])], env, async () => {});
+      const repeated = JSON.parse(await readFile(repeatOutput, "utf8"));
+      assert.equal(repeated.schemaVersion, 3);
+      assert.equal(repeated.budget.usedHttpAttempts, scenarioCalls);
+      assert.ok(repeated.budget.usedHttpAttempts <= repeated.budget.maxHttpAttempts);
+      assert.equal(repeated.complete, ["normal", "retry"].includes(mode));
+      assert.equal(repeated.results.length, ["normal", "retry"].includes(mode) || mode.endsWith("-final") ? 4 : 3);
+      assert.equal(repeated.results[2].trial, 2);
+      assert.equal(process.exitCode, ["normal", "retry"].includes(mode) ? 0 : 1);
+      const template = JSON.parse(await readFile(repeatOutput.replace(".json", ".question-review.json"), "utf8"));
+      assert.equal(template.rows.some(row => row.trial === 2), mode !== "quota",
+        "Only successful trials yield reviewable questions.");
+      assert.ok(!JSON.stringify(repeated).includes(sourceToken));
+      assert.ok(!JSON.stringify(repeated).includes(budgetCookie));
+      if (mode === "retry") {
+        assert.equal(scenarioCalls, 5);
+        assert.equal(repeated.results[0].attemptHistory[0].checker.model, "attempt-model");
+        assert.equal(repeated.results[0].attemptHistory[1].checker.model, env.STUDY_EXPECT_MODEL);
+      }
+      if (mode === "quota") assert.equal(scenarioCalls, 3, "Quota denial stops all repeats without retry.");
+      if (mode.endsWith("-final")) {
+        assert.equal(scenarioCalls, 4);
+        assert.equal(repeated.complete, false, "Final-case abort cannot masquerade as a complete report.");
+        assert.equal(repeated.stopReason, mode === "quota-final" ? "evaluation_budget_exceeded" : "modelIdentity");
+        assert.throws(() => compareReports(repeated, repeated), /incomplete or aborted/);
+        await assert.rejects(readFile(repeatOutput.replace(".json", ".comparison.json")), /ENOENT/,
+          "Aborted runs persist results and review templates but do not compare.");
+      }
+      if (mode === "drift") {
+        assert.equal(scenarioCalls, 3, "Unexpected model stops all repeats.");
+        assert.equal(repeated.repeatAnalysis.comparedTrialPairs, 0);
+        assert.equal(repeated.repeatAnalysis.identities[2].checker.model, "unexpected-model");
+      }
+      if (mode === "normal") {
+        const beforeCompare = paths.length;
+        await main(["--compare", repeatOutput, repeatOutput, "--output", `${dir}/repeat-comparison.json`], {});
+        assert.equal(paths.length, beforeCompare);
+        await assert.rejects(main(["--live", "--split", "control", "--concept", "replication",
+          "--baseline", output, "--repeat-trials", "2", "--max-http-attempts", "4",
+          "--output", `${dir}/incompatible.json`], env), /schemaVersion/);
+        assert.equal(paths.length, beforeCompare, "Incompatible baseline stops before paid calls.");
+        scenarioCalls = 0;
+        const pairedOutput = `${dir}/repeat-paired.json`;
+        await main(["--live", "--split", "control", "--concept", "replication", "--repeat-trials", "2",
+          "--max-http-attempts", "4", "--baseline", repeatOutput, "--output", pairedOutput], env, async () => {});
+        const paired = JSON.parse(await readFile(pairedOutput, "utf8"));
+        const pairedComparison = JSON.parse(await readFile(pairedOutput.replace(".json", ".comparison.json"), "utf8"));
+        assert.equal(paired.complete, true);
+        assert.equal(pairedComparison.verdictDisagreements, 0);
+        assert.equal(pairedComparison.withinModel.candidate.comparedTrialPairs, 2);
+      }
+    }
   } finally {
     globalThis.fetch = originalFetch;
     console.log = originalLog;

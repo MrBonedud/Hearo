@@ -81,10 +81,67 @@ Daily-budget denials are never retried.
 Use `--concept ID` or `--split acceptance|heldout|control|legacy` to reduce
 cost. Baseline/candidate case selections must be identical.
 
+### Separately opted-in repeated trials
+
+One run per case cannot separate a model change from variability in the same
+model. Repeats remain **off by default**. To repeat the exact selected cases
+on the pinned checker, explicitly approve both the total trials (2–10) and a
+maximum evaluation HTTP-attempt budget:
+
+```sh
+# Two replication controls × three trials × one attempt = six attempts.
+node scripts/verify-study-live.mjs --live --split control --concept replication \
+  --repeat-trials 3 --max-http-attempts 6 \
+  --output generated-artifacts/replication-repeats.json
+```
+
+The budget must cover `selected cases × trials × (retries + 1)`; smaller
+budgets are rejected before any request. With retries enabled, approve the
+larger worst-case budget explicitly. This bounds **evaluation HTTP attempts,
+not provider calls or dollars**: server fallback may call several providers.
+Upload/prepare requests are not evaluation attempts. Public limits, server
+fallback policy, and source verification are unchanged. Keep the same budget
+session across all trials; quota exhaustion or a successful response from an
+unexpected checker stops the entire experiment and saves a partial report.
+
+Repeated reports use schema 3 and store a trial number for every response,
+actual checker identities (including unexpected fallback), and the identity
+and status of every retry attempt. Trials run in rounds over the unchanged
+case selection; failed trials are not silently replaced by another repeat.
+The original single-trial schema 2 remains supported.
+
+`repeatAnalysis` groups by **case and actual provider/model**, never by the
+requested model alone. It compares all unordered trial pairs. It reports
+the number of comparable pairs/objectives, verdict disagreements, question
+wording changes, malformed pairs and excluded unavailable/malformed responses.
+These counts are not percentages or calibrated accuracy; three trials have
+three unordered pairs, so several counts can involve the same changed answer.
+Different question wording does not establish a semantic failure.
+
+Every returned objective in every trial has a separate question-review row,
+bound to its trial, checker, exact question, transcript and evidence. Use the
+normal offline `--review` flow below. Reviewed repeat reports recompute
+within-model focus and evidence-sufficiency disagreement counts. Unreviewed
+or incomplete judgments are explicitly counted as pending, never as passes.
+The reviewed fixtures themselves do not certify these generated questions.
+
+Use the normal offline `--compare` command for two complete repeated reports
+with matching trial counts and ordered selections. Cross-model changes are
+reported per paired trial, with **separate within-model pairwise analyses**
+for baseline and candidate. A single-trial report cannot be compared to a
+repeated report; incompatible baselines are rejected before billed calls.
+Language-equivalence disagreements remain separated by trial rather than
+conflating stochastic variability with differences between languages.
+Keep held-out cases evaluation-only; do not tune prompts on their repeats.
+
 The runner locally verifies the PDF's bytes/digest before uploading it,
 uses the normal upload/prepare/evaluate flow, and never writes source tokens
 or credentials to reports. Outputs are new JSON files exclusively under
 ignored `generated-artifacts/`; existing reports cannot be overwritten.
+With `--baseline`, the run and question-review files are saved first, then a
+complete run's comparison is saved separately as `<output>.comparison.json`.
+An abort on even the final case leaves `complete: false` and a `stopReason`;
+aborted runs are never accepted as complete offline comparisons.
 
 ## Interpretation and independent question review
 

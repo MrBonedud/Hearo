@@ -7,7 +7,7 @@ import { randomUUID, createHash } from "node:crypto";
 import { expandGroups } from "./study-live/corpus.mjs";
 import { legacyCases } from "./study-live/legacy-cases.mjs";
 import {
-  caveat, fingerprint, validateCorpus, inspectResult, summarize, compareReports, questionReviewTemplate, applyQuestionReview,
+  caveat, fingerprint, validateCorpus, inspectResult, summarize, compareReports, questionReviewTemplate, applyQuestionReview, analyzeRepeats,
 } from "./study-live/analysis.mjs";
 
 export const allCases = [...legacyCases, ...expandGroups()];
@@ -23,6 +23,9 @@ const usage = `Study model-change regression checks (provider calls incur cost).
 Live requires STUDY_API_BASE, TEST_APPROVED_PDF, STUDY_EXPECT_CHECKER and STUDY_EXPECT_MODEL.
 Models are server-configured via STUDY_OPENAI_MODEL / STUDY_GEMINI_MODEL, never request fields.
 Options: --split acceptance|heldout|control|legacy, --concept ID, --retries 0..2 (default 0).
+Repeats: --repeat-trials 2..10 --max-http-attempts N (both require --live).
+N must cover cases × trials × (retries + 1); it bounds evaluation HTTP attempts,
+not provider calls or money (server fallback can make multiple provider calls).
 Selection must be identical between baseline and candidate. Default is all 76 cases.
 No live requests occur without --live. Offline comparison fails on incompatible reports.
 ${caveat}`;
@@ -35,7 +38,7 @@ export function parseArgs(args) {
     else if (["--compare", "--review"].includes(flag)) {
       assert.ok(args[index + 1] && args[index + 2] && !args[index + 1].startsWith("--") && !args[index + 2].startsWith("--"), `${flag} needs two JSON paths.`);
       options[flag.slice(2)] = [args[++index], args[++index]];
-    } else if (["--output", "--baseline", "--split", "--concept", "--retries"].includes(flag)) {
+    } else if (["--output", "--baseline", "--split", "--concept", "--retries", "--repeat-trials", "--max-http-attempts"].includes(flag)) {
       assert.ok(args[index + 1] && !args[index + 1].startsWith("--"), `${flag} needs a value.`);
       options[flag.slice(2)] = args[++index];
     } else throw new Error(`Unknown argument: ${flag}`);
@@ -45,6 +48,15 @@ export function parseArgs(args) {
   assert.ok(!options.split || ["acceptance", "heldout", "control", "legacy"].includes(options.split), "Unknown split.");
   assert.ok([options.live, options.list, options.compare, options.review].filter(Boolean).length <= 1, "Choose live, list, compare or review, not several.");
   assert.ok(!(options.baseline && !options.live), "--baseline requires --live; use --compare for offline comparisons.");
+  if (options["repeat-trials"] !== undefined || options["max-http-attempts"] !== undefined) {
+    assert.ok(options.live && !options.help, "Repeat trials and their budget require --live.");
+    options.repeatTrials = Number(options["repeat-trials"]);
+    options.maxHttpAttempts = Number(options["max-http-attempts"]);
+    assert.ok(Number.isInteger(options.repeatTrials) && options.repeatTrials >= 2 && options.repeatTrials <= 10,
+      "--repeat-trials must be 2..10 and requires --max-http-attempts.");
+    assert.ok(Number.isSafeInteger(options.maxHttpAttempts) && options.maxHttpAttempts > 0,
+      "--max-http-attempts must be a positive safe integer and requires --repeat-trials.");
+  }
   return options;
 }
 
@@ -74,7 +86,7 @@ async function apiJson(url, options, session) {
   return { response, body };
 }
 
-export async function main(args = process.argv.slice(2), env = process.env) {
+export async function main(args = process.argv.slice(2), env = process.env, delay = sleep) {
   const options = parseArgs(args);
   if (options.help || (!options.live && !options.list && !options.compare && !options.review)) {
     console.log(usage);
@@ -87,7 +99,7 @@ export async function main(args = process.argv.slice(2), env = process.env) {
     assert.equal(report.sourceSha256, pack.sha256, "Review source differs from current source.");
     const reviewed = applyQuestionReview(report, review, pack);
     await saveJson(options.output || `generated-artifacts/study-reviewed-${randomUUID()}.json`, reviewed);
-    console.log(JSON.stringify({ semanticReview: reviewed.semanticReview, caveat }));
+    console.log(JSON.stringify({ semanticReview: reviewed.semanticReview, repeatAnalysis: reviewed.repeatAnalysis, caveat }));
     if (reviewed.semanticReview.failures.length) process.exitCode = 1;
     return;
   }
@@ -96,12 +108,17 @@ export async function main(args = process.argv.slice(2), env = process.env) {
     const comparison = compareReports(baseline, candidate);
     await saveJson(options.output || `generated-artifacts/study-comparison-${randomUUID()}.json`, comparison);
     console.log(JSON.stringify(comparison, null, 2));
-    if (comparison.verdictDisagreements || comparison.differences.some(row => ["availability", "invariants", "malformedOutput"].includes(row.category))
+    if (comparison.verdictDisagreements || Object.values(comparison.withinModel || {}).some(row => row.verdictDisagreements)
+      || comparison.differences.some(row => ["availability", "invariants", "malformedOutput"].includes(row.category))
       || [baseline, candidate].some(report => report.results.some(row => row.failures?.length) || report.semanticReview?.failures?.length)) process.exitCode = 1;
     return;
   }
   const cases = allCases.filter(item => (!options.split || item.split === options.split) && (!options.concept || item.concept === options.concept));
   assert.ok(cases.length, "Selection matched no cases.");
+  const trials = options.repeatTrials || 1;
+  const maximumHttpAttempts = cases.length * trials * (options.retries + 1);
+  assert.ok(!options.repeatTrials || options.maxHttpAttempts >= maximumHttpAttempts,
+    `Repeat budget is too small: this selection requires up to ${maximumHttpAttempts} evaluation HTTP attempts.`);
   if (options.list) {
     console.log(JSON.stringify({ count: cases.length, cases: cases.map(({ id, concept, split, expect, variant }) => ({ id, concept, split, expect, variant })), caveat }, null, 2));
     return;
@@ -115,13 +132,15 @@ export async function main(args = process.argv.slice(2), env = process.env) {
   const baseline = options.baseline ? await jsonFile(options.baseline) : null;
   if (baseline) {
     // Fail before any billed call if the baseline has an incompatible selection/source.
-    compareReports(baseline, { ...baseline, sourceId: pack.id, sourceSha256: pack.sha256, corpusSha256,
+    compareReports(baseline, { ...baseline, schemaVersion: options.repeatTrials ? 3 : 2,
+      repeatTrials: options.repeatTrials, sourceId: pack.id, sourceSha256: pack.sha256, corpusSha256,
       caseIds: cases.map(item => item.id) });
   }
   const output = options.output || `generated-artifacts/study-live-${randomUUID()}.json`;
   assert.ok(resolve(output).startsWith(`${resolve("generated-artifacts")}/`) && output.endsWith(".json"), "Output must be under generated-artifacts/.");
   // Never discover an output collision only after paying for a run.
-  for (const path of [output, output.replace(/\.json$/, ".question-review.json")]) {
+  for (const path of [output, output.replace(/\.json$/, ".question-review.json"),
+    ...(baseline ? [output.replace(/\.json$/, ".comparison.json")] : [])]) {
     try { await access(path); throw new Error(`Output already exists: ${path}. Choose a new filename.`); }
     catch (error) { if (error.code !== "ENOENT") throw error; }
   }
@@ -129,7 +148,8 @@ export async function main(args = process.argv.slice(2), env = process.env) {
   const pdf = await readFile(env.TEST_APPROVED_PDF);
   assert.equal(pdf.length, pack.byteLength, "Wrong PDF size.");
   assert.equal(fingerprintBytes(pdf), pack.sha256, "Wrong PDF digest.");
-  console.log(JSON.stringify({ billed: true, cases: cases.length, maximumHttpAttempts: cases.length * (options.retries + 1),
+  console.log(JSON.stringify({ billed: true, cases: cases.length, trials, maximumHttpAttempts,
+    approvedHttpAttemptBudget: options.maxHttpAttempts,
     note: "The server may try multiple providers per HTTP attempt. Defaults do not retry.", expectedChecker, caveat }));
   const metadata = await apiJson(`${base}/study/demo`);
   assert.equal(metadata.response.status, 200);
@@ -147,15 +167,23 @@ export async function main(args = process.argv.slice(2), env = process.env) {
     body: JSON.stringify({ topic: metadata.body.title, referenceText: metadata.body.referenceText, sourceToken }),
   });
   assert.equal(prepared.response.status, 200);
-  const report = { schemaVersion: 2, runId: randomUUID(), testedAt: new Date().toISOString(),
+  const report = { schemaVersion: options.repeatTrials ? 3 : 2, runId: randomUUID(), testedAt: new Date().toISOString(),
     sourceId: pack.id, sourceSha256: pack.sha256, corpusSha256,
     expectedChecker, caseIds: cases.map(item => item.id), results: [], caveat,
     semanticReview: "pending: punctuation checks do not establish focused/relevant questions or sufficient evidence" };
+  if (options.repeatTrials) Object.assign(report, { repeatTrials: trials,
+    budget: { maxHttpAttempts: options.maxHttpAttempts, plannedMaximumHttpAttempts: maximumHttpAttempts, usedHttpAttempts: 0 } });
   const session = {};
+  trialsLoop: for (let trial = 1; trial <= trials; trial++) {
   for (const item of cases) {
-    await sleep(2800);
+    await delay(2800);
     let result;
+    const attemptHistory = [];
     for (let attempt = 0; attempt <= options.retries; attempt++) {
+      if (report.budget) {
+        assert.ok(report.budget.usedHttpAttempts < report.budget.maxHttpAttempts, "Evaluation HTTP attempt budget exhausted.");
+        report.budget.usedHttpAttempts++;
+      }
       try {
         const { response, body } = await apiJson(`${base}/study/evaluate`, {
           method: "POST", headers: { "Content-Type": "application/json" },
@@ -174,26 +202,41 @@ export async function main(args = process.argv.slice(2), env = process.env) {
         // Do not include request bodies/headers/source tokens in error logs.
         result = { status: 0, response: { error: error.name === "TimeoutError" ? "Request timed out." : "Transport failure." }, attempts: attempt + 1, checker: null };
       }
+      attemptHistory.push({ attempt: attempt + 1, status: result.status, checker: result.checker });
       if (![429, 503].includes(result.status) || result.response?.code === "evaluation_budget_exceeded" || attempt === options.retries) break;
-      await sleep(3000 * 2 ** attempt);
+      await delay(3000 * 2 ** attempt);
     }
-    const row = { ...item, transcript: item.text, ...result };
+    const row = { ...item, transcript: item.text, ...result, attemptHistory,
+      ...(options.repeatTrials ? { trial } : {}) };
     delete row.text;
     row.failures = inspectResult(item, row, pack);
     const wrongModel = row.status === 200 && (row.checker.provider !== expectedChecker.provider || row.checker.model !== expectedChecker.model);
     if (wrongModel) row.failures.push({ category: "modelIdentity", conceptId: null, reason: "Actual checker differs from pinned provider/model. Stopped to avoid misattributed paid results." });
     report.results.push(row);
-    console.log(JSON.stringify({ caseId: row.id, status: row.status, checker: row.checker, failures: row.failures }));
-    if (wrongModel || row.response?.code === "evaluation_budget_exceeded") break;
+    console.log(JSON.stringify({ caseId: row.id, trial, status: row.status, checker: row.checker, failures: row.failures }));
+    if (wrongModel || row.response?.code === "evaluation_budget_exceeded") {
+      report.stopReason = wrongModel ? "modelIdentity" : "evaluation_budget_exceeded";
+      break trialsLoop;
+    }
+  }
   }
   report.summary = summarize(report, pack);
-  report.complete = report.results.length === cases.length;
-  if (baseline && report.complete) report.comparison = compareReports(baseline, report);
+  report.complete = !report.stopReason && report.results.length === cases.length * trials;
+  if (options.repeatTrials) report.repeatAnalysis = analyzeRepeats(report);
+  // Preserve billed results before any comparison that could reject them.
   await saveJson(output, report);
   await saveJson(output.replace(/\.json$/, ".question-review.json"), questionReviewTemplate(report, pack));
+  const comparisonOutput = output.replace(/\.json$/, ".comparison.json");
+  if (baseline && report.complete) {
+    report.comparison = compareReports(baseline, report);
+    await saveJson(comparisonOutput, report.comparison);
+  }
   console.log(JSON.stringify({ report: output, summary: report.summary, complete: report.complete,
+    repeatAnalysis: report.repeatAnalysis,
+    comparisonReport: report.comparison ? comparisonOutput : undefined,
     comparison: report.comparison && { verdictDisagreements: report.comparison.verdictDisagreements, changes: report.comparison.differences.length } }));
-  if (!report.complete || report.summary.failures.length || report.summary.equivalenceDisagreements.length || report.comparison?.verdictDisagreements) process.exitCode = 1;
+  if (!report.complete || report.summary.failures.length || report.summary.equivalenceDisagreements.length
+    || report.repeatAnalysis?.verdictDisagreements || report.comparison?.verdictDisagreements) process.exitCode = 1;
 }
 
 // Byte digest differs from JSON fingerprints.
