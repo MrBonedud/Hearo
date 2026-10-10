@@ -2,8 +2,9 @@ import { useEffect, useRef, useState } from 'react';
 import { useGetDemoSource, getGetDemoSourceQueryKey, uploadDemoPdf } from '@workspace/api-client-react';
 import type { DemoSource, VerifiedDemoSource } from '@workspace/api-client-react';
 import { BookOpen, FileText, Upload } from 'lucide-react';
+import { sha256 } from '@/lib/study-session-storage';
 
-export type SelectedSource = VerifiedDemoSource & { fileUrl: string; selectedName: string };
+export type SelectedSource = VerifiedDemoSource & { fileUrl: string; selectedName: string; pdfSha256: string };
 
 function uploadError(error: unknown) {
   const issue = error as { data?: { error?: string }; message?: string };
@@ -57,7 +58,9 @@ export function ApprovedPdfSource({ selected, onChange, disabled = false }: {
     try {
       const verified = await uploadDemoPdf(file, { signal: abort.signal });
       if (requestId !== generation.current) return;
-      onChange({ ...verified, fileUrl: URL.createObjectURL(file), selectedName: file.name });
+      const pdfSha256 = await sha256(await file.arrayBuffer());
+      if (requestId !== generation.current) return;
+      onChange({ ...verified, fileUrl: URL.createObjectURL(file), selectedName: file.name, pdfSha256 });
     } catch (issue) {
       if (requestId === generation.current && !abort.signal.aborted) setError(uploadError(issue));
     } finally {

@@ -164,6 +164,13 @@ button { transition: background-color .15s; }
 .start-button, .finish-button { width: 100%; margin-top: 20px; }
 .privacy-line { font-size: 11px; color: #747a73; line-height: 1.8; margin-top: 18px; }
 .privacy-dot { margin-right: 5px; }
+.saved-study { margin-top: 20px; padding: 15px; border: 1px solid var(--line); border-radius: 8px; background: #f7f4eb; }
+.saved-study > strong { display: block; font-size: 13px; }
+.saved-study > p, .saved-study-status { color: #707970; font-size: 12px; line-height: 1.7; margin: 8px 0; }
+.saved-study-hint { color: #707970; font-size: 12px; line-height: 1.7; }
+.saved-study-warning { color: #864132 !important; font-size: 12px; line-height: 1.7; margin: 8px 0; }
+.saved-study-status { padding: 10px 12px; border-radius: 7px; background: var(--green-pale); }
+.saved-study-delete { display: block; margin-top: 10px; color: #864132; font-size: 12px; text-decoration: underline; }
 .upload-button { display: inline-flex; gap: 8px; align-items: center; color: #355c47; font-size: 13px; }
 .visually-hidden { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
 .inline-error { display: flex; align-items: start; gap: 10px; padding: 12px; border: 1px solid #dbb3a7; border-radius: 7px; background: var(--red-pale); color: #864132; font-size: 13px; line-height: 1.7; margin: 16px 0; overflow-wrap: anywhere; }
