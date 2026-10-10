@@ -238,6 +238,8 @@ function App() {
   const [feedbackOpen, setFeedbackOpen] = useState<string | null>(null);
   const [savedStudies, setSavedStudies] = useState<SavedStudySession[]>([]);
   const [activeSavedStudyId, setActiveSavedStudyId] = useState<string | null>(null);
+  // Reopening even the same saved study starts a new response-ownership scope.
+  const [assessmentSessionKey, setAssessmentSessionKey] = useState(0);
   const [savedStudyLoaded, setSavedStudyLoaded] = useState(false);
   const [sourceIdentity, setSourceIdentity] = useState<StudySourceIdentity | null>(null);
   const [storageMessage, setStorageMessage] = useState('');
@@ -276,6 +278,7 @@ function App() {
   } : null;
   const live = useLiveAssessment({
     input: assessmentInput,
+    sessionKey: assessmentSessionKey,
     enabled: phase === 'session' && liveEnabled && !finishing && Boolean(selectedSource?.source.aiAvailable),
     paused: allowance?.available !== true,
     onSettled: () => { void allowanceQuery.refetch(); },
@@ -357,7 +360,7 @@ function App() {
     setError('');
     if (!selectedSource) { setError('اختر ملف PDF المعتمد أولًا. Select and verify the approved PDF first.'); return; }
     prepareStudy.mutate({ data: { topic, referenceText, sourceToken: selectedSource.sourceToken } }, {
-      onSuccess: result => { setActiveSavedStudyId(createSavedStudyId()); setStudyMap(result); setEvaluation(null); setCheckedTranscript(''); setPreviousReport(undefined); changeTranscript(''); setVoiceOverflow(''); setPhase('session'); },
+      onSuccess: result => { setAssessmentSessionKey(key => key + 1); setActiveSavedStudyId(createSavedStudyId()); setStudyMap(result); setEvaluation(null); setCheckedTranscript(''); setPreviousReport(undefined); changeTranscript(''); setVoiceOverflow(''); setPhase('session'); },
       onError: issue => setError(errorMessage(issue)),
     });
   };
@@ -372,6 +375,7 @@ function App() {
       }
       return;
     }
+    setAssessmentSessionKey(key => key + 1);
     setStudyMap(savedStudy.map);
     changeTranscript(savedStudy.transcript);
     setEvaluation(savedStudy.evaluation);
@@ -474,6 +478,7 @@ function App() {
     if (finishing || prepareStudy.isPending) return;
     await stopListening();
     saveCurrentStudy(transcriptRef.current);
+    setAssessmentSessionKey(key => key + 1);
     setActiveSavedStudyId(null);
     setPhase('setup'); setEvaluation(null); setCheckedTranscript(''); setPreviousReport(undefined); setStudyMap(null); changeTranscript('');
     setError(''); setMicMessage(''); setSelectedSource(null);

@@ -70,7 +70,7 @@ async function verifyAndPrepare(page: Page, buffer: Buffer, name: string) {
   await expect(page.getByTestId('input-transcript')).toBeVisible();
 }
 
-async function installFixtures(page: Page, delayFinal = false) {
+async function installFixtures(page: Page, delayFinal = false, heldAttempt = 1) {
   const started = deferred();
   const release = deferred();
   const delivered = deferred();
@@ -99,7 +99,7 @@ async function installFixtures(page: Page, delayFinal = false) {
   await page.route('**/api/study/evaluate', async route => {
     const input = route.request().postDataJSON();
     requests.push(input);
-    const isFirst = ++attempts === 1;
+    const isFirst = ++attempts === heldAttempt;
     if (isFirst) {
       started.resolve();
       await release.promise;
@@ -149,7 +149,7 @@ async function expectUnassessed(page: Page, answer: string) {
   expect(JSON.stringify(await savedStudies(page))).not.toContain(staleMarker);
 }
 
-async function expectFreshReport(page: Page, answer: string, sourceId: string) {
+async function expectFreshReport(page: Page, answer: string, sourceId: string, studyId?: string) {
   await page.getByTestId('button-finish').click();
   await expect(page.getByTestId('button-download-report')).toBeVisible({ timeout: 20_000 });
   await expect(page.getByTestId('assessment-load-balancing')).toContainText(freshMarker);
@@ -157,8 +157,8 @@ async function expectFreshReport(page: Page, answer: string, sourceId: string) {
   await expect(page.getByText(staleMarker)).toHaveCount(0);
   await expect.poll(async () => {
     const study = (await savedStudies(page)).find(
-      (item: { source: { id: string }; transcript: string }) =>
-        item.source.id === sourceId && item.transcript === answer,
+      (item: { id: string; source: { id: string }; transcript: string }) =>
+        item.source.id === sourceId && item.transcript === answer && (!studyId || item.id === studyId),
     );
     return {
       phase: study?.phase,
@@ -297,4 +297,76 @@ test('a delayed result from another verified source is ignored even for identica
   const studies = await savedStudies(page);
   expect(studies.find((study: { source: { id: string } }) => study.source.id === firstSource.id).evaluation).toBeNull();
   expect(JSON.stringify(studies)).not.toContain(staleMarker);
+});
+
+test('a new study on the same PDF cannot inherit an identical pending or cached assessment', async ({ page }) => {
+  const pending = await installFixtures(page);
+  await page.goto('/');
+  await page.getByTestId('button-start-live').click();
+  await verifyAndPrepare(page, firstPdf, 'first.pdf');
+  await page.getByTestId('input-transcript').fill(originalAnswer);
+  await pending.started.promise;
+  const originId = (await savedStudies(page))[0].id;
+  await page.getByTestId('button-back-setup').click();
+  await verifyAndPrepare(page, firstPdf, 'first.pdf');
+  await page.getByTestId('input-transcript').fill(originalAnswer);
+  await expect.poll(async () => (await savedStudies(page)).length).toBe(2);
+  const studiesBefore = await savedStudies(page);
+  const originBefore = studiesBefore.find((study: { id: string }) => study.id === originId);
+  const destinationId = studiesBefore.find((study: { id: string }) => study.id !== originId).id;
+  pending.release.resolve();
+  await pending.delivered.promise;
+  await expectUnassessed(page, originalAnswer);
+  await expectFreshReport(page, originalAnswer, firstSource.id, destinationId);
+  expect(pending.requests).toEqual([
+    expect.objectContaining({ sourceToken: 'first-token', transcript: originalAnswer }),
+    expect.objectContaining({ sourceToken: 'first-token', transcript: originalAnswer }),
+  ]);
+  const studies = await savedStudies(page);
+  expect(studies).toHaveLength(2);
+  expect(studies.find((study: { id: string }) => study.id === originId)).toEqual(originBefore);
+  expect(JSON.stringify(studies)).not.toContain(staleMarker);
+});
+
+test('reopening another report on the same PDF preserves both records when an identical old check arrives', async ({ page }) => {
+  const pending = await installFixtures(page, false, 2);
+  await page.goto('/');
+  await page.getByTestId('button-start-live').click();
+  await verifyAndPrepare(page, firstPdf, 'first.pdf');
+  await page.getByTestId('toggle-live-session').uncheck();
+  await page.getByTestId('input-transcript').fill(originalAnswer);
+  await expectFreshReport(page, originalAnswer, firstSource.id);
+  const destinationId = (await savedStudies(page))[0].id;
+  await page.getByTestId('button-new-session').click();
+  await verifyAndPrepare(page, firstPdf, 'first.pdf');
+  await page.getByTestId('toggle-live-session').check();
+  await page.getByTestId('input-transcript').fill(originalAnswer);
+  await pending.started.promise;
+  const originId = (await savedStudies(page)).find((study: { id: string }) => study.id !== destinationId).id;
+  await page.getByTestId('button-back-setup').click();
+  await page.getByTestId('input-file').setInputFiles({ name: 'first.pdf', mimeType: 'application/pdf', buffer: firstPdf });
+  await expect(page.getByTestId('status-source-verified')).toBeVisible();
+  await page.getByTestId(`button-reopen-saved-study-${destinationId}`).click();
+  await page.getByTestId('button-back-review').click();
+  await page.getByTestId('input-transcript').fill(originalAnswer);
+  const before = await savedStudies(page);
+  pending.release.resolve();
+  await pending.delivered.promise;
+  // Keep live checking enabled until completion so disabling it cannot hide a leak.
+  await expect(page.getByTestId('status-live-check')).not.toContainText('Checking');
+  await expect(page.getByTestId('assessment-load-balancing')).toContainText(freshMarker);
+  await expect(page.getByText(staleMarker)).toHaveCount(0);
+  await page.getByTestId('toggle-live-session').uncheck();
+  const after = await savedStudies(page);
+  expect(after).toHaveLength(2);
+  for (const id of [originId, destinationId]) {
+    const { savedAt: _beforeTime, ...previous } = before.find((study: { id: string }) => study.id === id);
+    const { savedAt: _afterTime, ...current } = after.find((study: { id: string }) => study.id === id);
+    expect(current).toEqual(previous);
+  }
+  await expectFreshReport(page, originalAnswer, firstSource.id, destinationId);
+  expect(pending.requests).toHaveLength(3);
+  expect(pending.requests.every(input => input.sourceToken === 'first-token' && input.transcript === originalAnswer)).toBe(true);
+  expect((await savedStudies(page)).find((study: { id: string }) => study.id === originId).evaluation).toBeNull();
+  expect(JSON.stringify(await savedStudies(page))).not.toContain(staleMarker);
 });

@@ -9,6 +9,12 @@ Live feedback can remain visible for a previously checked prefix when the learne
 
 **How to apply:** Capture each request's input, reject responses for replaced text or a different source, and keep requests serialized. Flush the final speech results before freezing the explanation for its final report. Provider failures must leave the learner's text recoverable.
 
+An assessment belongs to the study activation that requested it, not just its PDF and explanation. Starting or reopening a study creates a fresh ownership scope, including reopening the originating saved study. Do not reuse pending or cached results across those scopes.
+
+**Why:** Two saved studies can deliberately contain identical explanations for the same verified PDF. Attaching an old response to the newly active study changes its report without a check owned by that study.
+
+**How to apply:** Scope response acceptance, failures, and request-cache keys to the activation while retaining serialized transport. Preserve saved reports when reopening them, but require a fresh request for a new check.
+
 An AI service failure pauses automatic grading until the learner explicitly retries. A new source/session clears the previous error.
 
 **Why:** Continuing to type while a provider quota is exhausted otherwise sends another failing request for every revised snapshot.
