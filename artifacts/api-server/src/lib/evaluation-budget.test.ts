@@ -54,8 +54,9 @@ test("allowance reads only the current session, clamps exhausted counts and rele
   let overall = false;
   const database = { connect: async () => ({
     query: async (sql: string, values?: unknown[]) => {
-      queries++;
       assert.doesNotMatch(sql, /\b(INSERT|UPDATE|DELETE|pg_advisory)\b/i);
+      if (!sql.includes("WITH clock")) return { rows: [] };
+      queries++;
       assert.deepEqual(values, ["session:current-session", 5]);
       return { rows: [{ reset_at: new Date("2026-10-11T00:00:00Z"), session_used: used, overall_exhausted: overall }] };
     },
@@ -115,6 +116,21 @@ test("PostgreSQL: concurrent instances, reconnects, both ceilings, and UTC reset
     assert.equal((await readEvaluationAllowance(id, database, { session: 3, overall: 5 })).remainingChecks, 3);
     assert.equal((await reserveEvaluation(id, database, { session: 3, overall: 5 })).allowed, true);
     assert.equal((await readEvaluationAllowance(id, database, { session: 3, overall: 5 })).remainingChecks, 2);
+
+    // Actual PostgreSQL table-lock delay is cancelled by the read-specific
+    // server timeout. Reservation clients retain their original timeout.
+    const locker = await originalConnect();
+    try {
+      await locker.query("BEGIN");
+      await locker.query(`LOCK TABLE "${schema}".evaluation_daily_budgets IN ACCESS EXCLUSIVE MODE`);
+      const started = Date.now();
+      await assert.rejects(readEvaluationAllowance(id, database));
+      assert.ok(Date.now() - started < 3000);
+    } finally {
+      await locker.query("ROLLBACK");
+      locker.release();
+    }
+    assert.equal((await readEvaluationAllowance(id, database)).available, true);
 
     // Exercise the real endpoint with exhausted counters, without paid calls.
     const router = (await import("../routes/study")).default;

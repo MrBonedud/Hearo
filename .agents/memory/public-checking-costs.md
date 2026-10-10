@@ -30,3 +30,14 @@ browser's allowance or a guarantee that its remaining checks can be spent.
 
 **How to apply:** Keep session balance distinct from shared-service availability.
 Do not accept a client-supplied session identifier for allowance reads.
+
+Allowance-read abuse protection deliberately sheds traffic without relying on
+the allowance database; it is not a distributed daily usage ceiling.
+
+**Why:** A database-backed limiter on this lightweight read path would add work
+to the same storage during overload or an outage. The durable, shared reservation
+ceiling remains the cost control; read guards only protect responsiveness.
+
+**How to apply:** Keep read throttling separate from paid-check reservations.
+If multiple server instances require a shared read limiter, use an independent
+coordination service rather than adding allowance-counter writes to reads.

@@ -18,10 +18,12 @@ import {
 } from "../lib/approved-demo";
 import { checkWithFallback } from "../lib/checker-fallback";
 import { budgetSession, parseBudgetCookie, readEvaluationAllowance, reserveEvaluation } from "../lib/evaluation-budget";
+import { createAllowanceReadThrottle } from "../lib/allowance-read-throttle";
 
 const router: IRouter = Router();
 const lastEvaluationByClient = new Map<string, number>();
 const inFlight = new Set<string>();
+const throttleAllowanceRead = createAllowanceReadThrottle();
 
 // The authored demo does not call AI or microphone providers. Keep the legacy
 // routes below separate so this approved step does not silently alter other services.
@@ -151,7 +153,18 @@ router.get("/study/allowance", parseBudgetCookie, async (req, res) => {
   res.vary("Cookie");
   try {
     // Identity is derived only from our signed HttpOnly cookie, never query input.
-    const allowance = await readEvaluationAllowance(budgetSession(req, res));
+    const session = budgetSession(req, res);
+    const retryAfterSeconds = throttleAllowanceRead(session);
+    if (retryAfterSeconds) {
+      res.setHeader("Retry-After", String(retryAfterSeconds));
+      res.status(429).json({
+        code: "allowance_read_throttled",
+        retryAfterSeconds,
+        error: "طلبات عرض الرصيد كثيرة. حاول بعد قليل؛ يمكنك متابعة الكتابة. Too many allowance reads. Retry shortly; you can still edit your draft.",
+      });
+      return;
+    }
+    const allowance = await readEvaluationAllowance(session);
     res.json(GetStudyAllowanceResponse.parse(allowance));
   } catch (error) {
     req.log.error({ errorType: error instanceof Error ? error.name : "UnknownError" }, "Evaluation allowance unavailable");

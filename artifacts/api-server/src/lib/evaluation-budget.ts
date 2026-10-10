@@ -43,20 +43,76 @@ export type BudgetDecision = {
 
 type BudgetClient = {
   query: (sql: string, values?: unknown[]) => Promise<{ rows: Record<string, unknown>[] }>;
-  release: () => void;
+  release: (destroy?: boolean) => void;
 };
 type BudgetPool = { connect: () => Promise<BudgetClient> };
+
+export const ALLOWANCE_READ_BOUNDS = {
+  connectionMs: 750,
+  queryMs: 1250,
+  statementMs: 750,
+  maxConcurrent: 4,
+};
+let activeAllowanceReads = 0;
+
+class AllowanceReadUnavailable extends Error {
+  constructor() {
+    super("Allowance read temporarily unavailable");
+    this.name = "AllowanceReadUnavailable";
+  }
+}
+
+async function bounded<T>(work: Promise<T>, milliseconds: number): Promise<T> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    return await Promise.race([
+      work,
+      new Promise<never>((_resolve, reject) => {
+        timer = setTimeout(() => reject(new AllowanceReadUnavailable()), milliseconds);
+      }),
+    ]);
+  } finally {
+    clearTimeout(timer);
+  }
+}
 
 export async function readEvaluationAllowance(
   sessionId: string,
   database?: BudgetPool,
   limits = { session: DAILY_SESSION_CHECKS, overall: DAILY_GLOBAL_CHECKS },
+  bounds = ALLOWANCE_READ_BOUNDS,
 ) {
-  const pool = database ?? (await import("@workspace/db")).pool;
-  const client = await pool.connect();
+  // Never allow read traffic to fill the shared pool or its waiting queue.
+  if (activeAllowanceReads >= bounds.maxConcurrent) throw new AllowanceReadUnavailable();
+  activeAllowanceReads++;
+  let client: BudgetClient;
+  let acquisitionOwnsCleanup = false;
   try {
-    // One read-only snapshot: no reservation, cleanup, AI call or counter lock.
-    const { rows: [row] } = await client.query(`
+    const pool = database ?? (await import("@workspace/db")).pool;
+    const connection = pool.connect();
+    try {
+      client = await bounded(connection, bounds.connectionMs);
+    } catch (error) {
+      acquisitionOwnsCleanup = true;
+      // A pool acquisition cannot be cancelled. Keep its slot until it settles,
+      // and release a late connection instead of leaking it or issuing a query.
+      void connection.then(late => late.release(), () => undefined)
+        .finally(() => { activeAllowanceReads--; });
+      throw error;
+    }
+  } catch (error) {
+    if (!acquisitionOwnsCleanup) activeAllowanceReads--;
+    throw error;
+  }
+  let destroy = false;
+  try {
+    const read = async () => {
+      // Transaction-local bounds never leak into evaluation connections.
+      await client.query("BEGIN READ ONLY");
+      await client.query(`SET LOCAL statement_timeout = '${bounds.statementMs}ms'`);
+      await client.query(`SET LOCAL lock_timeout = '${bounds.statementMs}ms'`);
+      // One read-only snapshot: no reservation, cleanup, AI call or counter lock.
+      const { rows: [row] } = await client.query(`
       WITH clock AS MATERIALIZED (SELECT clock_timestamp() AS instant)
       SELECT ((date_trunc('day', instant AT TIME ZONE 'UTC') + interval '1 day')
           AT TIME ZONE 'UTC') AS reset_at,
@@ -66,18 +122,27 @@ export async function readEvaluationAllowance(
           WHERE day = (instant AT TIME ZONE 'UTC')::date AND scope = 'overall'), 0) >= $2 AS overall_exhausted
       FROM clock
     `, [`session:${sessionId}`, limits.overall]);
-    const remainingChecks = Math.max(0, limits.session - Number(row.session_used));
-    const blockedBy = row.overall_exhausted ? "overall" as const
-      : remainingChecks === 0 ? "session" as const : undefined;
-    return {
-      remainingChecks,
-      dailyLimit: limits.session,
-      resetAt: new Date(row.reset_at as string | Date).toISOString(),
-      available: !blockedBy,
-      ...(blockedBy ? { blockedBy } : {}),
+      await client.query("COMMIT");
+      const remainingChecks = Math.max(0, limits.session - Number(row.session_used));
+      const blockedBy = row.overall_exhausted ? "overall" as const
+        : remainingChecks === 0 ? "session" as const : undefined;
+      return {
+        remainingChecks,
+        dailyLimit: limits.session,
+        resetAt: new Date(row.reset_at as string | Date).toISOString(),
+        available: !blockedBy,
+        ...(blockedBy ? { blockedBy } : {}),
+      };
     };
+    return await bounded(read(), bounds.queryMs);
+  } catch (error) {
+    // Destroy stalled/failed clients: do not leave a transaction or query
+    // occupying storage after returning the recoverable response.
+    destroy = true;
+    throw error;
   } finally {
-    client.release();
+    client.release(destroy);
+    activeAllowanceReads--;
   }
 }
 

@@ -25,8 +25,22 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/StudyAllowance"
+        "429":
+          description: Too many allowance reads; does not consume checking allowance or prevent draft editing
+          headers:
+            Retry-After:
+              description: Seconds until this browser may retry the allowance read
+              schema:
+                type: integer
+                minimum: 1
         "503":
-          description: Allowance storage or session signing is unavailable
+          description: Allowance storage is busy, its bounded wait expired, or session signing is unavailable; draft editing remains available
+          headers:
+            Retry-After:
+              description: Seconds to wait before retrying
+              schema:
+                type: integer
+                minimum: 1
   /study/demo:
     get:
       operationId: getDemoSource
