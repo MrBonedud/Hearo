@@ -43,7 +43,13 @@ Keep this Replit project and its existing GitHub repository as the development f
 
 **Why:** The team explicitly rejected the proposed repository migration and requested publishing the existing application safely to the same repository.
 
-**How to apply:** Inspect and protect work first, obtain approval before consequential remote operations, and never force-push, reset, clean or discard work. Verify synchronization and implementation before rewriting the README; independent teammate workspaces come after that baseline is agreed.
+**How to apply:** Inspect and protect work first, obtain approval before consequential remote operations, and never force-push, reset, clean, delete existing branches or discard work. Publish through review branches, never directly to main. For initial repository/team setup, verify synchronization, application checks and the four genuinely independent teammate workspaces before updating the README last.
+
+Repository and team setup must be performed and verified, not reported complete from task plans or branch creation. If authentication remains unavailable, finish safe local preparation and provide one precise owner action rather than repeatedly retrying rejected credentials.
+
+**Why:** The team's latest complete-setup brief explicitly requires actual results, four distinct owned projects, and documentation only after workspace verification.
+
+**How to apply:** Keep current-source identity and private material safe; do not count the primary project, task-agent environments or multiple browser tabs as independent teammate workspaces. Every teammate uses their own account and permissions, and unverified URLs or access stay explicitly unverified.
 
 The team chose Google Gemini for answer checking after OpenAI provider access was blocked by unavailable API credits.
 
