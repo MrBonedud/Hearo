@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState, type ChangeEvent, type ReactNode } from 'react';
+import { useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState, type ChangeEvent, type FormEvent, type ReactNode } from 'react';
 import type { StudyEvaluation, StudyMap } from '@workspace/api-client-react';
 import {
   ArrowLeft, ArrowRight, BookOpen, Check, CheckCircle2, ChevronDown, CircleHelp,
@@ -16,7 +16,7 @@ import { studyReportText } from '@/lib/study-report';
 import {
   citationsMatchSource, clearSavedStudies, createSavedStudyId, createSavedStudiesBackup, createSourceIdentity,
   deleteSavedStudy, importSavedStudies, matchesSource, matchesVerifiedSource, MAX_SAVED_STUDY_BACKUP_BYTES,
-  parseSavedStudiesBackup, readSavedStudies, writeSavedStudy,
+  MAX_STUDY_LABEL_LENGTH, parseSavedStudiesBackup, readSavedStudies, updateSavedStudyLabel, writeSavedStudy,
   type SavedStudySession, type StudySourceIdentity,
 } from '@/lib/study-session-storage';
 import { Toaster } from '@/components/ui/toaster';
@@ -238,6 +238,8 @@ function App() {
   const [feedbackOpen, setFeedbackOpen] = useState<string | null>(null);
   const [savedStudies, setSavedStudies] = useState<SavedStudySession[]>([]);
   const [activeSavedStudyId, setActiveSavedStudyId] = useState<string | null>(null);
+  const [activeSavedStudyLabel, setActiveSavedStudyLabel] = useState('');
+  const [savedStudyLabelEdits, setSavedStudyLabelEdits] = useState<Record<string, string>>({});
   // Reopening even the same saved study starts a new response-ownership scope.
   const [assessmentSessionKey, setAssessmentSessionKey] = useState(0);
   const [savedStudyLoaded, setSavedStudyLoaded] = useState(false);
@@ -334,6 +336,7 @@ function App() {
       id: activeSavedStudyId ?? createSavedStudyId(),
       version: 1,
       savedAt: Date.now(),
+      ...(activeSavedStudyLabel.trim() ? { label: activeSavedStudyLabel.trim().slice(0, MAX_STUDY_LABEL_LENGTH) } : {}),
       source: sourceIdentity,
       map: currentEvaluation ? studyMap : uncheckedMap(studyMap),
       transcript: text,
@@ -350,7 +353,7 @@ function App() {
     } catch {
       setStorageMessage('This browser could not save your progress. Your answer remains on screen; copy it before leaving or reloading.');
     }
-  }, [studyMap, evaluation, checkedTranscript, phase, selectedSource, sourceIdentity, voiceOverflow, previousReport, activeSavedStudyId]);
+  }, [studyMap, evaluation, checkedTranscript, phase, selectedSource, sourceIdentity, voiceOverflow, previousReport, activeSavedStudyId, activeSavedStudyLabel]);
   useLayoutEffect(() => {
     const draft = [transcript, interim.trim()].filter(Boolean).join(' ');
     saveCurrentStudy(draft.slice(0, 12000));
@@ -360,7 +363,7 @@ function App() {
     setError('');
     if (!selectedSource) { setError('اختر ملف PDF المعتمد أولًا. Select and verify the approved PDF first.'); return; }
     prepareStudy.mutate({ data: { topic, referenceText, sourceToken: selectedSource.sourceToken } }, {
-      onSuccess: result => { setAssessmentSessionKey(key => key + 1); setActiveSavedStudyId(createSavedStudyId()); setStudyMap(result); setEvaluation(null); setCheckedTranscript(''); setPreviousReport(undefined); changeTranscript(''); setVoiceOverflow(''); setPhase('session'); },
+      onSuccess: result => { setAssessmentSessionKey(key => key + 1); setActiveSavedStudyId(createSavedStudyId()); setActiveSavedStudyLabel(''); setStudyMap(result); setEvaluation(null); setCheckedTranscript(''); setPreviousReport(undefined); changeTranscript(''); setVoiceOverflow(''); setPhase('session'); },
       onError: issue => setError(errorMessage(issue)),
     });
   };
@@ -386,6 +389,7 @@ function App() {
     setVoiceOverflow(savedStudy.overflowText ?? '');
     setPhase(savedStudy.phase);
     setActiveSavedStudyId(savedStudy.id);
+    setActiveSavedStudyLabel(savedStudy.label ?? '');
     setError('');
     setStorageMessage('');
   };
@@ -397,6 +401,20 @@ function App() {
       setStorageMessage('Saved study deleted from this browser.');
     } catch {
       setStorageMessage('The browser could not delete the saved study. Try clearing this site’s browser data.');
+    }
+  };
+
+  const saveStudyLabel = (id: string, event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const label = savedStudyLabelEdits[id] ?? savedStudies.find(study => study.id === id)?.label ?? '';
+    try {
+      const next = updateSavedStudyLabel(id, label);
+      setSavedStudies(next);
+      setSavedStudyLabelEdits(previous => ({ ...previous, [id]: label.trim() }));
+      if (activeSavedStudyId === id) setActiveSavedStudyLabel(label.trim());
+      setStorageMessage(label.trim() ? 'Study label saved.' : 'Study label removed.');
+    } catch {
+      setStorageMessage('The browser could not save this study label. Try again.');
     }
   };
 
@@ -544,10 +562,24 @@ function App() {
               const citationsAreValid = Boolean(selectedSource && citationsMatchSource(savedStudy, selectedSource.source));
               return <li className="saved-study-item" key={savedStudy.id} data-testid={`saved-study-${savedStudy.id}`}>
                 <div className="saved-study-item-copy">
-                  <strong>{savedStudy.source.title}</strong>
+                  <strong>{savedStudy.label || savedStudy.source.title}</strong>
+                  {savedStudy.label && <span className="saved-study-source-title">{savedStudy.source.title}</span>}
                   <span>{savedStudy.evaluation ? 'Assessment report' : 'Draft'} · {new Date(savedStudy.savedAt).toLocaleString()}</span>
                   <p dir="auto">{savedStudy.transcript.trim() || 'No explanation text yet.'}</p>
                 </div>
+                <form className="saved-study-label-form" onSubmit={event => saveStudyLabel(savedStudy.id, event)}>
+                  <label htmlFor={`saved-study-label-${savedStudy.id}`}>Study label</label>
+                  <input
+                    id={`saved-study-label-${savedStudy.id}`}
+                    type="text"
+                    maxLength={MAX_STUDY_LABEL_LENGTH}
+                    value={savedStudyLabelEdits[savedStudy.id] ?? savedStudy.label ?? ''}
+                    onChange={event => setSavedStudyLabelEdits(previous => ({ ...previous, [savedStudy.id]: event.target.value }))}
+                    placeholder="Add a label"
+                    data-testid={`input-saved-study-label-${savedStudy.id}`}
+                  />
+                  <button className="upload-button" type="submit" data-testid={`button-save-study-label-${savedStudy.id}`}>Save label</button>
+                </form>
                 {sourceMatches && citationsAreValid
                   ? <button className="upload-button" type="button" onClick={() => reopenSavedStudy(savedStudy)} data-testid={`button-reopen-saved-study-${savedStudy.id}`}>
                       {savedStudy.evaluation ? 'Reopen report' : 'Resume draft'}

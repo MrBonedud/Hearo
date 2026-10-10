@@ -2,8 +2,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
   clearSavedStudies, createSavedStudiesBackup, deleteSavedStudy, importSavedStudies,
-  matchesVerifiedSource, parseSavedStudiesBackup, readSavedStudy, readSavedStudies, writeSavedStudy,
-  type SavedStudySession,
+  matchesVerifiedSource, MAX_STUDY_LABEL_LENGTH, parseSavedStudiesBackup, readSavedStudy,
+  readSavedStudies, updateSavedStudyLabel, writeSavedStudy, type SavedStudySession,
 } from './study-session-storage';
 import { studyReportText } from './study-report';
 import type { DemoSource } from '@workspace/api-client-react';
@@ -60,6 +60,64 @@ test('legacy single-study saves migrate without losing drafts', () => {
     assert.equal(result.value[0].transcript, 'هذا شرح اصطناعي');
   }
   assert.equal(storage.values.has('hearo.saved-study.v1'), false);
+});
+
+test('labels persist independently without changing source, citations, or sibling studies', () => {
+  const storage = memoryStorage();
+  const original: SavedStudySession = {
+    ...draft(),
+    phase: 'review',
+    evaluation: {
+      topic: 'Test',
+      nodes: [],
+      edges: [],
+      feedback: [],
+      assessments: [{
+        conceptId: 'concept',
+        verdict: 'supported',
+        confidence: 'high',
+        studentEvidence: 'The explanation',
+        sourceLineIds: ['S01'],
+        explanation: 'Supported by the source.',
+        followUp: 'What follows?',
+      }],
+    },
+    citedPassageIds: ['S01'],
+  };
+  const sibling = { ...draft(), id: 'study-2', savedAt: 122, transcript: 'A separate draft.' };
+  writeSavedStudy(original, storage);
+  writeSavedStudy(sibling, storage);
+
+  const labeled = updateSavedStudyLabel(original.id, '  Exam review  ', storage);
+  const updated = labeled.find(study => study.id === original.id);
+  assert.equal(updated?.label, 'Exam review');
+  assert.deepEqual(updated?.source, original.source);
+  assert.deepEqual(updated?.citedPassageIds, original.citedPassageIds);
+  assert.equal(updated?.savedAt, original.savedAt);
+  assert.equal(labeled.find(study => study.id === sibling.id)?.label, undefined);
+
+  const cleared = updateSavedStudyLabel(original.id, '   ', storage);
+  assert.equal(cleared.find(study => study.id === original.id)?.label, undefined);
+  assert.throws(() => updateSavedStudyLabel(original.id, 'x'.repeat(MAX_STUDY_LABEL_LENGTH + 1), storage));
+});
+
+test('unlabeled current and migrated saves remain readable', () => {
+  const currentStorage = memoryStorage();
+  writeSavedStudy(draft(), currentStorage);
+  const current = readSavedStudies(currentStorage);
+  assert.equal(current.status, 'valid');
+  if (current.status === 'valid') assert.equal(current.value[0].label, undefined);
+
+  const legacyStorage = memoryStorage();
+  const legacy = { ...draft() } as Record<string, unknown>;
+  delete legacy.id;
+  legacyStorage.setItem('hearo.saved-study.v1', JSON.stringify(legacy));
+  const migrated = readSavedStudies(legacyStorage);
+  assert.equal(migrated.status, 'valid');
+  if (migrated.status === 'valid') {
+    assert.equal(migrated.value[0].label, undefined);
+    assert.equal(migrated.value[0].transcript, 'هذا شرح اصطناعي');
+  }
 });
 
 test('clear all removes the full history and any legacy copy', () => {

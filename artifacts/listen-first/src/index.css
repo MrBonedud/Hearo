@@ -182,6 +182,11 @@ button { transition: background-color .15s; }
 .saved-study-item-copy > strong, .saved-study-item-copy > span { display: block; }
 .saved-study-item-copy > span { margin-top: 4px; color: #707970; font-size: 11px; }
 .saved-study-item-copy > p { display: -webkit-box; overflow: hidden; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow-wrap: anywhere; margin: 7px 0 0; color: #a6a5bc; font-size: 12px; line-height: 1.6; }
+.saved-study-item-copy > .saved-study-source-title { margin-top: 3px; }
+.saved-study-label-form { display: grid; grid-template-columns: minmax(120px, 1fr) auto; gap: 6px 8px; align-items: center; min-width: min(100%, 190px); }
+.saved-study-label-form label { grid-column: 1 / -1; color: #707970; font-size: 11px; }
+.saved-study-label-form input { min-width: 0; width: 100%; padding: 7px 8px; border: 1px solid var(--line); border-radius: 5px; background: var(--paper-light); color: var(--ink); font: inherit; font-size: 12px; }
+.saved-study-label-form .upload-button { white-space: nowrap; }
 .saved-study-item .saved-study-delete { margin: 2px 0 0; }
 .saved-study > strong { display: block; font-size: 13px; }
 .saved-study > p, .saved-study-status { color: #707970; font-size: 12px; line-height: 1.7; margin: 8px 0; }
@@ -362,6 +367,8 @@ body { color: #f2efff; background: #080914; }
 .saved-study-item { background: #0b0c18; border-color: #34304d; }
 .saved-study > p, .saved-study-status, .saved-study-hint { color: #aaa8be; }
 .saved-study-item-copy > span { color: #aaa8be; }
+.saved-study-label-form label { color: #aaa8be; }
+.saved-study-label-form input { background: #0b0c18; border-color: #34304d; color: #f2eee5; }
 .saved-study-warning { color: #ffc66e !important; }
 .saved-study-status { background: #102c2a; }
 .saved-study-delete { color: #ff8394; }

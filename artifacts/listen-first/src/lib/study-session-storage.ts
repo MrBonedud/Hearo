@@ -8,6 +8,8 @@ import type {
 const STORAGE_KEY = 'hearo.saved-studies.v2';
 
 const LEGACY_STORAGE_KEY = 'hearo.saved-study.v1';
+
+export const MAX_STUDY_LABEL_LENGTH = 60;
 const BACKUP_FORMAT = 'hearo-study-backup';
 export const MAX_SAVED_STUDY_BACKUP_BYTES = 10 * 1024 * 1024;
 const MAX_BACKUP_STUDIES = 500;
@@ -22,6 +24,7 @@ export type SavedStudySession = {
   id: string;
   version: 1;
   savedAt: number;
+  label?: string;
   source: StudySourceIdentity;
   map: StudyMap;
   transcript: string;
@@ -93,6 +96,7 @@ function isSavedStudySession(value: unknown, allowMissingId = false): value is S
   if ((!allowMissingId && (typeof value.id !== 'string' || !value.id))
     || (allowMissingId && value.id !== undefined && (typeof value.id !== 'string' || !value.id))
     || value.version !== 1
+    || (value.label !== undefined && (typeof value.label !== 'string' || value.label.length > MAX_STUDY_LABEL_LENGTH))
     || (value.overflowText !== undefined && typeof value.overflowText !== 'string')
     || typeof value.savedAt !== 'number'
     || !Number.isFinite(value.savedAt)
@@ -135,6 +139,7 @@ function normalizeSavedStudy(value: SavedStudySession): SavedStudySession {
     id: value.id,
     version: 1,
     savedAt: value.savedAt,
+    ...(value.label?.trim() ? { label: value.label.trim() } : {}),
     source: {
       id: value.source.id,
       title: value.source.title,
@@ -299,6 +304,22 @@ export function writeSavedStudy(value: SavedStudySession, storage?: StorageLike)
   return next;
 }
 
+export function updateSavedStudyLabel(id: string, label: string, storage?: StorageLike): SavedStudySession[] {
+  const normalizedLabel = label.trim();
+  if (normalizedLabel.length > MAX_STUDY_LABEL_LENGTH) {
+    throw new Error(`Study labels must be ${MAX_STUDY_LABEL_LENGTH} characters or fewer.`);
+  }
+  const existing = readSavedStudies(storage);
+  if (existing.status === 'unavailable') throw new Error('Saved study storage is unavailable.');
+  if (existing.status !== 'valid' || !existing.value.some(study => study.id === id)) {
+    throw new Error('The saved study could not be found.');
+  }
+  const study = existing.value.find(item => item.id === id)!;
+  const updated: SavedStudySession = { ...study };
+  if (normalizedLabel) updated.label = normalizedLabel;
+  else delete updated.label;
+  return writeSavedStudy(updated, storage);
+}
 export function deleteSavedStudy(id: string, storage?: StorageLike): SavedStudySession[] {
   const target = resolveStorage(storage);
   if (!target) throw new Error('Saved study storage is unavailable.');
