@@ -1,7 +1,22 @@
 # Browser regressions
 
-`pnpm --filter @workspace/listen-first test:e2e` runs the mocked saved-study
-regression without a PDF fixture or API server.
+`pnpm --filter @workspace/listen-first test:e2e` runs the mocked browser
+regressions without a PDF fixture or API server.
+
+## Checking allowance regressions
+
+```sh
+pnpm --filter @workspace/listen-first exec playwright test --config=playwright.config.ts check-allowance.spec.ts
+```
+
+The allowance suite uses the real App, React Query and live-assessment hook with
+mocked API responses and a controlled browser clock. It covers UTC midnight
+recovery, consumption by a second tab in the same browser context, refetch on
+visibility/focus, stale-balance removal after failed reads, shared-service
+exhaustion, and a last in-flight result arriving after a poll reports zero.
+It also checks that editing and previous-report downloads stay usable while
+automatic checking is paused, and that a final check remains requestable after
+an allowance read fails. No paid AI requests are made.
 
 ## Real study API smoke test
 

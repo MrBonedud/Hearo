@@ -285,7 +285,7 @@ test('a delayed result from another verified source is ignored even for identica
   await page.getByTestId('input-transcript').fill(originalAnswer);
   await expect.poll(async () => (await savedStudies(page)).length).toBe(2);
   await expect.poll(async () => {
-    const studies = await savedStudies(page);
+  const studies = await savedStudies(page);
     return studies.find((study: { source: { id: string } }) => study.source.id === secondSource.id)?.transcript;
   }).toBe(originalAnswer);
   pending.release.resolve();
