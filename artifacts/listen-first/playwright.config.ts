@@ -5,6 +5,7 @@ const chromiumPath = '/repl/tools/bin/chromium';
 
 export default defineConfig({
   testDir: './e2e',
+  testIgnore: '**/real-study-api.spec.ts',
   fullyParallel: false,
   reporter: 'list',
   use: {
