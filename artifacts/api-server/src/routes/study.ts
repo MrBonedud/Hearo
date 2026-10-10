@@ -16,9 +16,9 @@ import {
   approvedDemo, groundedEvaluation, initialMap, issueSourceToken,
   matchesApprovedPdf, referenceText, sourceMetadata, validSourceToken,
 } from "../lib/approved-demo";
+import { checkWithFallback } from "../lib/checker-fallback";
 
 const router: IRouter = Router();
-const model = "gemini-3.1-flash-lite";
 const lastEvaluationByClient = new Map<string, number>();
 const inFlight = new Set<string>();
 
@@ -78,21 +78,26 @@ router.post("/report", (req, res) => {
   }
 });
 
-function getGeminiClient(): OpenAI | null {
-  // Google's documented OpenAI-compatible API reuses the existing SDK.
-  // Never fall back to the previous OpenAI account.
-  const apiKey = process.env.GEMINI_API_KEY;
-  return apiKey ? new OpenAI({
-    apiKey,
-    baseURL: "https://generativelanguage.googleapis.com/v1beta/openai/",
-    timeout: 60_000,
-    maxRetries: 1,
-  }) : null;
+function getAssessmentProviders(): { name: "OpenAI" | "Gemini"; model: string; client: OpenAI }[] {
+  const providers: ReturnType<typeof getAssessmentProviders> = [];
+  if (process.env.OPENAI_API_KEY) providers.push({
+    name: "OpenAI", model: "gpt-4.1-mini",
+    client: new OpenAI({ apiKey: process.env.OPENAI_API_KEY, timeout: 15_000, maxRetries: 0 }),
+  });
+  if (process.env.GEMINI_API_KEY) providers.push({
+    name: "Gemini", model: "gemini-3.1-flash-lite",
+    client: new OpenAI({
+      apiKey: process.env.GEMINI_API_KEY,
+      baseURL: "https://generativelanguage.googleapis.com/v1beta/openai/",
+      timeout: 45_000, maxRetries: 0,
+    }),
+  });
+  return providers;
 }
 
 router.get("/study/demo", (_req, res) => {
   res.setHeader("Cache-Control", "no-store");
-  res.json(sourceMetadata(Boolean(getGeminiClient())));
+  res.json(sourceMetadata(getAssessmentProviders().length > 0));
 });
 
 const parsePdf = raw({ type: "application/pdf", limit: approvedDemo.byteLength, inflate: false });
@@ -122,7 +127,7 @@ router.post("/study/demo/upload", receivePdf, (req, res) => {
     return;
   }
   res.setHeader("Cache-Control", "no-store");
-  res.json({ source: sourceMetadata(Boolean(getGeminiClient())), sourceToken: issueSourceToken() });
+  res.json({ source: sourceMetadata(getAssessmentProviders().length > 0), sourceToken: issueSourceToken() });
 });
 
 function checkSource(input: { sourceToken?: string; topic: string; referenceText: string }) {
@@ -146,9 +151,9 @@ router.post("/study/evaluate", async (req, res) => {
     res.status(400).json({ error: "A verified source and a non-empty explanation are required. Select the PDF again if your session expired." });
     return;
   }
-  const client = getGeminiClient();
-  if (!client) {
-    res.status(503).json({ error: "Gemini checking is not connected yet. Your answer is unchanged. The workspace owner must configure GEMINI_API_KEY through Replit Secrets before answers can be assessed." });
+  const providers = getAssessmentProviders();
+  if (!providers.length) {
+    res.status(503).json({ error: "No AI checker is connected. Your answer is unchanged. Configure OPENAI_API_KEY or GEMINI_API_KEY through Replit Secrets." });
     return;
   }
   const clientKey = req.ip || "unknown";
@@ -169,8 +174,9 @@ router.post("/study/evaluate", async (req, res) => {
   lastEvaluationByClient.set(clientKey, now);
   inFlight.add(clientKey);
   try {
-    const result = await client.chat.completions.create({
-      model, max_completion_tokens: 8192, response_format: { type: "json_object" },
+    const checked = await checkWithFallback(providers, async provider => {
+      const result = await provider.client.chat.completions.create({
+      model: provider.model, max_completion_tokens: 8192, response_format: { type: "json_object" },
       messages: [
         { role: "system", content: [
           "You assess conceptual understanding against ONLY the supplied English source passages and objectives.",
@@ -195,20 +201,26 @@ router.post("/study/evaluate", async (req, res) => {
     const text = result.choices[0]?.message.content;
     if (!text) throw new Error("Empty model response");
     const output = JSON.parse(text) as { assessments?: unknown };
-    res.json(groundedEvaluation(output.assessments, input.data.transcript));
+      return groundedEvaluation(output.assessments, input.data.transcript);
+    }, (provider, error) => {
+      req.log.warn({ provider: provider.name, errorType: error instanceof Error ? error.name : "UnknownError" }, "AI checker failed; trying next configured provider");
+    });
+    res.setHeader("X-Hearo-Checker", checked.provider.name);
+    res.setHeader("X-Hearo-Fallback", String(checked.fallbackUsed));
+    res.json(checked.result);
   } catch (err) {
     // Do not log source text, student answers, or provider request bodies.
     req.log.error({ errorType: err instanceof Error ? err.name : "UnknownError" }, "Study assessment failed");
     const providerError = err as { status?: unknown; code?: unknown };
     if (providerError.status === 429) {
       res.status(503).json({
-        error: "Gemini has reached an API quota or rate limit. Your text is unchanged; no assessment was recorded. Check the connected Google project's quota, then retry.",
+        error: "The configured AI checkers could not complete this check because of a quota or rate limit. Your text is unchanged; no assessment was recorded. Check provider quota, then retry.",
       });
       return;
     }
     if (providerError.status === 503) {
       res.status(503).json({
-        error: "Gemini is temporarily unavailable. Your text is unchanged; no assessment was recorded. Please retry shortly.",
+        error: "The configured AI checkers are temporarily unavailable. Your text is unchanged; no assessment was recorded. Please retry shortly.",
       });
       return;
     }

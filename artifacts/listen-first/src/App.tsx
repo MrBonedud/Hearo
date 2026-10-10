@@ -44,7 +44,7 @@ const statusMeta = {
 function errorMessage(error: unknown) {
   const apiError = error as { status?: number; data?: unknown; message?: string };
   const data = apiError?.data as { message?: string; error?: string } | undefined;
-  if (apiError?.status === 503) return data?.message || data?.error || 'Gemini checking is not connected yet. Your answer is unchanged. Ask the workspace owner to configure a Gemini connection.';
+  if (apiError?.status === 503) return data?.message || data?.error || 'AI checking is unavailable. Your answer is unchanged. Ask the workspace owner to check the OpenAI or Gemini connection.';
   if (apiError?.status === 401 || apiError?.status === 403) return 'The study service could not authorize this request. Check the API setup and try again.';
   return data?.message || data?.error || apiError?.message || 'Something interrupted the study check. Your notes are still here; please try again.';
 }
@@ -459,7 +459,7 @@ function App() {
         <button className="primary-button start-button" type="button" onClick={beginStudy} disabled={prepareStudy.isPending || !selectedSource} data-testid="button-prepare">
           {prepareStudy.isPending ? <><span className="button-loader" /> Opening the study workspace…</> : <>ابدأ الشرح · Start explaining <ArrowRight size={16} /></>}
         </button>
-        <p className="privacy-line"><span className="privacy-dot" /> With live checks enabled, your text and selected source passages go to Gemini automatically after a pause. You can turn live checks off and request only a final review. Your browser’s speech service handles microphone audio and may process it remotely; Hearo does not store audio or the PDF. Drafts and reports are saved in this browser, not in an account. Anyone using this browser profile may see them; delete the saved copy here or clear this site’s browser data.</p>
+        <p className="privacy-line"><span className="privacy-dot" /> With live checks enabled, your text and selected source passages go to OpenAI first, with Gemini used if OpenAI fails. Checks happen automatically after a pause. You can turn live checks off and request only a final review. Your browser’s speech service handles microphone audio and may process it remotely; Hearo does not store audio or the PDF. Drafts and reports are saved in this browser, not in an account. Anyone using this browser profile may see them; delete the saved copy here or clear this site’s browser data.</p>
       </div>
       <div className="how-strip" id="how-it-works">
         <div className="how-title"><span className="mono">A SMALL PROMISE</span><p>We won’t interrupt<br />your train of thought.</p></div>
