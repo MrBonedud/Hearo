@@ -2,7 +2,7 @@ import { expect, test } from '@playwright/test';
 
 const approvedPdf = Buffer.from('%PDF-1.4 approved source fixture');
 const changedPdf = Buffer.from('%PDF-1.4 approvEd source fixture');
-const storageKey = 'hearo.saved-study.v1';
+const storageKey = 'hearo.saved-studies.v2';
 
 const source = {
   id: 'approved-demo',
@@ -107,26 +107,26 @@ test('a failed assessment leaves a reloaded draft retryable and source-bound', a
   const answer = 'Load balancing spreads requests across servers so the service can handle more work.';
   await page.getByTestId('input-transcript').fill(answer);
   await expect.poll(() => page.evaluate(key => {
-    const saved = JSON.parse(localStorage.getItem(key) ?? 'null');
+    const saved = JSON.parse(localStorage.getItem(key) ?? '[]')[0];
     return saved?.transcript;
   }, storageKey)).toBe(answer);
 
   await page.reload();
   await page.getByTestId('button-start-live').click();
-  await expect(page.locator('[aria-label="Saved study"]')).toContainText('A saved draft is available');
+  await expect(page.locator('[aria-label="Saved studies"]')).toContainText('Draft');
   await page.getByTestId('input-file').setInputFiles({
     name: 'approved-slides.pdf',
     mimeType: 'application/pdf',
     buffer: approvedPdf,
   });
   await expect(page.getByTestId('status-source-verified')).toBeVisible();
-  await page.getByTestId('button-reopen-saved-study').click();
+  await page.locator('[data-testid^="button-reopen-saved-study-"]').click();
   await expect(page.getByTestId('input-transcript')).toHaveValue(answer);
 
   // Take a stable before/after snapshot around the forced provider failure.
   await page.getByTestId('toggle-live-session').uncheck();
   const savedBeforeFailure = await page.evaluate(key => {
-    const saved = JSON.parse(localStorage.getItem(key) ?? 'null');
+    const saved = JSON.parse(localStorage.getItem(key) ?? '[]')[0];
     return {
       transcript: saved?.transcript,
       evaluation: saved?.evaluation,
@@ -145,7 +145,7 @@ test('a failed assessment leaves a reloaded draft retryable and source-bound', a
   await expect(page.getByTestId('button-retry-live')).toBeVisible({ timeout: 10_000 });
   await expect(page.getByTestId('input-transcript')).toHaveValue(answer);
   const savedAfterFailure = await page.evaluate(key => {
-    const saved = JSON.parse(localStorage.getItem(key) ?? 'null');
+    const saved = JSON.parse(localStorage.getItem(key) ?? '[]')[0];
     return {
       transcript: saved?.transcript,
       evaluation: saved?.evaluation,
@@ -163,7 +163,7 @@ test('a failed assessment leaves a reloaded draft retryable and source-bound', a
     { timeout: 15_000 },
   );
   await expect.poll(() => page.evaluate(key => {
-    const saved = JSON.parse(localStorage.getItem(key) ?? 'null');
+    const saved = JSON.parse(localStorage.getItem(key) ?? '[]')[0];
     return saved?.evaluation?.assessments?.[0]?.verdict;
   }, storageKey)).toBe('supported');
 
@@ -174,10 +174,10 @@ test('a failed assessment leaves a reloaded draft retryable and source-bound', a
     buffer: changedPdf,
   });
   await expect(page.getByTestId('status-upload-error')).toContainText('not the approved source');
-  await expect(page.locator('[aria-label="Saved study"]')).toBeVisible();
+  await expect(page.locator('[aria-label="Saved studies"]')).toBeVisible();
 
   page.on('dialog', dialog => dialog.accept());
-  await page.getByTestId('button-delete-saved-study').click();
-  await expect(page.locator('[aria-label="Saved study"]')).toHaveCount(0);
+  await page.locator('[data-testid^="button-delete-saved-study-"]').click();
+  await expect(page.locator('[data-testid^="button-delete-saved-study-"]')).toHaveCount(0);
   await expect.poll(() => page.evaluate(key => localStorage.getItem(key), storageKey)).toBeNull();
 });
