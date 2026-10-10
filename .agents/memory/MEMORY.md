@@ -5,3 +5,4 @@
 - [Assessment snapshots](assessment-snapshots.md) — Live feedback may cover a checked prefix; saved reports must match the whole current explanation exactly.
 - [Concurrent route integration](concurrent-route-integration.md) — Rerun focused HTTP checks after shared route edits are integrated; valid TypeScript can hide intercepted handlers.
 - [Public checking costs](public-checking-costs.md) — Count ambiguous paid attempts conservatively; anonymous session limits are not per-person or exact monetary caps.
+- [Owner checking policy](owner-checking-policy.md) — Trusted operations controls only; limit changes preserve usage and serialize with reservations.

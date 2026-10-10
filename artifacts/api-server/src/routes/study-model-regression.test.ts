@@ -69,6 +69,9 @@ test("real evaluate handler reserves budget and returns model-attributed grounde
     query: async (sql: string) => {
       if (sql.includes("INSERT INTO evaluation_daily_budgets")) reserved = true;
       if (sql === "COMMIT") committed = true;
+      if (sql.includes("FROM evaluation_check_policy")) {
+        return { rows: [{ session_limit: 30, overall_limit: 500 }] };
+      }
       return { rows: sql.includes("clock_timestamp()") ? [
         { day: "2026-10-10", now: "2026-10-10T12:00:00Z", reset_at: "2026-10-11T00:00:00Z" },
       ] : [] };

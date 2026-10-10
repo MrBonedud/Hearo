@@ -232,7 +232,7 @@ components:
           description: Remaining reservations for this browser session, including failed paid attempts
         dailyLimit:
           type: integer
-          minimum: 1
+          minimum: 0
         resetAt:
           type: string
           format: date-time
@@ -698,4 +698,3 @@ components:
           items:
             $ref: "#/components/schemas/ConceptAssessment"
       required: [assessments]
-

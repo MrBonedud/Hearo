@@ -1,11 +1,11 @@
 import { createHmac, randomUUID, timingSafeEqual } from "node:crypto";
 import cookieParser from "cookie-parser";
 import type { Request, Response } from "express";
+import { lockEvaluationBudget, readEvaluationPolicy, type BudgetPool, type BudgetClient } from "./evaluation-policy";
+import { evaluationLimitsSchema } from "@workspace/db/schema";
 
 // A check can attempt at most two providers, both with SDK retries disabled.
 // Count reservations, including provider failures; never refund ambiguous calls.
-export const DAILY_SESSION_CHECKS = 30;
-export const DAILY_GLOBAL_CHECKS = 500;
 export const BUDGET_COOKIE = "hearo_check_session";
 
 export function verifiedSession(value: unknown, secret: string): string | null {
@@ -41,12 +41,6 @@ export type BudgetDecision = {
   retryAfterSeconds: number;
 };
 
-type BudgetClient = {
-  query: (sql: string, values?: unknown[]) => Promise<{ rows: Record<string, unknown>[] }>;
-  release: (destroy?: boolean) => void;
-};
-type BudgetPool = { connect: () => Promise<BudgetClient> };
-
 export const ALLOWANCE_READ_BOUNDS = {
   connectionMs: 750,
   queryMs: 1250,
@@ -79,7 +73,6 @@ async function bounded<T>(work: Promise<T>, milliseconds: number): Promise<T> {
 export async function readEvaluationAllowance(
   sessionId: string,
   database?: BudgetPool,
-  limits = { session: DAILY_SESSION_CHECKS, overall: DAILY_GLOBAL_CHECKS },
   bounds = ALLOWANCE_READ_BOUNDS,
 ) {
   // Never allow read traffic to fill the shared pool or its waiting queue.
@@ -116,12 +109,17 @@ export async function readEvaluationAllowance(
       WITH clock AS MATERIALIZED (SELECT clock_timestamp() AS instant)
       SELECT ((date_trunc('day', instant AT TIME ZONE 'UTC') + interval '1 day')
           AT TIME ZONE 'UTC') AS reset_at,
+        policy.session_limit, policy.overall_limit,
         COALESCE((SELECT used FROM evaluation_daily_budgets
           WHERE day = (instant AT TIME ZONE 'UTC')::date AND scope = $1), 0) AS session_used,
         COALESCE((SELECT used FROM evaluation_daily_budgets
-          WHERE day = (instant AT TIME ZONE 'UTC')::date AND scope = 'overall'), 0) >= $2 AS overall_exhausted
-      FROM clock
-    `, [`session:${sessionId}`, limits.overall]);
+          WHERE day = (instant AT TIME ZONE 'UTC')::date AND scope = 'overall'), 0) >= policy.overall_limit AS overall_exhausted
+      FROM clock CROSS JOIN evaluation_check_policy policy WHERE policy.id = 1
+    `, [`session:${sessionId}`]);
+      if (!row) throw new Error("Evaluation checking policy is missing");
+      const limits = evaluationLimitsSchema.parse({
+        session: row.session_limit, overall: row.overall_limit,
+      });
       await client.query("COMMIT");
       const remainingChecks = Math.max(0, limits.session - Number(row.session_used));
       const blockedBy = row.overall_exhausted ? "overall" as const
@@ -149,17 +147,15 @@ export async function readEvaluationAllowance(
 export async function reserveEvaluation(
   sessionId: string,
   database?: BudgetPool,
-  limits = { session: DAILY_SESSION_CHECKS, overall: DAILY_GLOBAL_CHECKS },
 ): Promise<BudgetDecision> {
   // Lazy import lets the authored, non-AI demo keep working if storage is down.
   const pool = database ?? (await import("@workspace/db")).pool;
   const client = await pool.connect();
   try {
     await client.query("BEGIN");
-    await client.query("SET LOCAL lock_timeout = '5s'");
-    await client.query("SET LOCAL statement_timeout = '5s'");
     // All instances lock the same counter before checking both scopes.
-    await client.query("SELECT pg_advisory_xact_lock(184713, 1)");
+    await lockEvaluationBudget(client);
+    const limits = await readEvaluationPolicy(client);
     const { rows: [clock] } = await client.query(`
       WITH clock AS MATERIALIZED (SELECT clock_timestamp() AS instant)
       SELECT (instant AT TIME ZONE 'UTC')::date::text AS day,

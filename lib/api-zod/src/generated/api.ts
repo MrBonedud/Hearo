@@ -13,12 +13,13 @@ import * as zod from 'zod';
  */
 export const getStudyAllowanceResponseRemainingChecksMin = 0;
 
+export const getStudyAllowanceResponseDailyLimitMin = 0;
 
 
 
 export const GetStudyAllowanceResponse = zod.object({
   "remainingChecks": zod.number().int().min(getStudyAllowanceResponseRemainingChecksMin).describe('Remaining reservations for this browser session, including failed paid attempts'),
-  "dailyLimit": zod.number().int().min(1),
+  "dailyLimit": zod.number().int().min(getStudyAllowanceResponseDailyLimitMin),
   "resetAt": zod.coerce.date().describe('Next midnight UTC, measured by the database'),
   "available": zod.boolean().describe('Both this session and the shared service have allowance at the time of reading'),
   "blockedBy": zod.enum(['session', 'overall']).optional()

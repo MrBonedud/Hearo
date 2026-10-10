@@ -19,7 +19,7 @@ export interface StudyAllowance {
      * @minimum 0
      */
   remainingChecks: number;
-  /** @minimum 1 */
+  /** @minimum 0 */
   dailyLimit: number;
   /** Next midnight UTC, measured by the database */
   resetAt: string;

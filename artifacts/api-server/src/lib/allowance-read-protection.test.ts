@@ -8,7 +8,8 @@ import { ALLOWANCE_READ_BOUNDS, BUDGET_COOKIE, readEvaluationAllowance, reserveE
 import router from "../routes/study";
 import { approvedDemo, issueSourceToken, referenceText } from "./approved-demo";
 
-const row = { reset_at: "2026-10-11T00:00:00Z", session_used: 0, overall_exhausted: false };
+const row = { reset_at: "2026-10-11T00:00:00Z", session_used: 0, overall_exhausted: false,
+  session_limit: 30, overall_limit: 500 };
 const fastBounds = { ...ALLOWANCE_READ_BOUNDS, connectionMs: 20, queryMs: 30, statementMs: 10 };
 
 test("read throttle expires, isolates sessions, catches cookie rotation and bounds memory", () => {
@@ -33,13 +34,14 @@ test("connection deadlines release late arrivals and bound outstanding pool acqu
   const pending = new Promise<Parameters<typeof deliver>[0]>(resolve => { deliver = resolve; });
   const database = { connect: () => { connections++; return pending; } };
   const bounds = { ...fastBounds, maxConcurrent: 1 };
-  await assert.rejects(readEvaluationAllowance("one", database, undefined, bounds), { name: "AllowanceReadUnavailable" });
-  await assert.rejects(readEvaluationAllowance("two", database, undefined, bounds), { name: "AllowanceReadUnavailable" });
+  await assert.rejects(readEvaluationAllowance("one", database, bounds), { name: "AllowanceReadUnavailable" });
+  await assert.rejects(readEvaluationAllowance("two", database, bounds), { name: "AllowanceReadUnavailable" });
   assert.equal(connections, 1, "A timed-out acquisition must retain its slot until settled");
   // The read-only admission cap must not deny evaluation reservations.
   assert.equal((await reserveEvaluation("one", { connect: async () => ({
     query: async sql => ({ rows: sql.includes("WITH clock")
-      ? [{ day: "2026-10-10", reset_at: row.reset_at, now: "2026-10-10T12:00:00Z" }] : [] }),
+      ? [{ day: "2026-10-10", reset_at: row.reset_at, now: "2026-10-10T12:00:00Z" }]
+      : sql.includes("evaluation_check_policy") ? [row] : [] }),
     release() {},
   }) })).allowed, true);
   deliver({
@@ -51,7 +53,7 @@ test("connection deadlines release late arrivals and bound outstanding pool acqu
   assert.equal(queries, 0);
   assert.equal((await readEvaluationAllowance("one", { connect: async () => ({
     query: async () => ({ rows: [row] }), release() {},
-  }) }, undefined, bounds)).available, true);
+  }) }, bounds)).available, true);
 });
 
 test("stalled queries destroy their clients and do not change reservation behavior", async () => {
@@ -65,7 +67,7 @@ test("stalled queries destroy their clients and do not change reservation behavi
       return { rows: [] };
     },
     release: destroy => { destroyed = destroy; },
-  }) }, undefined, fastBounds), { name: "AllowanceReadUnavailable" });
+  }) }, fastBounds), { name: "AllowanceReadUnavailable" });
   assert.ok(Date.now() - started < 1000);
   assert.equal(destroyed, true);
   assert.ok(queries.includes("BEGIN READ ONLY"));
@@ -76,7 +78,8 @@ test("stalled queries destroy their clients and do not change reservation behavi
     query: async (sql: string) => {
       reservationQueries.push(sql);
       return { rows: sql.includes("WITH clock")
-        ? [{ day: "2026-10-10", reset_at: row.reset_at, now: "2026-10-10T12:00:00Z" }] : [] };
+        ? [{ day: "2026-10-10", reset_at: row.reset_at, now: "2026-10-10T12:00:00Z" }]
+        : sql.includes("evaluation_check_policy") ? [row] : [] };
     },
     release() {},
   }) });
