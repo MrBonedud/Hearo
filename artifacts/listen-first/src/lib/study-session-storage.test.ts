@@ -35,6 +35,23 @@ test('legacy saved drafts without the optional overflow field still load', () =>
   assert.equal(readSavedStudy(storage).status, 'valid');
 });
 
+test('newer unassessed draft retains the last report with its original checked text', () => {
+  const storage = memoryStorage();
+  const value = { ...draft(), transcript: 'new unchecked words', previousReport: {
+    transcript: 'original checked words',
+    evaluation: { topic: 'Test', nodes: [], edges: [], feedback: [] },
+  } };
+  writeSavedStudy(value, storage);
+  const loaded = readSavedStudy(storage);
+  assert.equal(loaded.status, 'valid');
+  if (loaded.status === 'valid') {
+    assert.equal(loaded.value.transcript, 'new unchecked words');
+    assert.equal(loaded.value.evaluation, null);
+    assert.deepEqual(loaded.value.previousReport, value.previousReport);
+  }
+  assert.throws(() => writeSavedStudy({ ...value, previousReport: { transcript: 'old', evaluation: null } } as unknown as SavedStudySession, storage));
+});
+
 test('invalid overflow, report without assessment, and corrupt JSON are rejected', () => {
   const storage = memoryStorage();
   assert.throws(() => writeSavedStudy({ ...draft(), overflowText: 1 } as unknown as SavedStudySession, storage));

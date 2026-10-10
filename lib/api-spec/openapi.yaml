@@ -154,6 +154,10 @@ paths:
   /study/evaluate:
     post:
       operationId: evaluateStudy
+      description: |
+        Paid checks reserve one session and overall allowance before any provider call.
+        Limits are 30 checks per signed browser session and 500 overall per UTC day.
+        Failed provider attempts consume allowance. Storage failures fail closed.
       tags: [study]
       summary: Check the learner's explanation against the reference
       requestBody:
@@ -163,6 +167,23 @@ paths:
             schema:
               $ref: "#/components/schemas/StudyEvaluationInput"
       responses:
+        "429":
+          description: Daily allowance exhausted, or short cooldown/in-flight guard.
+          headers:
+            Retry-After:
+              schema:
+                type: integer
+              description: Seconds until retry (provided for daily budget exhaustion).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StudyCheckError"
+        "503":
+          description: Checker or persistent budget storage unavailable.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StudyCheckError"
         "200":
           description: Updated concept map and claim feedback
           content:
@@ -171,10 +192,25 @@ paths:
                 $ref: "#/components/schemas/StudyEvaluation"
         "400":
           description: Invalid evaluation request
-        "503":
-          description: Gemini is not configured or its API quota is unavailable
 components:
   schemas:
+    StudyCheckError:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: string
+        code:
+          type: string
+          enum: [evaluation_budget_exceeded, evaluation_budget_unavailable]
+        scope:
+          type: string
+          enum: [session, overall]
+        retryAt:
+          type: string
+          format: date-time
+        retryAfterSeconds:
+          type: integer
     DemoEvidence:
       type: object
       properties:

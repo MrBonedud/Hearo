@@ -379,6 +379,9 @@ export const PrepareStudyResponse = zod.object({
 
 
 /**
+ * Paid checks reserve one session and overall allowance before any provider call.
+ * Limits are 30 checks per signed browser session and 500 overall per UTC day.
+ * Failed provider attempts consume allowance. Storage failures fail closed.
  * @summary Check the learner's explanation against the reference
  */
 export const evaluateStudyBodyTopicMax = 120;

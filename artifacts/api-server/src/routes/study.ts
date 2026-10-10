@@ -17,6 +17,7 @@ import {
   matchesApprovedPdf, referenceText, sourceMetadata, validSourceToken,
 } from "../lib/approved-demo";
 import { checkWithFallback } from "../lib/checker-fallback";
+import { budgetSession, parseBudgetCookie, reserveEvaluation } from "../lib/evaluation-budget";
 
 const router: IRouter = Router();
 const lastEvaluationByClient = new Map<string, number>();
@@ -145,7 +146,8 @@ router.post("/study/prepare", (req, res) => {
   res.json(initialMap());
 });
 
-router.post("/study/evaluate", async (req, res) => {
+router.post("/study/evaluate", parseBudgetCookie, async (req, res) => {
+  res.setHeader("Cache-Control", "no-store");
   const input = EvaluateStudyBody.safeParse(req.body);
   if (!input.success || !checkSource(input.data) || !input.data.transcript.trim()) {
     res.status(400).json({ error: "A verified source and a non-empty explanation are required. Select the PDF again if your session expired." });
@@ -174,6 +176,30 @@ router.post("/study/evaluate", async (req, res) => {
   lastEvaluationByClient.set(clientKey, now);
   inFlight.add(clientKey);
   try {
+    // Persist both reservations before any paid call; fail closed on storage errors.
+    let budget;
+    try {
+      budget = await reserveEvaluation(budgetSession(req, res));
+    } catch (error) {
+      req.log.error({ errorType: error instanceof Error ? error.name : "UnknownError" }, "Evaluation budget unavailable");
+      res.setHeader("Retry-After", "60");
+      res.status(503).json({
+        code: "evaluation_budget_unavailable",
+        error: "تعذّر التحقق من الحد اليومي. حاول بعد دقيقة؛ شرحك وتقريرك السابق محفوظان. Daily limit storage is unavailable. Retry in one minute; your draft and previous report are unchanged.",
+      });
+      return;
+    }
+    if (!budget.allowed) {
+      res.setHeader("Retry-After", String(budget.retryAfterSeconds));
+      res.status(429).json({
+        code: "evaluation_budget_exceeded",
+        scope: budget.scope,
+        retryAt: budget.retryAt,
+        retryAfterSeconds: budget.retryAfterSeconds,
+        error: `تم بلوغ الحد اليومي ${budget.scope === "session" ? "لهذه الجلسة" : "للخدمة"}. يمكنك المحاولة عند ${budget.retryAt} (UTC). شرحك وتقريرك السابق محفوظان. The ${budget.scope === "session" ? "session" : "service"} daily checking limit has been reached. Retry at ${budget.retryAt} (UTC). Your draft and previous report are unchanged.`,
+      });
+      return;
+    }
     const checked = await checkWithFallback(providers, async provider => {
       const result = await provider.client.chat.completions.create({
       model: provider.model, max_completion_tokens: 8192, response_format: { type: "json_object" },

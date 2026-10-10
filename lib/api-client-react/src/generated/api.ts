@@ -28,6 +28,7 @@ import type {
   DemoVerifyInput,
   DemoVerifyResult,
   HealthStatus,
+  StudyCheckError,
   StudyEvaluation,
   StudyEvaluationInput,
   StudyMap,
@@ -666,6 +667,9 @@ export const getEvaluateStudyUrl = () => {
 }
 
 /**
+ * Paid checks reserve one session and overall allowance before any provider call.
+ * Limits are 30 checks per signed browser session and 500 overall per UTC day.
+ * Failed provider attempts consume allowance. Storage failures fail closed.
  * @summary Check the learner's explanation against the reference
  */
 export const evaluateStudy = async (studyEvaluationInput: StudyEvaluationInput, options?: Parameters<typeof customFetch>[1]): Promise<StudyEvaluation> => {
@@ -699,7 +703,7 @@ return customFetch<StudyEvaluation>(getEvaluateStudyUrl(),
 
 export const getEvaluateStudyMutationKey = () => ['evaluateStudy'] as const;
 
-export const getEvaluateStudyMutationOptions = <TError = ErrorType<void>,
+export const getEvaluateStudyMutationOptions = <TError = ErrorType<void | StudyCheckError>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof evaluateStudy>>, TError,EvaluateStudyMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
 ): UseMutationOptions<Awaited<ReturnType<typeof evaluateStudy>>, TError,EvaluateStudyMutationVariables, TContext> => {
 
@@ -728,13 +732,13 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
     export type EvaluateStudyMutationResult = NonNullable<Awaited<ReturnType<typeof evaluateStudy>>>
     export type EvaluateStudyMutationBody = BodyType<StudyEvaluationInput>
-    export type EvaluateStudyMutationError = ErrorType<void>
+    export type EvaluateStudyMutationError = ErrorType<void | StudyCheckError>
     export type EvaluateStudyMutationVariables = {data: BodyType<StudyEvaluationInput>}
 
     /**
  * @summary Check the learner's explanation against the reference
  */
-export const useEvaluateStudy = <TError = ErrorType<void>,
+export const useEvaluateStudy = <TError = ErrorType<void | StudyCheckError>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof evaluateStudy>>, TError,EvaluateStudyMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
  ): UseMutationResult<
         Awaited<ReturnType<typeof evaluateStudy>>,

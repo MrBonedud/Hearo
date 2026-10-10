@@ -24,6 +24,8 @@ export type SavedStudySession = {
   phase: 'session' | 'review';
   citedPassageIds: string[];
   overflowText?: string;
+  // This snapshot belongs to its own checked text, never the newer draft.
+  previousReport?: { transcript: string; evaluation: StudyEvaluation; overflowText?: string };
 };
 
 export type SavedStudyRead =
@@ -76,6 +78,11 @@ function isEvaluation(value: unknown): value is StudyEvaluation {
 function isSavedStudySession(value: unknown): value is SavedStudySession {
   if (!isRecord(value) || !isRecord(value.source)) return false;
   const source = value.source;
+  if (value.previousReport !== undefined && (!isRecord(value.previousReport)
+    || typeof value.previousReport.transcript !== 'string'
+    || value.previousReport.transcript.length > 12_000
+    || !isEvaluation(value.previousReport.evaluation)
+    || (value.previousReport.overflowText !== undefined && typeof value.previousReport.overflowText !== 'string'))) return false;
   if (!Array.isArray(value.citedPassageIds) || !value.citedPassageIds.every(id => typeof id === 'string')) return false;
   const citedPassageIds = value.citedPassageIds as string[];
   if (value.version !== 1
@@ -169,5 +176,6 @@ export function matchesSource(saved: SavedStudySession, current: StudySourceIden
 
 export function citationsMatchSource(saved: SavedStudySession, source: DemoSource): boolean {
   const availableIds = new Set(source.referenceLines.map(line => line.id));
-  return saved.citedPassageIds.every(id => availableIds.has(id));
+  return saved.citedPassageIds.every(id => availableIds.has(id))
+    && (saved.previousReport?.evaluation.assessments ?? []).every(item => item.sourceLineIds.every(id => availableIds.has(id)));
 }

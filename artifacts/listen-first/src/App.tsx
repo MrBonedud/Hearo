@@ -227,6 +227,7 @@ function App() {
   const [studyMap, setStudyMap] = useState<StudyMap | null>(null);
   const [evaluation, setEvaluation] = useState<StudyEvaluation | null>(null);
   const [checkedTranscript, setCheckedTranscript] = useState('');
+  const [previousReport, setPreviousReport] = useState<SavedStudySession['previousReport']>();
   const [liveEnabled, setLiveEnabled] = useState(true);
   const [finishing, setFinishing] = useState(false);
   const [voiceOverflow, setVoiceOverflow] = useState('');
@@ -263,6 +264,7 @@ function App() {
     onResult: (result, checked) => {
       setEvaluation(result);
       setCheckedTranscript(checked);
+      setPreviousReport({ transcript: checked, evaluation: result });
       setStudyMap({ topic: result.topic, nodes: result.nodes, edges: result.edges });
     },
   });
@@ -317,6 +319,7 @@ function App() {
       phase: phase === 'review' && currentEvaluation ? 'review' : 'session',
       citedPassageIds,
       overflowText: voiceOverflow,
+      previousReport,
     };
     try {
       writeSavedStudy(saved);
@@ -325,7 +328,7 @@ function App() {
     } catch {
       setStorageMessage('This browser could not save your progress. Your answer remains on screen; copy it before leaving or reloading.');
     }
-  }, [studyMap, evaluation, checkedTranscript, phase, selectedSource, sourceIdentity, voiceOverflow]);
+  }, [studyMap, evaluation, checkedTranscript, phase, selectedSource, sourceIdentity, voiceOverflow, previousReport]);
   useLayoutEffect(() => {
     const draft = [transcript, interim.trim()].filter(Boolean).join(' ');
     saveCurrentStudy(draft.slice(0, 12000));
@@ -336,7 +339,7 @@ function App() {
     if (!selectedSource) { setError('اختر ملف PDF المعتمد أولًا. Select and verify the approved PDF first.'); return; }
     if (savedStudy && !window.confirm('Starting a new study will replace the saved explanation and report in this browser. Continue?')) return;
     prepareStudy.mutate({ data: { topic, referenceText, sourceToken: selectedSource.sourceToken } }, {
-      onSuccess: result => { setSavedStudy(null); setStudyMap(result); setEvaluation(null); setCheckedTranscript(''); changeTranscript(''); setVoiceOverflow(''); setPhase('session'); },
+      onSuccess: result => { setSavedStudy(null); setStudyMap(result); setEvaluation(null); setCheckedTranscript(''); setPreviousReport(undefined); changeTranscript(''); setVoiceOverflow(''); setPhase('session'); },
       onError: issue => setError(errorMessage(issue)),
     });
   };
@@ -354,6 +357,9 @@ function App() {
     setStudyMap(savedStudy.map);
     changeTranscript(savedStudy.transcript);
     setEvaluation(savedStudy.evaluation);
+    setPreviousReport(savedStudy.previousReport ?? (savedStudy.evaluation ? {
+      transcript: savedStudy.transcript, evaluation: savedStudy.evaluation, overflowText: savedStudy.overflowText,
+    } : undefined));
     setCheckedTranscript(savedStudy.evaluation ? savedStudy.transcript.trim() : '');
     setVoiceOverflow(savedStudy.overflowText ?? '');
     setPhase(savedStudy.phase);
@@ -386,6 +392,7 @@ function App() {
       });
       setEvaluation(result);
       setCheckedTranscript(text);
+      setPreviousReport({ transcript: text, evaluation: result, overflowText: voiceOverflow });
       setStudyMap({ topic: result.topic, nodes: result.nodes, edges: result.edges });
       setPhase('review');
     } catch (issue) { setError(errorMessage(issue)); }
@@ -396,7 +403,7 @@ function App() {
     if (finishing || prepareStudy.isPending) return;
     await stopListening();
     saveCurrentStudy(transcriptRef.current);
-    setPhase('setup'); setEvaluation(null); setCheckedTranscript(''); setStudyMap(null); changeTranscript('');
+    setPhase('setup'); setEvaluation(null); setCheckedTranscript(''); setPreviousReport(undefined); setStudyMap(null); changeTranscript('');
     setError(''); setMicMessage(''); setSelectedSource(null);
   };
 
@@ -406,9 +413,11 @@ function App() {
     setShowLanding(true);
   };
 
-  const downloadReport = () => {
-    if (!evaluation || !selectedSource) return;
-    const url = URL.createObjectURL(new Blob([studyReportText(evaluation, transcript, selectedSource.source, voiceOverflow)], { type: 'text/plain;charset=utf-8' }));
+  const downloadReport = (prior = false) => {
+    if (!selectedSource) return;
+    const report = prior ? previousReport : evaluation ? { evaluation, transcript, overflowText: voiceOverflow } : undefined;
+    if (!report) return;
+    const url = URL.createObjectURL(new Blob([studyReportText(report.evaluation, report.transcript, selectedSource.source, report.overflowText)], { type: 'text/plain;charset=utf-8' }));
     const link = document.createElement('a');
     link.href = url; link.download = 'hearo-session-report.txt'; link.click();
     setTimeout(() => URL.revokeObjectURL(url), 1000);
@@ -522,6 +531,10 @@ function App() {
             {live.busy ? <><span className="button-loader" /> جارٍ التحقق بصمت · Checking silently…</> : !liveEnabled ? 'التحقق المباشر متوقف · Live checks paused' : live.error ? 'تعذر التحقق؛ تم إيقاف الطلبات التلقائية · Checks paused after an error; retry when ready' : checkedTranscript === transcript.trim() && evaluation ? 'تم التحقق من شرحك الحالي · Current explanation checked' : hasCheckedPrefix ? `تم التحقق من ${checkedTranscript.split(/\s+/).length} كلمة؛ الباقي قيد الانتظار · More words awaiting a check` : 'بانتظار شرحك · Waiting for your explanation'}
           </div>
           {Boolean(live.error) && liveEnabled && <div className="live-check-error" role="alert"><p>{errorMessage(live.error)}</p><button type="button" className="back-link" disabled={live.busy || finishing} onClick={() => { if (assessmentInput) void live.check(assessmentInput, true).catch(() => undefined); }} data-testid="button-retry-live">إعادة المحاولة · Retry check</button></div>}
+          {previousReport && <div className="live-check-error">
+            <p>التقرير السابق يخص الشرح الذي تم التحقق منه فقط، وليس المسودة الحالية. Your previous report covers only its checked explanation, not the current draft.</p>
+            <button type="button" className="back-link" onClick={() => downloadReport(true)} data-testid="button-download-previous-report">تنزيل التقرير السابق · Download previous report</button>
+          </div>}
            <ConceptMap map={visibleMap!} assessments={hasCheckedPrefix ? evaluation?.assessments : undefined} assessed={hasCheckedPrefix && Boolean(evaluation)} />
           {hasCheckedPrefix && evaluation?.assessments && selectedSource && <AssessmentEvidence assessments={evaluation.assessments.filter(item => item.verdict !== 'not_demonstrated')} source={selectedSource.source} fileUrl={selectedSource.fileUrl} map={studyMap} onPractice={() => document.getElementById('transcript-input')?.focus()} />}
           {selectedSource && <SourcePassages source={selectedSource.source} fileUrl={selectedSource.fileUrl} />}
@@ -537,7 +550,7 @@ function App() {
         <h1 className="serif review-title">You made it <em>yours.</em></h1>
         <p className="review-description">Here’s what your explanation showed about <strong>{studyMap.topic}</strong>. A map to guide your next pass, not a grade.</p>
         {voiceOverflow && <p className="saved-study-warning" role="status">This report checks only the first 12,000 characters. Extra spoken words are preserved in the download as unassessed text: <bdi>{voiceOverflow}</bdi></p>}
-        <button className="upload-button" type="button" onClick={downloadReport} data-testid="button-download-report">تنزيل التقرير · Download report</button>
+        <button className="upload-button" type="button" onClick={() => downloadReport()} data-testid="button-download-report">تنزيل التقرير · Download report</button>
       </div>
       <div className="review-summary">
         <div className="summary-intro"><span className="mono">YOUR MAP, UPDATED</span><h2 className="serif">Understanding<br />has its own shape.</h2><StatusKey /></div>

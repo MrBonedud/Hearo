@@ -5,6 +5,30 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+export type StudyCheckErrorCode = typeof StudyCheckErrorCode[keyof typeof StudyCheckErrorCode];
+
+
+export const StudyCheckErrorCode = {
+  evaluation_budget_exceeded: 'evaluation_budget_exceeded',
+  evaluation_budget_unavailable: 'evaluation_budget_unavailable',
+} as const;
+
+export type StudyCheckErrorScope = typeof StudyCheckErrorScope[keyof typeof StudyCheckErrorScope];
+
+
+export const StudyCheckErrorScope = {
+  session: 'session',
+  overall: 'overall',
+} as const;
+
+export interface StudyCheckError {
+  error: string;
+  code?: StudyCheckErrorCode;
+  scope?: StudyCheckErrorScope;
+  retryAt?: string;
+  retryAfterSeconds?: number;
+}
+
 export interface DemoEvidence {
   /** @minimum 1 */
   line_id: number;
