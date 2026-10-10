@@ -1,0 +1,57 @@
+I want to organize the Hearo project and its GitHub collaboration from scratch if necessary. Before doing any development work, identify exactly what this Replit project is connected to.
+
+**Step 1 — Inspect the current connection**
+1. Identify the exact Replit project/workspace name and URL, if available.
+2. Identify the connected GitHub account, repository owner, repository name, remote URL, current branch, and current commit.
+3. Determine whether this workspace is connected to `MrBonedud/Hearo`, `ayaabutaha04/Hearo`, another repository, or no repository.
+4. Explain whether this is a direct Git connection, a GitHub integration connection, or both.
+5. Check whether the latest complete Hearo implementation exists only in this workspace or is already safely stored on GitHub.
+6. Identify any uncommitted changes, local-only commits, remote branches, pull requests, and teammate contributions that must be preserved.
+
+**Step 2 — If the current repository connection is wrong**
+Do not immediately disconnect, delete, overwrite, or replace anything.
+
+First, report the exact current connection and explain the safest way to detach this workspace from the wrong repository without losing any code, commit history, or teammate work.
+
+Then propose creating a new GitHub repository dedicated to Hearo, under my GitHub account `ayaabutaha04`, with an appropriate repository name such as `hearo`. Check whether that repository already exists before proposing to create it.
+
+If a new repository is needed:
+- Preserve the complete current Hearo project and its relevant commit history.
+- Publish the project to the new repository using a safe, verifiable Git workflow.
+- Do not force-push, delete the old repository, or overwrite any existing remote history.
+- Explain any action requiring my authorization and wait for my approval before making consequential changes.
+
+**Step 3 — Prepare four isolated team workspaces**
+Once the correct repository and complete project baseline are confirmed, prepare this structure:
+
+- Aya — `feature/aya-voice`
+- Faisal — `feature/faisal-ai-engine`
+- Rama — `feature/rama-source-map`
+- Lana — `feature/lana-conversation-report`
+
+I want four genuinely independent Replit workspaces, not merely four Git branches in the same workspace.
+
+Each workspace must:
+- Use the same verified Hearo repository.
+- Start from the agreed complete baseline.
+- Be associated with its assigned branch.
+- Allow its owner to work independently and push changes to that branch.
+- Support pull requests back into `main`.
+
+Check whether this Replit environment can create and connect all four separate workspaces. If it cannot, explain the exact manual steps I need to perform in the Replit interface for each teammate.
+
+**Safety rules**
+- Do not implement features or modify application code during this setup.
+- Do not discard or overwrite any existing project or teammate changes.
+- Do not create duplicate repositories without first checking what exists.
+- Do not claim a repository, branch, or workspace was created unless you verify it.
+- Do not ask me to share passwords, access tokens, or API keys in chat.
+
+**For your first response, only provide:**
+1. The exact repository and GitHub account currently connected to this workspace.
+2. Whether that is the correct repository for our team.
+3. Where the latest complete project currently exists.
+4. Any risks to existing work.
+5. Your recommended next steps, distinguishing what you can do automatically from what I must do manually.
+
+Do not make any changes until I review the findings and approve the plan.
