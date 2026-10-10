@@ -203,7 +203,14 @@ router.post("/study/evaluate", async (req, res) => {
     const output = JSON.parse(text) as { assessments?: unknown };
       return groundedEvaluation(output.assessments, input.data.transcript);
     }, (provider, error) => {
-      req.log.warn({ provider: provider.name, errorType: error instanceof Error ? error.name : "UnknownError" }, "AI checker failed; trying next configured provider");
+      const failure = error as { status?: unknown; code?: unknown };
+      const safeCodes = ["insufficient_quota", "invalid_api_key", "model_not_found", "invalid_request_error", "rate_limit_exceeded"];
+      req.log.warn({
+        provider: provider.name,
+        errorType: error instanceof Error ? error.name : "UnknownError",
+        providerStatus: typeof failure?.status === "number" ? failure.status : undefined,
+        providerCode: typeof failure?.code === "string" && safeCodes.includes(failure.code) ? failure.code : undefined,
+      }, "AI checker failed; trying next configured provider");
     });
     res.setHeader("X-Hearo-Checker", checked.provider.name);
     res.setHeader("X-Hearo-Fallback", String(checked.fallbackUsed));

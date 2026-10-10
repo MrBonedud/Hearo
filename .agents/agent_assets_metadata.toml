@@ -28,3 +28,17 @@ mtime_ms = 1791642086277
 storage_uri = "gcs://replit-rams-assets-kirk/rams/assets/repl:f5eb4a40-0d19-49b7-a42a-e724840955a9/f36c16af-a6e1-42e9-ac77-45020688b96c/fdf1e0dc-7112-400a-a64d-9bc87b768d84"
 storage_version_token = "1791642137933626"
 content_type = "text/markdown"
+
+[[outputs]]
+id = "r3mMt1mckGuO9zCvUBxaZ"
+uri = "file://generated-artifacts/hearo-sync-verification.txt"
+type = "text"
+title = "Complete Hearo commit verification"
+description = "Exact command outputs, matching tree hashes and parents, and all 278 changed paths. No GitHub push was performed."
+logical_id = "163eb113-cec4-4475-bc70-0c44f6187d59"
+content_hash = "sha256:d862d99d85a95a7da8f39a33ff95c68a58d5e6f5ff01e17332ebcde9b09b63ca"
+size = 33593
+mtime_ms = 1791645660368
+storage_uri = "gcs://replit-rams-assets-kirk/rams/assets/repl:f5eb4a40-0d19-49b7-a42a-e724840955a9/163eb113-cec4-4475-bc70-0c44f6187d59/a0e0c241-0825-4f84-8d75-4f13a79da553"
+storage_version_token = "1791646435615740"
+content_type = "text/plain"
