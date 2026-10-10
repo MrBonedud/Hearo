@@ -40,6 +40,13 @@ Metadata, raw PDF upload, and preparation use real routes and response shapes.
 The test also reloads a saved draft, rejects an equal-length one-byte mutation,
 and requires verification of the original PDF before recovery.
 
+Upload recovery regressions also hold a verification request, then simulate
+either a retryable server error or a dropped connection. They confirm that no
+unverified PDF can be opened or prepared, saved draft contents remain unchanged,
+and choosing the same original file again verifies through the real API and
+reopens the saved explanation. Only the failing upload is intercepted; successful
+uploads and preparation are not mocked.
+
 The expiration regression advances only the isolated API's clock (using a
 test-only Node preload and an ignored clock file in `generated-artifacts/`).
 It checks the final valid millisecond and the exact two-hour expiry boundary,

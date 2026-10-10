@@ -7,6 +7,113 @@ const clockFile = path.resolve(import.meta.dirname, '../../../generated-artifact
 test.beforeEach(() => writeFileSync(clockFile, 'null'));
 test.afterEach(() => writeFileSync(clockFile, 'null'));
 
+for (const failure of ['server error', 'interrupted request'] as const) {
+  test(`a PDF upload ${failure} preserves the saved draft and allows real API recovery`, async ({ page }) => {
+    const fixture = process.env.TEST_APPROVED_PDF;
+    if (!fixture) throw new Error('TEST_APPROVED_PDF is required; run with playwright.api.config.ts.');
+    const approvedPdf = readFileSync(fixture);
+    expect(approvedPdf.length).toBe(pack.byteLength);
+    const file = { name: 'original-approved.pdf', mimeType: 'application/pdf', buffer: approvedPdf };
+    const storageKey = 'hearo.saved-studies.v2';
+    const savedStudies = page.locator('[aria-label="Saved studies"]');
+    const reopen = page.locator('[data-testid^="button-reopen-saved-study-"]');
+    let evaluationAttempts = 0;
+    let preparationAttempts = 0;
+    page.on('request', request => {
+      if (request.url().endsWith('/api/study/prepare')) preparationAttempts++;
+    });
+    // Even an accidental evaluation must never reach a paid provider.
+    await page.route('**/api/study/evaluate', route => {
+      evaluationAttempts++;
+      return route.fulfill({ status: 503, json: { error: 'Evaluation disabled in upload recovery test.' } });
+    });
+
+    await page.goto('/');
+    await page.getByTestId('button-start-live').click();
+    await page.getByTestId('toggle-live-setup').uncheck();
+    const initialUpload = page.waitForResponse('**/api/study/demo/upload');
+    await page.getByTestId('input-file').setInputFiles(file);
+    const initialResponse = await initialUpload;
+    expect(initialResponse.status()).toBe(200);
+    expect((await initialResponse.json()).source.aiAvailable).toBe(false);
+    await expect(page.getByTestId('status-source-verified')).toBeVisible();
+    const preparation = page.waitForResponse('**/api/study/prepare');
+    await page.getByTestId('button-prepare').click();
+    expect((await preparation).status()).toBe(200);
+    const answer = 'Load balancing distributes requests across servers and keeps working when a server fails.';
+    await page.getByTestId('input-transcript').fill(answer);
+    await expect.poll(() => page.evaluate(key =>
+      JSON.parse(localStorage.getItem(key) ?? '[]')[0]?.transcript, storageKey)).toBe(answer);
+
+    await page.reload();
+    await page.getByTestId('button-start-live').click();
+    await expect(savedStudies).toContainText(answer);
+    const savedBefore = await page.evaluate(key => localStorage.getItem(key), storageKey);
+    expect(JSON.parse(savedBefore!)).toEqual([
+      expect.objectContaining({ transcript: answer, phase: 'session', evaluation: null }),
+    ]);
+
+    // Hold only this upload so the unverified pending state is also observable.
+    // The initial upload, preparation, metadata, and subsequent retry use real routes.
+    let releaseUpload!: () => void;
+    const heldUpload = new Promise<void>(resolve => { releaseUpload = resolve; });
+    await page.route('**/api/study/demo/upload', async route => {
+      expect(route.request().postDataBuffer()?.equals(approvedPdf)).toBe(true);
+      await heldUpload;
+      if (failure === 'server error') {
+        await route.fulfill({ status: 503, json: { error: 'Verification temporarily unavailable. Please try again.' } });
+      } else {
+        await route.abort('connectionreset');
+      }
+    }, { times: 1 });
+    await page.getByTestId('input-file').setInputFiles(file);
+    await expect(page.getByTestId('status-upload-pending')).toBeVisible();
+    await expect(page.getByTestId('button-upload-reference')).toBeDisabled();
+    await expect(page.getByTestId('button-prepare')).toBeDisabled();
+    await expect(page.getByTestId('link-open-pdf')).toHaveCount(0);
+    await expect(reopen).toHaveCount(0);
+    expect(await page.evaluate(key => localStorage.getItem(key), storageKey)).toBe(savedBefore);
+    releaseUpload();
+
+    const error = page.getByTestId('status-upload-error');
+    await expect(error).toBeVisible();
+    await expect(error).toHaveAttribute('role', 'alert');
+    await expect(error).toContainText(failure === 'server error' ? 'Please try again' : /fetch|network/i);
+    await expect(page.getByTestId('status-upload-pending')).toHaveCount(0);
+    await expect(page.getByTestId('status-source-verified')).toHaveCount(0);
+    await expect(page.getByTestId('link-open-pdf')).toHaveCount(0);
+    await expect(page.getByTestId('details-source-passages')).toHaveCount(0);
+    await expect(page.getByTestId('button-prepare')).toBeDisabled();
+    await expect(reopen).toHaveCount(0);
+    await expect(page.getByTestId('button-upload-reference')).toBeEnabled();
+    await expect(page.getByTestId('input-file')).toBeEnabled();
+    await expect(savedStudies).toContainText(answer);
+    expect(await page.evaluate(key => localStorage.getItem(key), storageKey)).toBe(savedBefore);
+    expect(preparationAttempts).toBe(1);
+
+    // Reselect the identical file, without a reload or synthetic success response.
+    const retryUpload = page.waitForResponse('**/api/study/demo/upload');
+    await page.getByTestId('input-file').setInputFiles(file);
+    const recovered = await retryUpload;
+    expect(recovered.status()).toBe(200);
+    expect(recovered.request().headers()['content-type']).toBe('application/pdf');
+    expect(recovered.request().postDataBuffer()?.equals(approvedPdf)).toBe(true);
+    expect(await recovered.json()).toMatchObject({
+      source: { id: pack.id, aiAvailable: false }, sourceToken: expect.any(String),
+    });
+    await expect(error).toHaveCount(0);
+    await expect(page.getByTestId('status-source-verified')).toBeVisible();
+    await expect(page.getByTestId('link-open-pdf')).toHaveAttribute('href', /^blob:/);
+    expect(await page.evaluate(key => localStorage.getItem(key), storageKey)).toBe(savedBefore);
+    await expect(reopen).toHaveCount(1);
+    await reopen.click();
+    await expect(page.getByTestId('input-transcript')).toHaveValue(answer);
+    await expect.poll(() => page.evaluate(key =>
+      JSON.parse(localStorage.getItem(key) ?? '[]')[0]?.transcript, storageKey)).toBe(answer);
+    expect(evaluationAttempts).toBe(0);
+  });
+}
+
 test('real API verifies the source, prepares a study, and recovers only with the original PDF', async ({ page }) => {
   const fixture = process.env.TEST_APPROVED_PDF;
   if (!fixture) throw new Error('TEST_APPROVED_PDF is required; run with playwright.api.config.ts.');
