@@ -9,6 +9,281 @@ import * as zod from 'zod';
 
 
 /**
+ * @summary Run an authored Arabic demo through the agreed final-sentence event path
+ */
+export const sendDemoMessageBodyTwoSentenceIdMax = 100;
+
+export const sendDemoMessageBodyTwoTextMax = 2000;
+
+
+
+export const SendDemoMessageBody = zod.union([zod.object({
+  "type": zod.enum(['start']),
+  "topic_id": zod.enum(['system-design'])
+}),zod.object({
+  "type": zod.enum(['text']),
+  "session_id": zod.string().uuid(),
+  "sentence_id": zod.string().min(1).max(sendDemoMessageBodyTwoSentenceIdMax),
+  "text": zod.string().min(1).max(sendDemoMessageBodyTwoTextMax)
+}),zod.object({
+  "type": zod.enum(['stop']),
+  "session_id": zod.string().uuid()
+})])
+
+export const sendDemoMessageResponseEventsItemTwoClaimConfidenceMin = 0;
+export const sendDemoMessageResponseEventsItemTwoClaimConfidenceMax = 1;
+
+
+
+export const sendDemoMessageResponseEventsItemFourReportScoreMin = 0;
+export const sendDemoMessageResponseEventsItemFourReportScoreMax = 100;
+
+export const sendDemoMessageResponseEventsItemFourReportCoverageMin = 0;
+export const sendDemoMessageResponseEventsItemFourReportCoverageMax = 1;
+
+export const sendDemoMessageResponseEventsItemFourReportAccuracyMin = 0;
+export const sendDemoMessageResponseEventsItemFourReportAccuracyMax = 1;
+
+export const sendDemoMessageResponseEventsItemFourReportCoveredCountMin = 0;
+
+export const sendDemoMessageResponseEventsItemFourReportMustCoverCountMin = 0;
+
+export const sendDemoMessageResponseEventsItemFourReportCorrectCountMin = 0;
+
+export const sendDemoMessageResponseEventsItemFourReportAssessedCountMin = 0;
+
+
+
+
+
+export const SendDemoMessageResponse = zod.object({
+  "session_id": zod.string(),
+  "topic_pack": zod.object({
+  "id": zod.string(),
+  "title_ar": zod.string(),
+  "title_en": zod.string(),
+  "reference_lines": zod.array(zod.object({
+  "line_id": zod.number().int(),
+  "text": zod.string()
+})),
+  "concepts": zod.array(zod.object({
+  "id": zod.string(),
+  "label_ar": zod.string(),
+  "label_en": zod.string(),
+  "aliases": zod.string(),
+  "must_cover": zod.boolean(),
+  "supporting_lines": zod.array(zod.number().int()),
+  "dependencies": zod.array(zod.string()),
+  "gap_question": zod.string(),
+  "x": zod.number(),
+  "y": zod.number()
+})),
+  "misconceptions": zod.array(zod.object({
+  "concept_id": zod.string(),
+  "wrong_claim": zod.string(),
+  "correction": zod.string(),
+  "source_line_id": zod.number().int()
+}))
+}),
+  "events": zod.array(zod.union([zod.object({
+  "type": zod.enum(['sentence']),
+  "session_id": zod.string(),
+  "sentence_id": zod.string(),
+  "text": zod.string()
+}),zod.object({
+  "type": zod.enum(['claim']),
+  "session_id": zod.string(),
+  "sentence_id": zod.string(),
+  "claim": zod.object({
+  "concept_id": zod.string(),
+  "verdict": zod.enum(['supported', 'contradicts', 'unverified']),
+  "confidence": zod.number().min(sendDemoMessageResponseEventsItemTwoClaimConfidenceMin).max(sendDemoMessageResponseEventsItemTwoClaimConfidenceMax),
+  "evidence": zod.union([zod.object({
+  "line_id": zod.number().int().min(1),
+  "quote": zod.string().min(1)
+}),zod.null()]),
+  "correction": zod.string().nullable()
+})
+}),zod.object({
+  "type": zod.enum(['concept_state']),
+  "session_id": zod.string(),
+  "sentence_id": zod.string().nullable(),
+  "concept_id": zod.string(),
+  "state": zod.enum(['grey', 'green', 'red', 'amber'])
+}),zod.object({
+  "type": zod.enum(['report']),
+  "session_id": zod.string(),
+  "report": zod.object({
+  "score": zod.number().min(sendDemoMessageResponseEventsItemFourReportScoreMin).max(sendDemoMessageResponseEventsItemFourReportScoreMax),
+  "coverage": zod.number().min(sendDemoMessageResponseEventsItemFourReportCoverageMin).max(sendDemoMessageResponseEventsItemFourReportCoverageMax),
+  "accuracy": zod.number().min(sendDemoMessageResponseEventsItemFourReportAccuracyMin).max(sendDemoMessageResponseEventsItemFourReportAccuracyMax),
+  "covered_count": zod.number().int().min(sendDemoMessageResponseEventsItemFourReportCoveredCountMin),
+  "must_cover_count": zod.number().int().min(sendDemoMessageResponseEventsItemFourReportMustCoverCountMin),
+  "correct_count": zod.number().int().min(sendDemoMessageResponseEventsItemFourReportCorrectCountMin),
+  "assessed_count": zod.number().int().min(sendDemoMessageResponseEventsItemFourReportAssessedCountMin),
+  "gaps": zod.array(zod.object({
+  "concept_id": zod.string(),
+  "label": zod.string(),
+  "state": zod.enum(['grey', 'green', 'red', 'amber']),
+  "question": zod.string()
+})),
+  "errors": zod.array(zod.object({
+  "sentence_id": zod.string(),
+  "concept_id": zod.string(),
+  "statement": zod.string(),
+  "correction": zod.string(),
+  "evidence": zod.object({
+  "line_id": zod.number().int().min(1),
+  "quote": zod.string().min(1)
+}),
+  "resolved": zod.boolean()
+})),
+  "strengths": zod.array(zod.object({
+  "concept_id": zod.string(),
+  "label": zod.string()
+})),
+  "self_corrections": zod.array(zod.object({
+  "concept_id": zod.string(),
+  "label": zod.string()
+})),
+  "review_questions": zod.array(zod.object({
+  "concept_id": zod.string(),
+  "question": zod.string()
+})),
+  "tomorrow_question": zod.string()
+})
+}),zod.object({
+  "type": zod.enum(['error']),
+  "session_id": zod.string().nullable(),
+  "message": zod.string()
+})]))
+})
+
+
+/**
+ * @summary Deterministic authored-demo verification of one final sentence, not general AI checking
+ */
+export const verifyDemoSentenceBodySentenceIdMax = 100;
+
+export const verifyDemoSentenceBodySentenceMax = 2000;
+
+export const verifyDemoSentenceBodyPreviousSentencesItemMax = 2000;
+
+export const verifyDemoSentenceBodyPreviousSentencesMax = 3;
+
+
+
+export const VerifyDemoSentenceBody = zod.object({
+  "topic_id": zod.enum(['system-design']),
+  "sentence_id": zod.string().min(1).max(verifyDemoSentenceBodySentenceIdMax),
+  "sentence": zod.string().min(1).max(verifyDemoSentenceBodySentenceMax),
+  "previous_sentences": zod.array(zod.string().max(verifyDemoSentenceBodyPreviousSentencesItemMax)).max(verifyDemoSentenceBodyPreviousSentencesMax)
+})
+
+export const verifyDemoSentenceResponseClaimsItemConfidenceMin = 0;
+export const verifyDemoSentenceResponseClaimsItemConfidenceMax = 1;
+
+
+
+
+
+export const VerifyDemoSentenceResponse = zod.object({
+  "sentence_id": zod.string(),
+  "claims": zod.array(zod.object({
+  "concept_id": zod.string(),
+  "verdict": zod.enum(['supported', 'contradicts', 'unverified']),
+  "confidence": zod.number().min(verifyDemoSentenceResponseClaimsItemConfidenceMin).max(verifyDemoSentenceResponseClaimsItemConfidenceMax),
+  "evidence": zod.union([zod.object({
+  "line_id": zod.number().int().min(1),
+  "quote": zod.string().min(1)
+}),zod.null()]),
+  "correction": zod.string().nullable()
+}))
+})
+
+
+/**
+ * @summary Recompute the authored-demo report from the whole final-sentence session
+ */
+export const reportDemoSessionBodySentencesItemSentenceIdMax = 100;
+
+export const reportDemoSessionBodySentencesItemSentenceMax = 2000;
+
+export const reportDemoSessionBodySentencesMax = 500;
+
+
+
+export const ReportDemoSessionBody = zod.object({
+  "topic_id": zod.enum(['system-design']),
+  "sentences": zod.array(zod.object({
+  "sentence_id": zod.string().min(1).max(reportDemoSessionBodySentencesItemSentenceIdMax),
+  "sentence": zod.string().min(1).max(reportDemoSessionBodySentencesItemSentenceMax)
+})).max(reportDemoSessionBodySentencesMax)
+})
+
+export const reportDemoSessionResponseScoreMin = 0;
+export const reportDemoSessionResponseScoreMax = 100;
+
+export const reportDemoSessionResponseCoverageMin = 0;
+export const reportDemoSessionResponseCoverageMax = 1;
+
+export const reportDemoSessionResponseAccuracyMin = 0;
+export const reportDemoSessionResponseAccuracyMax = 1;
+
+export const reportDemoSessionResponseCoveredCountMin = 0;
+
+export const reportDemoSessionResponseMustCoverCountMin = 0;
+
+export const reportDemoSessionResponseCorrectCountMin = 0;
+
+export const reportDemoSessionResponseAssessedCountMin = 0;
+
+
+
+
+
+export const ReportDemoSessionResponse = zod.object({
+  "score": zod.number().min(reportDemoSessionResponseScoreMin).max(reportDemoSessionResponseScoreMax),
+  "coverage": zod.number().min(reportDemoSessionResponseCoverageMin).max(reportDemoSessionResponseCoverageMax),
+  "accuracy": zod.number().min(reportDemoSessionResponseAccuracyMin).max(reportDemoSessionResponseAccuracyMax),
+  "covered_count": zod.number().int().min(reportDemoSessionResponseCoveredCountMin),
+  "must_cover_count": zod.number().int().min(reportDemoSessionResponseMustCoverCountMin),
+  "correct_count": zod.number().int().min(reportDemoSessionResponseCorrectCountMin),
+  "assessed_count": zod.number().int().min(reportDemoSessionResponseAssessedCountMin),
+  "gaps": zod.array(zod.object({
+  "concept_id": zod.string(),
+  "label": zod.string(),
+  "state": zod.enum(['grey', 'green', 'red', 'amber']),
+  "question": zod.string()
+})),
+  "errors": zod.array(zod.object({
+  "sentence_id": zod.string(),
+  "concept_id": zod.string(),
+  "statement": zod.string(),
+  "correction": zod.string(),
+  "evidence": zod.object({
+  "line_id": zod.number().int().min(1),
+  "quote": zod.string().min(1)
+}),
+  "resolved": zod.boolean()
+})),
+  "strengths": zod.array(zod.object({
+  "concept_id": zod.string(),
+  "label": zod.string()
+})),
+  "self_corrections": zod.array(zod.object({
+  "concept_id": zod.string(),
+  "label": zod.string()
+})),
+  "review_questions": zod.array(zod.object({
+  "concept_id": zod.string(),
+  "question": zod.string()
+})),
+  "tomorrow_question": zod.string()
+})
+
+
+/**
  * Returns server health status
  * @summary Health check
  */

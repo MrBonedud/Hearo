@@ -9,7 +9,13 @@ Hearo is the product name; TRACE is visual guidance only. The team wants an Arab
 
 **How to apply:** Use Arabic for the learner experience while preserving English terminology where useful.
 
-The demo topic is introductory system design. Use one Hearo-authored approved PDF rather than arbitrary document ingestion; there was no supplied source PDF. Upload must reject a different document rather than checking it against unrelated reference material. Clearly distinguish authored demo material from a textbook or externally validated source.
+Hearo's product scope is learning and explaining any subject, not just system design. System design is only the introductory demo topic. General product descriptions must not imply that Hearo is restricted to that subject.
+
+**Why:** The team explicitly corrected topic-specific introduction copy: "we can explain everything."
+
+**How to apply:** Describe the product generically and label system design as the current demo material. Keep current implementation limitations clear without presenting them as the product's purpose.
+
+Use one Hearo-authored approved PDF rather than arbitrary document ingestion for the demo; there was no supplied source PDF. Upload must reject a different document rather than checking it against unrelated reference material. Clearly distinguish authored demo material from a textbook or externally validated source.
 
 **Why:** The team wants to demonstrate PDF upload without accidentally selecting a different reference document.
 
@@ -26,3 +32,9 @@ Explain the planned changes, affected files, and reason before each small implem
 **Why:** The team explicitly repeated “yes, but ask us for permission first.”
 
 **How to apply:** Deliver the approved step only, describe what is ready and what remains unchanged, and request permission for the next step.
+
+The team accepted authored-demo matching, rather than general AI understanding, for the first Arabic typed/replay learning loop. This is a deliberate demo limit, not permission to claim reliable checking of arbitrary Arabic explanations.
+
+**Why:** The team approved the explicitly labelled, key-free demo approach and its affected-file and message-shape proposal before implementation.
+
+**How to apply:** Keep the limitation visible to learners. Get approval before replacing it with general AI verification or connecting live microphone services.

@@ -5,12 +5,77 @@ import {
   EvaluateStudyResponse,
   PrepareStudyBody,
   PrepareStudyResponse,
+  SendDemoMessageBody,
+  SendDemoMessageResponse,
+  VerifyDemoSentenceBody,
+  VerifyDemoSentenceResponse,
+  ReportDemoSessionBody,
+  ReportDemoSessionResponse,
 } from "@workspace/api-zod";
+import {
+  DemoStudyError, handleDemoMessage, reportDemoSession, verifyDemoSentence,
+} from "../lib/demo-study";
 
 const router: IRouter = Router();
 const model = "gpt-5-mini";
 const lastEvaluationByClient = new Map<string, number>();
 const evaluationCooldownMs = 2500;
+
+// The authored demo does not call OpenAI or microphone providers. Keep the legacy
+// routes below separate so this approved step does not silently alter other services.
+router.post("/study/messages", (req, res) => {
+  const input = SendDemoMessageBody.safeParse(req.body);
+  if (!input.success) {
+    res.status(400).json({ error: "رسالة غير صالحة. اختر الموضوع المعتمد وأرسل جملة نهائية." });
+    return;
+  }
+  try {
+    res.json(SendDemoMessageResponse.parse(handleDemoMessage(input.data)));
+  } catch (err) {
+    if (err instanceof DemoStudyError) {
+      res.status(err.status).json({ error: err.message });
+      return;
+    }
+    req.log.error({ err }, "Authored demo message failed");
+    res.status(500).json({ error: "تعذّر تنفيذ رسالة العرض. احتفظ بجملتك وحاول مجددًا." });
+  }
+});
+
+router.post("/verify", (req, res) => {
+  const input = VerifyDemoSentenceBody.safeParse(req.body);
+  if (!input.success) {
+    res.status(400).json({ error: "أرسل جملة نهائية ومعرّفها وآخر ثلاث جمل كحد أقصى." });
+    return;
+  }
+  try {
+    res.json(VerifyDemoSentenceResponse.parse(verifyDemoSentence(input.data)));
+  } catch (err) {
+    if (err instanceof DemoStudyError) {
+      res.status(err.status).json({ error: err.message });
+      return;
+    }
+    req.log.error({ err }, "Authored demo verification failed");
+    res.status(500).json({ error: "تعذّر التحقق من جملة العرض." });
+  }
+});
+
+router.post("/report", (req, res) => {
+  const input = ReportDemoSessionBody.safeParse(req.body);
+  if (!input.success) {
+    res.status(400).json({ error: "أرسل موضوع الجلسة وجملها النهائية لبناء التقرير." });
+    return;
+  }
+  try {
+    res.json(ReportDemoSessionResponse.parse(reportDemoSession(input.data)));
+  } catch (err) {
+    if (err instanceof DemoStudyError) {
+      res.status(err.status).json({ error: err.message });
+      return;
+    }
+    req.log.error({ err }, "Authored demo report failed");
+    res.status(500).json({ error: "تعذّر إنشاء تقرير العرض." });
+  }
+});
 
 function getOpenAIClient(): OpenAI | null {
   const apiKey = process.env.OPENAI_API_KEY;

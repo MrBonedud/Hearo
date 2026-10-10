@@ -20,6 +20,12 @@ import type {
 } from '@tanstack/react-query';
 
 import type {
+  DemoBrowserMessage,
+  DemoMessageResponse,
+  DemoReport,
+  DemoReportInput,
+  DemoVerifyInput,
+  DemoVerifyResult,
   HealthStatus,
   StudyEvaluation,
   StudyEvaluationInput,
@@ -53,6 +59,270 @@ const withQueryKey = <T extends object, K>(query: T, queryKey: K): T & { queryKe
   }
   return result;
 };
+
+export const getSendDemoMessageUrl = () => {
+
+
+
+
+  return `/api/study/messages`
+}
+
+/**
+ * @summary Run an authored Arabic demo through the agreed final-sentence event path
+ */
+export const sendDemoMessage = async (demoBrowserMessage: DemoBrowserMessage, options?: Parameters<typeof customFetch>[1]): Promise<DemoMessageResponse> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<DemoMessageResponse>(getSendDemoMessageUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(demoBrowserMessage)
+  }
+);}
+
+
+
+
+
+export const getSendDemoMessageMutationKey = () => ['sendDemoMessage'] as const;
+
+export const getSendDemoMessageMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof sendDemoMessage>>, TError,SendDemoMessageMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof sendDemoMessage>>, TError,SendDemoMessageMutationVariables, TContext> => {
+
+const mutationKey = getSendDemoMessageMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof sendDemoMessage>>, SendDemoMessageMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  sendDemoMessage(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SendDemoMessageMutationResult = NonNullable<Awaited<ReturnType<typeof sendDemoMessage>>>
+    export type SendDemoMessageMutationBody = BodyType<DemoBrowserMessage>
+    export type SendDemoMessageMutationError = ErrorType<void>
+    export type SendDemoMessageMutationVariables = {data: BodyType<DemoBrowserMessage>}
+
+    /**
+ * @summary Run an authored Arabic demo through the agreed final-sentence event path
+ */
+export const useSendDemoMessage = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof sendDemoMessage>>, TError,SendDemoMessageMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof sendDemoMessage>>,
+        TError,
+        SendDemoMessageMutationVariables,
+        TContext
+      > => {
+      return useMutation(getSendDemoMessageMutationOptions(options));
+    }
+
+export const getVerifyDemoSentenceUrl = () => {
+
+
+
+
+  return `/api/verify`
+}
+
+/**
+ * @summary Deterministic authored-demo verification of one final sentence, not general AI checking
+ */
+export const verifyDemoSentence = async (demoVerifyInput: DemoVerifyInput, options?: Parameters<typeof customFetch>[1]): Promise<DemoVerifyResult> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<DemoVerifyResult>(getVerifyDemoSentenceUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(demoVerifyInput)
+  }
+);}
+
+
+
+
+
+export const getVerifyDemoSentenceMutationKey = () => ['verifyDemoSentence'] as const;
+
+export const getVerifyDemoSentenceMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof verifyDemoSentence>>, TError,VerifyDemoSentenceMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof verifyDemoSentence>>, TError,VerifyDemoSentenceMutationVariables, TContext> => {
+
+const mutationKey = getVerifyDemoSentenceMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof verifyDemoSentence>>, VerifyDemoSentenceMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  verifyDemoSentence(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type VerifyDemoSentenceMutationResult = NonNullable<Awaited<ReturnType<typeof verifyDemoSentence>>>
+    export type VerifyDemoSentenceMutationBody = BodyType<DemoVerifyInput>
+    export type VerifyDemoSentenceMutationError = ErrorType<void>
+    export type VerifyDemoSentenceMutationVariables = {data: BodyType<DemoVerifyInput>}
+
+    /**
+ * @summary Deterministic authored-demo verification of one final sentence, not general AI checking
+ */
+export const useVerifyDemoSentence = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof verifyDemoSentence>>, TError,VerifyDemoSentenceMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof verifyDemoSentence>>,
+        TError,
+        VerifyDemoSentenceMutationVariables,
+        TContext
+      > => {
+      return useMutation(getVerifyDemoSentenceMutationOptions(options));
+    }
+
+export const getReportDemoSessionUrl = () => {
+
+
+
+
+  return `/api/report`
+}
+
+/**
+ * @summary Recompute the authored-demo report from the whole final-sentence session
+ */
+export const reportDemoSession = async (demoReportInput: DemoReportInput, options?: Parameters<typeof customFetch>[1]): Promise<DemoReport> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<DemoReport>(getReportDemoSessionUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(demoReportInput)
+  }
+);}
+
+
+
+
+
+export const getReportDemoSessionMutationKey = () => ['reportDemoSession'] as const;
+
+export const getReportDemoSessionMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof reportDemoSession>>, TError,ReportDemoSessionMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof reportDemoSession>>, TError,ReportDemoSessionMutationVariables, TContext> => {
+
+const mutationKey = getReportDemoSessionMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof reportDemoSession>>, ReportDemoSessionMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  reportDemoSession(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ReportDemoSessionMutationResult = NonNullable<Awaited<ReturnType<typeof reportDemoSession>>>
+    export type ReportDemoSessionMutationBody = BodyType<DemoReportInput>
+    export type ReportDemoSessionMutationError = ErrorType<void>
+    export type ReportDemoSessionMutationVariables = {data: BodyType<DemoReportInput>}
+
+    /**
+ * @summary Recompute the authored-demo report from the whole final-sentence session
+ */
+export const useReportDemoSession = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof reportDemoSession>>, TError,ReportDemoSessionMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof reportDemoSession>>,
+        TError,
+        ReportDemoSessionMutationVariables,
+        TContext
+      > => {
+      return useMutation(getReportDemoSessionMutationOptions(options));
+    }
 
 export const getHealthCheckUrl = () => {
 
