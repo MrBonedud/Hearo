@@ -1,0 +1,28 @@
+kind = "web"
+previewPath = "/"
+title = "Listen First"
+description = "A study tool that listens while learners explain a topic in their own words. It checks spoken claims against learner-provided reference material and builds a live concept map showing what is understood, incorrect, or not yet covered."
+version = "1.0.0"
+id = "artifacts/listen-first"
+router = "path"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 22361
+
+[services.development]
+run = "pnpm --filter @workspace/listen-first run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/listen-first", "run", "build" ]
+serve = "static"
+publicDir = "artifacts/listen-first/dist/public"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "22361"
+BASE_PATH = "/"
