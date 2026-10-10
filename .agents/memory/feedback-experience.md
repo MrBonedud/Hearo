@@ -14,3 +14,9 @@ Optional short feedback tones are compatible with silent-by-default Hearo; spoke
 **Why:** The team approved experimenting with a small sound after agreeing to optional sounds off by default, a gentle success chime, a soft correction tap, and no sounds for partial/uncertain/skipped concepts.
 
 **How to apply:** Require opt-in, suppress repeated unchanged verdict notifications, avoid alert bursts, and never replay old/restored results as if they were newly checked.
+
+The concept map must read as a connected diagram, not a numbered concept checklist.
+
+**Why:** The team rejected the numbered-card and separate-connections presentation and selected the original Hearo reference showing a transcript beside a dominant branching green/red/grey map.
+
+**How to apply:** Keep relationships visible and colour the whole concept node. Present the source document as session context rather than a catalogue of preset subjects. Relationships must come from the approved source model, never be invented merely to fill the diagram. Preserve clear neutral distinctions for uncertainty, partial explanations, and unchecked concepts.

@@ -1,11 +1,11 @@
-import { useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState, type ChangeEvent, type FormEvent, type ReactNode } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ChangeEvent, type FormEvent, type ReactNode } from 'react';
 import type { StudyEvaluation, StudyMap } from '@workspace/api-client-react';
 import {
   ArrowLeft, ArrowRight, BookOpen, Check, CheckCircle2, ChevronDown, CircleHelp,
   Download, Headphones, Mic, MicOff, RotateCcw, Upload, X,
 } from 'lucide-react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
+import { ConceptMap } from '@/components/concept-map';
 import { ErrorBoundary } from '@/components/error-boundary';
 import { ApprovedPdfSource, SourcePassages, type SelectedSource } from '@/components/approved-pdf-source';
 import { AssessmentEvidence } from '@/components/assessment-evidence';
@@ -42,14 +42,6 @@ function uncheckedMap(map: StudyMap): StudyMap {
   return { ...map, nodes: map.nodes.map(node => ({ ...node, status: 'skipped', evidence: null })) };
 }
 
-const statusMeta = {
-  understood: { label: 'Supported', color: 'var(--green)', tint: 'var(--green-pale)' },
-  incorrect: { label: 'Contradicted', color: 'var(--red)', tint: 'var(--red-pale)' },
-  partial: { label: 'Partially understood', color: 'var(--gold)', tint: 'var(--gray-pale)' },
-  skipped: { label: 'Not demonstrated', color: 'var(--gray)', tint: 'var(--gray-pale)' },
-  unassessed: { label: 'Not assessed yet', color: '#cbc6da', tint: 'var(--gray-pale)' },
-} as const;
-
 function errorMessage(error: unknown) {
   const apiError = error as { status?: number; data?: unknown; message?: string };
   const data = apiError?.data as { message?: string; error?: string } | undefined;
@@ -77,152 +69,12 @@ function Header({ onHome, phase }: { onHome: () => void; phase: Phase }) {
 
 function StatusKey() {
   return <div className="status-key" aria-label="Concept map status key">
-    <span><i className="key-dot understood-dot" /> understood</span>
-    <span><i className="key-dot incorrect-dot" /> revisit</span>
-    <span><i className="key-dot partial-dot" /> partial / unverified</span>
-    <span><i className="key-dot skipped-dot" /> not mentioned</span>
+    <span><i className="key-dot understood-dot" /> supported</span>
+    <span><i className="key-dot incorrect-dot" /> contradicted</span>
+    <span><i className="key-dot partial-dot" /> partial / uncertain</span>
+    <span><i className="key-dot skipped-dot" /> not demonstrated</span>
+    <span><i className="key-dot unassessed-dot" /> not assessed yet</span>
   </div>;
-}
-
-function ConceptMap({ map, compact = false, assessments, assessed = Boolean(assessments) }: {
-  map: StudyMap; compact?: boolean; assessments?: StudyEvaluation['assessments']; assessed?: boolean;
-}) {
-  const reducedMotion = useReducedMotion();
-  const markerId = `concept-arrow-${useId().replace(/:/g, '')}`;
-  const graphRef = useRef<HTMLDivElement>(null);
-  const nodeRefs = useRef<Record<string, HTMLButtonElement | null>>({});
-  const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [graphSize, setGraphSize] = useState({ width: 0, height: 0 });
-  const [paths, setPaths] = useState<Array<{ key: string; d: string; label: string; x: number; y: number }>>([]);
-  const validEdges = useMemo(() => {
-    const nodeIds = new Set(map.nodes.map(node => node.id));
-    return map.edges.filter(edge => nodeIds.has(edge.from) && nodeIds.has(edge.to));
-  }, [map.nodes, map.edges]);
-  const selectedNode = map.nodes.find(node => node.id === selectedId) ?? null;
-  const statusFor = (nodeId: string, nodeStatus: StudyMap['nodes'][number]['status']) => {
-    const verdict = assessments?.find(item => item.conceptId === nodeId)?.verdict;
-    if (verdict === 'supported') return 'understood';
-    if (verdict === 'contradicted') return 'incorrect';
-    if (verdict === 'partially_understood') return 'partial';
-    if (verdict === 'not_demonstrated') return 'skipped';
-    return nodeStatus === 'skipped' ? assessed ? 'skipped' : 'unassessed' : nodeStatus;
-  };
-  const statusClass = (status: keyof typeof statusMeta) => status === 'understood' ? 'understood-dot'
-    : status === 'incorrect' ? 'incorrect-dot'
-      : status === 'partial' ? 'partial-dot'
-        : status === 'skipped' ? 'skipped-dot' : 'unassessed-dot';
-
-  useLayoutEffect(() => {
-    const graph = graphRef.current;
-    if (!graph) return;
-    const update = () => {
-      const bounds = graph.getBoundingClientRect();
-      const width = bounds.width;
-      const height = bounds.height;
-      setGraphSize(previous => previous.width === width && previous.height === height ? previous : { width, height });
-      const next = validEdges.flatMap((edge, index) => {
-        const from = nodeRefs.current[edge.from];
-        const to = nodeRefs.current[edge.to];
-        if (!from || !to) return [];
-        const a = from.getBoundingClientRect();
-        const b = to.getBoundingClientRect();
-        const ax = a.left + a.width / 2 - bounds.left;
-        const ay = a.top + a.height / 2 - bounds.top;
-        const bx = b.left + b.width / 2 - bounds.left;
-        const by = b.top + b.height / 2 - bounds.top;
-        const dx = bx - ax;
-        const dy = by - ay;
-        const length = Math.max(1, Math.hypot(dx, dy));
-        const ux = dx / length;
-        const uy = dy / length;
-        const boundaryPoint = (x: number, y: number, rect: DOMRect, vx: number, vy: number) => {
-          const tx = Math.abs(vx) < .001 ? Infinity : (rect.width / 2 - 8) / Math.abs(vx);
-          const ty = Math.abs(vy) < .001 ? Infinity : (rect.height / 2 - 8) / Math.abs(vy);
-          const distance = Math.min(tx, ty);
-          return { x: x + vx * distance, y: y + vy * distance };
-        };
-        const start = boundaryPoint(ax, ay, a, ux, uy);
-        const end = boundaryPoint(bx, by, b, -ux, -uy);
-        const curve = (index % 2 ? 1 : -1) * Math.min(28, length * .08);
-        const cx = (start.x + end.x) / 2 - uy * curve;
-        const cy = (start.y + end.y) / 2 + ux * curve;
-        return [{
-          key: `${edge.from}-${edge.to}-${index}`,
-          d: `M ${start.x} ${start.y} Q ${cx} ${cy} ${end.x} ${end.y}`,
-          label: edge.label,
-          x: .25 * start.x + .5 * cx + .25 * end.x,
-          y: .25 * start.y + .5 * cy + .25 * end.y - 7,
-        }];
-      });
-      setPaths(previous => previous.length === next.length && previous.every((path, index) => path.d === next[index].d && path.label === next[index].label)
-        ? previous : next);
-    };
-    update();
-    const observer = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(update) : null;
-    observer?.observe(graph);
-    Object.values(nodeRefs.current).forEach(node => { if (node) observer?.observe(node); });
-    window.addEventListener('resize', update);
-    return () => { observer?.disconnect(); window.removeEventListener('resize', update); };
-  }, [map.nodes, validEdges]);
-
-  if (!map.nodes.length) return <div className="empty-map"><span className="empty-map-icon"><BookOpen size={20} /></span><p>Your concept map will take shape here.</p></div>;
-
-  return <section className={`concept-map ${compact ? 'concept-map-compact' : ''}`} aria-label="Interactive concept map">
-    <div className={`concept-map-canvas ${validEdges.length ? 'has-edges' : 'no-edges'}`} ref={graphRef} data-testid="concept-map-graph">
-      {graphSize.width > 0 && graphSize.height > 0 && validEdges.length > 0 && <svg className="concept-map-links" viewBox={`0 0 ${graphSize.width} ${graphSize.height}`} preserveAspectRatio="none" aria-hidden="true">
-        <defs><marker id={markerId} markerWidth="8" markerHeight="8" refX="6" refY="4" orient="auto" markerUnits="strokeWidth"><path d="M 0 0 L 8 4 L 0 8 z" /></marker></defs>
-        {paths.map((path, index) => <g key={path.key}>
-          <motion.path d={path.d} markerEnd={`url(#${markerId})`} initial={{ pathLength: 0, opacity: 0 }} animate={{ pathLength: 1, opacity: 1 }} transition={{ duration: reducedMotion ? 0 : .7, delay: reducedMotion ? 0 : index * .09 }} />
-          {path.label && <text x={path.x} y={path.y} textAnchor="middle">{path.label}</text>}
-        </g>)}
-      </svg>}
-      <div className="concept-map-nodes">
-        {map.nodes.map((node, index) => {
-          const visualStatus = statusFor(node.id, node.status) as keyof typeof statusMeta;
-          const selected = selectedId === node.id;
-          return <motion.button
-            key={node.id}
-            ref={element => { nodeRefs.current[node.id] = element; }}
-            className={`concept-node status-${visualStatus} ${selected ? 'is-selected' : ''}`}
-            type="button"
-            aria-expanded={selected}
-            aria-controls={`${markerId}-details`}
-            aria-label={`${node.label}. ${statusMeta[visualStatus].label}. Open concept details.`}
-            onClick={() => setSelectedId(selected ? null : node.id)}
-            data-testid={`concept-${node.id}`}
-            initial={{ opacity: 0, y: reducedMotion ? 0 : 9, scale: reducedMotion ? 1 : .985 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            transition={{ duration: reducedMotion ? 0 : .36, delay: reducedMotion ? 0 : index * .055 }}>
-            <span className="concept-node-index">{String(index + 1).padStart(2, '0')}</span>
-            <span className="concept-node-copy"><strong>{node.label}</strong><small>{statusMeta[visualStatus].label}</small></span>
-            <i className={`concept-node-dot ${statusClass(visualStatus)}`} aria-hidden="true" />
-          </motion.button>;
-        })}
-      </div>
-      {validEdges.length > 0 && <ul className="visually-hidden" aria-label="Directed concept relationships">
-        {validEdges.map((edge, index) => <li key={`${edge.from}-${edge.to}-${index}`}>
-          {map.nodes.find(node => node.id === edge.from)?.label} — {edge.label} → {map.nodes.find(node => node.id === edge.to)?.label}
-        </li>)}
-      </ul>}
-    </div>
-    {validEdges.length > 0 && <div className="concept-edge-list" aria-label="Concept map connections">
-      <strong>Connections</strong>
-      <ul>{validEdges.map((edge, index) => <li key={`${edge.from}-${edge.to}-${index}`}>
-        <span>{map.nodes.find(node => node.id === edge.from)?.label}</span><i>{edge.label}</i><span>{map.nodes.find(node => node.id === edge.to)?.label}</span>
-      </li>)}</ul>
-    </div>}
-    <div className="concept-details-slot" id={`${markerId}-details`} aria-live="polite" aria-atomic="true">
-      <AnimatePresence mode="wait" initial={false}>
-        {selectedNode ? <motion.article key={selectedNode.id} className="concept-detail-card"
-          initial={{ opacity: 0, y: reducedMotion ? 0 : 7 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: reducedMotion ? 0 : -5 }}
-          transition={{ duration: reducedMotion ? 0 : .22 }} data-testid={`concept-details-${selectedNode.id}`}>
-          <div className="concept-detail-heading"><h3>{selectedNode.label}</h3><button type="button" onClick={() => setSelectedId(null)} aria-label={`Close ${selectedNode.label} details`} data-testid={`button-close-concept-${selectedNode.id}`}>Close</button></div>
-          <p dir="auto">{selectedNode.description}</p>
-          <div className="concept-detail-evidence"><span>Evidence · exact provided text</span><p dir="auto">{selectedNode.evidence || 'No evidence attached to this concept yet.'}</p></div>
-        </motion.article> : <div className="concept-detail-prompt">Select a concept to open its description and evidence.</div>}
-      </AnimatePresence>
-    </div>
-  </section>;
 }
 
 function App() {
@@ -632,7 +484,7 @@ function App() {
       </div>
       <div className="how-strip" id="how-it-works">
         <div className="how-title"><span className="mono">A SMALL PROMISE</span><p>We won’t interrupt<br />your train of thought.</p></div>
-        <div className="how-item"><span className="how-number">01</span><span>Open the approved English slides. The source passages and learning objectives are fixed for this demo.</span></div>
+        <div className="how-item"><span className="how-number">01</span><span>Open the approved English slides. This demo works only with the one approved PDF, verified before you start.</span></div>
         <div className="how-item"><span className="how-number">02</span><span>Speak or type in Arabic or English. Hearo checks meaning silently as you pause, without speaking back.</span></div>
         <div className="how-item"><span className="how-number">03</span><span>Watch the concept map update, inspect cited evidence, and finish with a saved, downloadable report.</span></div>
       </div>
@@ -641,15 +493,13 @@ function App() {
     {phase === 'session' && studyMap && <section className="workspace-page enter">
       <div className="session-head">
         <div><button className="back-link" onClick={resetStudy} type="button" data-testid="button-back-setup"><ArrowLeft size={14} /> Change source</button>
-          <div className="eyebrow session-eyebrow"><span className="eyebrow-rule" /> YOUR STUDY SESSION</div>
-          <h1 className="serif workspace-title">{studyMap.topic}</h1>
-          <p className="workspace-subtitle">Take your time. Nothing will speak back.</p>
+          <h1 className="session-source" data-testid="text-session-source"><span>المصدر · Source</span> <bdi>{selectedSource?.source.title ?? studyMap.topic}</bdi></h1>
         </div>
         <div className="session-status"><span className={`session-status-dot ${listening ? 'active' : ''}`} />{listening ? 'Listening' : 'Ready when you are'}</div>
       </div>
       <div className="workspace-grid">
         <section className="explain-panel panel">
-          <div className="panel-heading"><div><span className="panel-index">01</span><h2>Explain it your way</h2></div><span className="silence-tag"><span /> SILENT MODE</span></div>
+          <div className="panel-heading"><div><h2>Explain it your way</h2></div><span className="silence-tag"><span /> SILENT MODE</span></div>
           <p className="panel-hint" dir="auto">اشرح بالعربية أو الإنجليزية. Speak or type in your own words. Live checking updates the map after pauses; Hearo never speaks back.</p>
           <label className="live-toggle"><input type="checkbox" checked={liveEnabled} disabled={finishing} onChange={event => setLiveEnabled(event.target.checked)} data-testid="toggle-live-session" /><span>التحقق المباشر · Live checking</span></label><FeedbackSoundToggle enabled={sounds.enabled} onToggle={sounds.toggle} supported={sounds.supported} />
           <div className={allowance && (!allowance.available || allowance.remainingChecks <= Math.max(1, Math.ceil(allowance.dailyLimit * 0.1))) ? 'saved-study-warning' : 'saved-study-status'} role="status" aria-live="polite" data-testid="status-check-allowance">
@@ -704,7 +554,7 @@ function App() {
           {voiceOverflow && <div className="inline-error" role="alert">وصلت إلى حد النص. انسخ الكلمات الزائدة قبل المغادرة. Character limit reached; copy these extra words before leaving: <bdi>{voiceOverflow}</bdi></div>}
           <div className="live-claims">
             <div className="live-claims-head"><span className="mini-eye" /><span>WHAT YOU’VE SAID</span><small>Claims appear as you explain</small></div>
-            {claims.length ? <ul>{claims.map((claim, index) => <li key={`${index}-${claim.slice(0, 16)}`} data-testid={`claim-${index}`}><span>{String(index + 1).padStart(2, '0')}</span><bdi>{claim}</bdi></li>)}</ul> : <p className="claims-empty">Your ideas will gather here, just as you said them.</p>}
+            {claims.length ? <ul>{claims.map((claim, index) => <li key={`${index}-${claim.slice(0, 16)}`} data-testid={`claim-${index}`}><bdi>{claim}</bdi></li>)}</ul> : <p className="claims-empty">Your ideas will gather here, just as you said them.</p>}
           </div>
           {hasCheckedPrefix && evaluation?.assessments && checkedTranscript !== transcript.trim() && <p className="panel-hint" data-testid="text-checked-scope">هذه البطاقات تغطي الجزء الذي تم التحقق منه فقط · These cards cover only the checked text; newer words await a check.</p>}
           {hasCheckedPrefix && evaluation?.assessments && selectedSource && <AssessmentEvidence assessments={evaluation.assessments.filter(item => item.verdict !== 'not_demonstrated')} source={selectedSource.source} fileUrl={selectedSource.fileUrl} map={studyMap} onPractice={() => document.getElementById('transcript-input')?.focus()} />}
@@ -715,8 +565,7 @@ function App() {
           <p className="finish-note">Keep explaining while live checks run. Requests are spaced at least eight seconds apart. The final report checks your complete explanation, including the last spoken words. Your draft is saved locally; the PDF and authorization token are not saved.</p>
         </section>
         <aside className="map-panel panel">
-          <div className="panel-heading"><div><span className="panel-index">02</span><h2>Your concept map</h2></div><span className="node-count mono">{studyMap.nodes.length} IDEAS</span></div>
-          <p className="panel-hint map-hint">Hearo-authored learning objectives grounded in selected passages from slides 4–10.</p>
+          <div className="panel-heading"><div><h2>خريطة المفاهيم · Concept map</h2></div></div>
           <StatusKey />
           <div className="live-check-status" role="status" data-testid="status-live-check">
             {live.busy ? <><span className="button-loader" /> جارٍ التحقق بصمت · Checking silently…</> : allowance?.available === false ? 'تم بلوغ الحد اليومي · Live checks paused until the UTC reset' : !liveEnabled ? 'التحقق المباشر متوقف · Live checks paused' : live.error ? 'تعذر التحقق؛ تم إيقاف الطلبات التلقائية · Checks paused after an error; retry when ready' : checkedTranscript === transcript.trim() && evaluation ? 'تم التحقق من شرحك الحالي · Current explanation checked' : hasCheckedPrefix ? `تم التحقق من ${checkedTranscript.split(/\s+/).length} كلمة؛ الباقي قيد الانتظار · More words awaiting a check` : 'بانتظار شرحك · Waiting for your explanation'}
@@ -729,7 +578,7 @@ function App() {
           </div>}
            <ConceptMap map={visibleMap!} assessments={hasCheckedPrefix ? evaluation?.assessments : undefined} assessed={hasCheckedPrefix && Boolean(evaluation)} />
           {selectedSource && <SourcePassages source={selectedSource.source} fileUrl={selectedSource.fileUrl} />}
-           <div className="map-foot"><span className="map-foot-mark"><BookOpen size={14} /></span><span>Green: supported · Red: contradicted · Amber: partial or unverified · Grey: not mentioned. Earlier checks cover only the words already checked.</span></div>
+           <div className="map-foot"><span className="map-foot-mark"><BookOpen size={14} /></span><span>Green: supported · Red: contradicted · Grey: partial, uncertain, not demonstrated or not assessed yet. Earlier checks cover only the words already checked.</span></div>
         </aside>
       </div>
     </section>}
