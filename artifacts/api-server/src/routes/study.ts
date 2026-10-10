@@ -82,11 +82,11 @@ router.post("/report", (req, res) => {
 function getAssessmentProviders(): { name: "OpenAI" | "Gemini"; model: string; client: OpenAI }[] {
   const providers: ReturnType<typeof getAssessmentProviders> = [];
   if (process.env.OPENAI_API_KEY) providers.push({
-    name: "OpenAI", model: "gpt-4.1-mini",
+    name: "OpenAI", model: process.env.STUDY_OPENAI_MODEL || "gpt-4.1-mini",
     client: new OpenAI({ apiKey: process.env.OPENAI_API_KEY, timeout: 15_000, maxRetries: 0 }),
   });
   if (process.env.GEMINI_API_KEY) providers.push({
-    name: "Gemini", model: "gemini-3.1-flash-lite",
+    name: "Gemini", model: process.env.STUDY_GEMINI_MODEL || "gemini-3.1-flash-lite",
     client: new OpenAI({
       apiKey: process.env.GEMINI_API_KEY,
       baseURL: "https://generativelanguage.googleapis.com/v1beta/openai/",
@@ -239,6 +239,9 @@ router.post("/study/evaluate", parseBudgetCookie, async (req, res) => {
       }, "AI checker failed; trying next configured provider");
     });
     res.setHeader("X-Hearo-Checker", checked.provider.name);
+    // Evaluations pin the actual server-selected model, including fallback.
+    // Never accept a caller-selected model or weaken source validation for tests.
+    res.setHeader("X-Hearo-Model", checked.provider.model);
     res.setHeader("X-Hearo-Fallback", String(checked.fallbackUsed));
     res.json(checked.result);
   } catch (err) {

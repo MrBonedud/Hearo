@@ -1,0 +1,24 @@
+{
+  "reviewedAt": "2026-10-10",
+  "method": "Separate internal LLM rubric review of the complete candidate corpus against the pinned source pack; no evaluation responses or provider secrets supplied",
+  "reviewerKind": "independent-model-review",
+  "scope": "All nine equivalent variants and two controls for each of six objectives",
+  "expandedCorpusSha256": "640500838548418fd5e37d232350d42e6d96037c4c2e480c3f641bca793a70e0",
+  "sourceSha256": "250cf7ba2bf22771297a1b81bc2e29240c6d8a80e43992d942d96f40b5ea22f2",
+  "rubric": [
+    "Equivalent meaning and coverage of objective key ideas",
+    "Arabic dialect intelligibility and negation",
+    "No extra facts in held-out paraphrases",
+    "Clear incomplete versus contradiction controls, especially replication",
+    "No unintended cross-objective demonstrations, especially scaling versus sharding"
+  ],
+  "decisions": {
+    "scaling": "approved",
+    "load-balancing": "approved",
+    "stateless-servers": "approved",
+    "sharding": "approved",
+    "replication": "approved",
+    "caching": "approved"
+  },
+  "limitations": "This records an independent machine review, not human native-speaker certification or calibrated model accuracy. Replication incomplete deliberately omits the failure-tolerance purpose. A reviewer should revisit rubric ambiguities rather than tune expected verdicts to a candidate model's outputs."
+}

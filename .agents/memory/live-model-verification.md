@@ -20,3 +20,9 @@ When the team announces a new API key, collect it through the secure secret form
 **Why:** Reusing the old saved key missed an explicit new-key handoff.
 
 **How to apply:** Request the new credential securely, reload the API after it is saved, and verify the intended primary provider rather than counting a fallback response as primary-provider success. Never read or print the key.
+
+Keep held-out bilingual evaluation explanations separate from checker prompt development. Independent automated fixture review is useful but is not native-speaker certification, and literal evidence validation does not establish semantic question relevance.
+
+**Why:** The bilingual model-change evaluation uses an authored sample and a separate machine rubric review. Feeding those examples into the checker or describing machine review as human approval would overstate what later results demonstrate.
+
+**How to apply:** Do not tune on held-out explanations. Retire and independently replace a held-out case if used for tuning. Keep question-focus judgments explicitly pending until independently reviewed, and report sample disagreements rather than calibrated accuracy.
