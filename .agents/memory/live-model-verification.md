@@ -14,3 +14,9 @@ The team authorized OpenAI-first checking with Gemini as the fallback, rather th
 **Why:** The team explicitly requested: "use both, if openAI doesn't work use gemini."
 
 **How to apply:** Fail over when a provider request or grounded-output validation fails. Preserve the same reference and transcript; never fabricate an assessment when both fail. Disclose both providers in the app's privacy copy.
+
+When the team announces a new API key, collect it through the secure secret form rather than treating the existing saved key as the new credential.
+
+**Why:** Reusing the old saved key missed an explicit new-key handoff.
+
+**How to apply:** Request the new credential securely, reload the API after it is saved, and verify the intended primary provider rather than counting a fallback response as primary-provider success. Never read or print the key.
