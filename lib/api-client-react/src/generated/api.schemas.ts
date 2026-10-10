@@ -5,6 +5,328 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+export interface DemoEvidence {
+  /** @minimum 1 */
+  line_id: number;
+  /** @minLength 1 */
+  quote: string;
+}
+
+export type DemoVerdict = typeof DemoVerdict[keyof typeof DemoVerdict];
+
+
+export const DemoVerdict = {
+  supported: 'supported',
+  contradicts: 'contradicts',
+  unverified: 'unverified',
+} as const;
+
+export type DemoConceptState = typeof DemoConceptState[keyof typeof DemoConceptState];
+
+
+export const DemoConceptState = {
+  grey: 'grey',
+  green: 'green',
+  red: 'red',
+  amber: 'amber',
+} as const;
+
+export interface DemoReferenceLine {
+  line_id: number;
+  text: string;
+}
+
+export interface DemoConcept {
+  id: string;
+  label_ar: string;
+  label_en: string;
+  aliases: string;
+  must_cover: boolean;
+  supporting_lines: number[];
+  dependencies: string[];
+  gap_question: string;
+  x: number;
+  y: number;
+}
+
+export interface DemoMisconception {
+  concept_id: string;
+  wrong_claim: string;
+  correction: string;
+  source_line_id: number;
+}
+
+export interface DemoTopicPack {
+  id: string;
+  title_ar: string;
+  title_en: string;
+  reference_lines: DemoReferenceLine[];
+  concepts: DemoConcept[];
+  misconceptions: DemoMisconception[];
+}
+
+export type DemoStartMessageType = typeof DemoStartMessageType[keyof typeof DemoStartMessageType];
+
+
+export const DemoStartMessageType = {
+  start: 'start',
+} as const;
+
+export type DemoStartMessageTopicId = typeof DemoStartMessageTopicId[keyof typeof DemoStartMessageTopicId];
+
+
+export const DemoStartMessageTopicId = {
+  'system-design': 'system-design',
+} as const;
+
+export interface DemoStartMessage {
+  type: DemoStartMessageType;
+  topic_id: DemoStartMessageTopicId;
+}
+
+export type DemoTextMessageType = typeof DemoTextMessageType[keyof typeof DemoTextMessageType];
+
+
+export const DemoTextMessageType = {
+  text: 'text',
+} as const;
+
+export interface DemoTextMessage {
+  type: DemoTextMessageType;
+  session_id: string;
+  /**
+     * @minLength 1
+     * @maxLength 100
+     */
+  sentence_id: string;
+  /**
+     * @minLength 1
+     * @maxLength 2000
+     */
+  text: string;
+}
+
+export type DemoStopMessageType = typeof DemoStopMessageType[keyof typeof DemoStopMessageType];
+
+
+export const DemoStopMessageType = {
+  stop: 'stop',
+} as const;
+
+export interface DemoStopMessage {
+  type: DemoStopMessageType;
+  session_id: string;
+}
+
+export type DemoBrowserMessage = DemoStartMessage | DemoTextMessage | DemoStopMessage;
+
+export type DemoVerifyInputTopicId = typeof DemoVerifyInputTopicId[keyof typeof DemoVerifyInputTopicId];
+
+
+export const DemoVerifyInputTopicId = {
+  'system-design': 'system-design',
+} as const;
+
+export interface DemoVerifyInput {
+  topic_id: DemoVerifyInputTopicId;
+  /**
+     * @minLength 1
+     * @maxLength 100
+     */
+  sentence_id: string;
+  /**
+     * @minLength 1
+     * @maxLength 2000
+     */
+  sentence: string;
+  /**
+     * @maxItems 3
+     * @items.maxLength 2000
+     */
+  previous_sentences: string[];
+}
+
+export interface DemoClaim {
+  concept_id: string;
+  verdict: DemoVerdict;
+  /**
+     * @minimum 0
+     * @maximum 1
+     */
+  confidence: number;
+  evidence: DemoEvidence | null;
+  /** @nullable */
+  correction: string | null;
+}
+
+export interface DemoVerifyResult {
+  sentence_id: string;
+  claims: DemoClaim[];
+}
+
+export interface DemoFinalSentence {
+  /**
+     * @minLength 1
+     * @maxLength 100
+     */
+  sentence_id: string;
+  /**
+     * @minLength 1
+     * @maxLength 2000
+     */
+  sentence: string;
+}
+
+export type DemoReportInputTopicId = typeof DemoReportInputTopicId[keyof typeof DemoReportInputTopicId];
+
+
+export const DemoReportInputTopicId = {
+  'system-design': 'system-design',
+} as const;
+
+export interface DemoReportInput {
+  topic_id: DemoReportInputTopicId;
+  /** @maxItems 500 */
+  sentences: DemoFinalSentence[];
+}
+
+export interface DemoReportGap {
+  concept_id: string;
+  label: string;
+  state: DemoConceptState;
+  question: string;
+}
+
+export interface DemoReportError {
+  sentence_id: string;
+  concept_id: string;
+  statement: string;
+  correction: string;
+  evidence: DemoEvidence;
+  resolved: boolean;
+}
+
+export interface DemoReportStrength {
+  concept_id: string;
+  label: string;
+}
+
+export interface DemoReviewQuestion {
+  concept_id: string;
+  question: string;
+}
+
+export interface DemoReport {
+  /**
+     * @minimum 0
+     * @maximum 100
+     */
+  score: number;
+  /**
+     * @minimum 0
+     * @maximum 1
+     */
+  coverage: number;
+  /**
+     * @minimum 0
+     * @maximum 1
+     */
+  accuracy: number;
+  /** @minimum 0 */
+  covered_count: number;
+  /** @minimum 0 */
+  must_cover_count: number;
+  /** @minimum 0 */
+  correct_count: number;
+  /** @minimum 0 */
+  assessed_count: number;
+  gaps: DemoReportGap[];
+  errors: DemoReportError[];
+  strengths: DemoReportStrength[];
+  self_corrections: DemoReportStrength[];
+  review_questions: DemoReviewQuestion[];
+  tomorrow_question: string;
+}
+
+export type DemoSentenceEventType = typeof DemoSentenceEventType[keyof typeof DemoSentenceEventType];
+
+
+export const DemoSentenceEventType = {
+  sentence: 'sentence',
+} as const;
+
+export interface DemoSentenceEvent {
+  type: DemoSentenceEventType;
+  session_id: string;
+  sentence_id: string;
+  text: string;
+}
+
+export type DemoClaimEventType = typeof DemoClaimEventType[keyof typeof DemoClaimEventType];
+
+
+export const DemoClaimEventType = {
+  claim: 'claim',
+} as const;
+
+export interface DemoClaimEvent {
+  type: DemoClaimEventType;
+  session_id: string;
+  sentence_id: string;
+  claim: DemoClaim;
+}
+
+export type DemoConceptStateEventType = typeof DemoConceptStateEventType[keyof typeof DemoConceptStateEventType];
+
+
+export const DemoConceptStateEventType = {
+  concept_state: 'concept_state',
+} as const;
+
+export interface DemoConceptStateEvent {
+  type: DemoConceptStateEventType;
+  session_id: string;
+  /** @nullable */
+  sentence_id: string | null;
+  concept_id: string;
+  state: DemoConceptState;
+}
+
+export type DemoReportEventType = typeof DemoReportEventType[keyof typeof DemoReportEventType];
+
+
+export const DemoReportEventType = {
+  report: 'report',
+} as const;
+
+export interface DemoReportEvent {
+  type: DemoReportEventType;
+  session_id: string;
+  report: DemoReport;
+}
+
+export type DemoErrorEventType = typeof DemoErrorEventType[keyof typeof DemoErrorEventType];
+
+
+export const DemoErrorEventType = {
+  error: 'error',
+} as const;
+
+export interface DemoErrorEvent {
+  type: DemoErrorEventType;
+  /** @nullable */
+  session_id: string | null;
+  message: string;
+}
+
+export type DemoEvent = DemoSentenceEvent | DemoClaimEvent | DemoConceptStateEvent | DemoReportEvent | DemoErrorEvent;
+
+export interface DemoMessageResponse {
+  session_id: string;
+  topic_pack: DemoTopicPack;
+  events: DemoEvent[];
+}
+
 export interface HealthStatus {
   status: string;
 }

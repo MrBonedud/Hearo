@@ -26,3 +26,9 @@ Explain the planned changes, affected files, and reason before each small implem
 **Why:** The team explicitly repeated “yes, but ask us for permission first.”
 
 **How to apply:** Deliver the approved step only, describe what is ready and what remains unchanged, and request permission for the next step.
+
+The team accepted authored-demo matching, rather than general AI understanding, for the first Arabic typed/replay learning loop. This is a deliberate demo limit, not permission to claim reliable checking of arbitrary Arabic explanations.
+
+**Why:** The team approved the explicitly labelled, key-free demo approach and its affected-file and message-shape proposal before implementation.
+
+**How to apply:** Keep the limitation visible to learners. Get approval before replacing it with general AI verification or connecting live microphone services.

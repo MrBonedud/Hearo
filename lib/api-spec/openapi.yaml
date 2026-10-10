@@ -13,6 +13,72 @@ tags:
   - name: study
     description: Reference-grounded spoken study
 paths:
+  /study/messages:
+    post:
+      operationId: sendDemoMessage
+      tags: [study]
+      summary: Run an authored Arabic demo through the agreed final-sentence event path
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DemoBrowserMessage"
+      responses:
+        "200":
+          description: Shared topic pack and ordered browser events
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DemoMessageResponse"
+        "400":
+          description: Invalid message or unsupported topic
+        "404":
+          description: Session expired or does not exist
+        "409":
+          description: Session ended or sentence identifier was reused with different text
+        "429":
+          description: Demo session or sentence limit reached
+  /verify:
+    post:
+      operationId: verifyDemoSentence
+      tags: [study]
+      summary: Deterministic authored-demo verification of one final sentence, not general AI checking
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DemoVerifyInput"
+      responses:
+        "200":
+          description: Sentence-linked claims with validated exact source evidence
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DemoVerifyResult"
+        "400":
+          description: Invalid final sentence or unsupported topic
+  /report:
+    post:
+      operationId: reportDemoSession
+      tags: [study]
+      summary: Recompute the authored-demo report from the whole final-sentence session
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DemoReportInput"
+      responses:
+        "200":
+          description: Arabic report with score breakdown, gaps, errors, strengths, and review questions
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DemoReport"
+        "400":
+          description: Invalid session or unsupported topic
   /healthz:
     get:
       operationId: healthCheck
@@ -72,6 +138,267 @@ paths:
           description: OpenAI key is not configured
 components:
   schemas:
+    DemoEvidence:
+      type: object
+      properties:
+        line_id: { type: integer, minimum: 1 }
+        quote: { type: string, minLength: 1 }
+      required: [line_id, quote]
+    DemoVerdict:
+      type: string
+      enum: [supported, contradicts, unverified]
+    DemoConceptState:
+      type: string
+      enum: [grey, green, red, amber]
+    DemoReferenceLine:
+      type: object
+      properties:
+        line_id: { type: integer }
+        text: { type: string }
+      required: [line_id, text]
+    DemoConcept:
+      type: object
+      properties:
+        id: { type: string }
+        label_ar: { type: string }
+        label_en: { type: string }
+        aliases: { type: string }
+        must_cover: { type: boolean }
+        supporting_lines:
+          type: array
+          items: { type: integer }
+        dependencies:
+          type: array
+          items: { type: string }
+        gap_question: { type: string }
+        x: { type: number }
+        y: { type: number }
+      required: [id, label_ar, label_en, aliases, must_cover, supporting_lines, dependencies, gap_question, x, y]
+    DemoMisconception:
+      type: object
+      properties:
+        concept_id: { type: string }
+        wrong_claim: { type: string }
+        correction: { type: string }
+        source_line_id: { type: integer }
+      required: [concept_id, wrong_claim, correction, source_line_id]
+    DemoTopicPack:
+      type: object
+      properties:
+        id: { type: string }
+        title_ar: { type: string }
+        title_en: { type: string }
+        reference_lines:
+          type: array
+          items:
+            $ref: "#/components/schemas/DemoReferenceLine"
+        concepts:
+          type: array
+          items:
+            $ref: "#/components/schemas/DemoConcept"
+        misconceptions:
+          type: array
+          items:
+            $ref: "#/components/schemas/DemoMisconception"
+      required: [id, title_ar, title_en, reference_lines, concepts, misconceptions]
+    DemoStartMessage:
+      type: object
+      properties:
+        type: { type: string, enum: [start] }
+        topic_id: { type: string, enum: [system-design] }
+      required: [type, topic_id]
+    DemoTextMessage:
+      type: object
+      properties:
+        type: { type: string, enum: [text] }
+        session_id: { type: string, format: uuid }
+        sentence_id: { type: string, minLength: 1, maxLength: 100 }
+        text: { type: string, minLength: 1, maxLength: 2000 }
+      required: [type, session_id, sentence_id, text]
+    DemoStopMessage:
+      type: object
+      properties:
+        type: { type: string, enum: [stop] }
+        session_id: { type: string, format: uuid }
+      required: [type, session_id]
+    DemoBrowserMessage:
+      oneOf:
+        - $ref: "#/components/schemas/DemoStartMessage"
+        - $ref: "#/components/schemas/DemoTextMessage"
+        - $ref: "#/components/schemas/DemoStopMessage"
+    DemoVerifyInput:
+      type: object
+      properties:
+        topic_id: { type: string, enum: [system-design] }
+        sentence_id: { type: string, minLength: 1, maxLength: 100 }
+        sentence: { type: string, minLength: 1, maxLength: 2000 }
+        previous_sentences:
+          type: array
+          maxItems: 3
+          items: { type: string, maxLength: 2000 }
+      required: [topic_id, sentence_id, sentence, previous_sentences]
+    DemoClaim:
+      type: object
+      properties:
+        concept_id: { type: string }
+        verdict:
+          $ref: "#/components/schemas/DemoVerdict"
+        confidence: { type: number, minimum: 0, maximum: 1 }
+        evidence:
+          oneOf:
+            - $ref: "#/components/schemas/DemoEvidence"
+            - type: "null"
+        correction: { type: ["string", "null"] }
+      required: [concept_id, verdict, confidence, evidence, correction]
+    DemoVerifyResult:
+      type: object
+      properties:
+        sentence_id: { type: string }
+        claims:
+          type: array
+          items:
+            $ref: "#/components/schemas/DemoClaim"
+      required: [sentence_id, claims]
+    DemoFinalSentence:
+      type: object
+      properties:
+        sentence_id: { type: string, minLength: 1, maxLength: 100 }
+        sentence: { type: string, minLength: 1, maxLength: 2000 }
+      required: [sentence_id, sentence]
+    DemoReportInput:
+      type: object
+      properties:
+        topic_id: { type: string, enum: [system-design] }
+        sentences:
+          type: array
+          maxItems: 500
+          items:
+            $ref: "#/components/schemas/DemoFinalSentence"
+      required: [topic_id, sentences]
+    DemoReportGap:
+      type: object
+      properties:
+        concept_id: { type: string }
+        label: { type: string }
+        state:
+          $ref: "#/components/schemas/DemoConceptState"
+        question: { type: string }
+      required: [concept_id, label, state, question]
+    DemoReportError:
+      type: object
+      properties:
+        sentence_id: { type: string }
+        concept_id: { type: string }
+        statement: { type: string }
+        correction: { type: string }
+        evidence:
+          $ref: "#/components/schemas/DemoEvidence"
+        resolved: { type: boolean }
+      required: [sentence_id, concept_id, statement, correction, evidence, resolved]
+    DemoReportStrength:
+      type: object
+      properties:
+        concept_id: { type: string }
+        label: { type: string }
+      required: [concept_id, label]
+    DemoReviewQuestion:
+      type: object
+      properties:
+        concept_id: { type: string }
+        question: { type: string }
+      required: [concept_id, question]
+    DemoReport:
+      type: object
+      properties:
+        score: { type: number, minimum: 0, maximum: 100 }
+        coverage: { type: number, minimum: 0, maximum: 1 }
+        accuracy: { type: number, minimum: 0, maximum: 1 }
+        covered_count: { type: integer, minimum: 0 }
+        must_cover_count: { type: integer, minimum: 0 }
+        correct_count: { type: integer, minimum: 0 }
+        assessed_count: { type: integer, minimum: 0 }
+        gaps:
+          type: array
+          items:
+            $ref: "#/components/schemas/DemoReportGap"
+        errors:
+          type: array
+          items:
+            $ref: "#/components/schemas/DemoReportError"
+        strengths:
+          type: array
+          items:
+            $ref: "#/components/schemas/DemoReportStrength"
+        self_corrections:
+          type: array
+          items:
+            $ref: "#/components/schemas/DemoReportStrength"
+        review_questions:
+          type: array
+          items:
+            $ref: "#/components/schemas/DemoReviewQuestion"
+        tomorrow_question: { type: string }
+      required: [score, coverage, accuracy, covered_count, must_cover_count, correct_count, assessed_count, gaps, errors, strengths, self_corrections, review_questions, tomorrow_question]
+    DemoSentenceEvent:
+      type: object
+      properties:
+        type: { type: string, enum: [sentence] }
+        session_id: { type: string }
+        sentence_id: { type: string }
+        text: { type: string }
+      required: [type, session_id, sentence_id, text]
+    DemoClaimEvent:
+      type: object
+      properties:
+        type: { type: string, enum: [claim] }
+        session_id: { type: string }
+        sentence_id: { type: string }
+        claim:
+          $ref: "#/components/schemas/DemoClaim"
+      required: [type, session_id, sentence_id, claim]
+    DemoConceptStateEvent:
+      type: object
+      properties:
+        type: { type: string, enum: [concept_state] }
+        session_id: { type: string }
+        sentence_id: { type: ["string", "null"] }
+        concept_id: { type: string }
+        state:
+          $ref: "#/components/schemas/DemoConceptState"
+      required: [type, session_id, sentence_id, concept_id, state]
+    DemoReportEvent:
+      type: object
+      properties:
+        type: { type: string, enum: [report] }
+        session_id: { type: string }
+        report:
+          $ref: "#/components/schemas/DemoReport"
+      required: [type, session_id, report]
+    DemoErrorEvent:
+      type: object
+      properties:
+        type: { type: string, enum: [error] }
+        session_id: { type: ["string", "null"] }
+        message: { type: string }
+      required: [type, session_id, message]
+    DemoEvent:
+      oneOf:
+        - $ref: "#/components/schemas/DemoSentenceEvent"
+        - $ref: "#/components/schemas/DemoClaimEvent"
+        - $ref: "#/components/schemas/DemoConceptStateEvent"
+        - $ref: "#/components/schemas/DemoReportEvent"
+        - $ref: "#/components/schemas/DemoErrorEvent"
+    DemoMessageResponse:
+      type: object
+      properties:
+        session_id: { type: string }
+        topic_pack:
+          $ref: "#/components/schemas/DemoTopicPack"
+        events:
+          type: array
+          items:
+            $ref: "#/components/schemas/DemoEvent"
+      required: [session_id, topic_pack, events]
     HealthStatus:
       type: object
       properties:
