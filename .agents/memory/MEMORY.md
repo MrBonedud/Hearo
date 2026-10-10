@@ -1,1 +1,2 @@
 - [Hearo source and workflow](hearo-scope.md) — Existing English slides, Arabic-or-English explanations, and small verified increments rather than repeated approval gates.
+- [Git provider authentication](git-provider-auth.md) — Integration health and public reads do not prove Git push authentication; resolve connections per collaborator.
