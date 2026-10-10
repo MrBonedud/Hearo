@@ -9,6 +9,59 @@ import * as zod from 'zod';
 
 
 /**
+ * @summary Get the fixed English lecture source and AI availability
+ */
+
+
+
+export const GetDemoSourceResponse = zod.object({
+  "id": zod.string(),
+  "title": zod.string(),
+  "author": zod.string(),
+  "filename": zod.string(),
+  "downloadUrl": zod.string(),
+  "byteLength": zod.number().int(),
+  "pageCount": zod.number().int(),
+  "scope": zod.string(),
+  "referenceText": zod.string(),
+  "referenceLines": zod.array(zod.object({
+  "id": zod.string(),
+  "page": zod.number().int().min(1),
+  "text": zod.string()
+})),
+  "aiAvailable": zod.boolean()
+})
+
+
+/**
+ * @summary Verify the exact approved PDF without storing it
+ */
+
+
+
+export const UploadDemoPdfResponse = zod.object({
+  "source": zod.object({
+  "id": zod.string(),
+  "title": zod.string(),
+  "author": zod.string(),
+  "filename": zod.string(),
+  "downloadUrl": zod.string(),
+  "byteLength": zod.number().int(),
+  "pageCount": zod.number().int(),
+  "scope": zod.string(),
+  "referenceText": zod.string(),
+  "referenceLines": zod.array(zod.object({
+  "id": zod.string(),
+  "page": zod.number().int().min(1),
+  "text": zod.string()
+})),
+  "aiAvailable": zod.boolean()
+}),
+  "sourceToken": zod.string()
+})
+
+
+/**
  * @summary Run an authored Arabic demo through the agreed final-sentence event path
  */
 export const sendDemoMessageBodyTwoSentenceIdMax = 100;
@@ -303,6 +356,7 @@ export const prepareStudyBodyReferenceTextMax = 30000;
 
 
 export const PrepareStudyBody = zod.object({
+  "sourceToken": zod.string().optional(),
   "topic": zod.string().min(1).max(prepareStudyBodyTopicMax),
   "referenceText": zod.string().min(prepareStudyBodyReferenceTextMin).max(prepareStudyBodyReferenceTextMax)
 })
@@ -337,6 +391,7 @@ export const evaluateStudyBodyTranscriptMax = 12000;
 
 
 export const EvaluateStudyBody = zod.object({
+  "sourceToken": zod.string().optional(),
   "topic": zod.string().min(1).max(evaluateStudyBodyTopicMax),
   "referenceText": zod.string().min(evaluateStudyBodyReferenceTextMin).max(evaluateStudyBodyReferenceTextMax),
   "transcript": zod.string().min(1).max(evaluateStudyBodyTranscriptMax),
@@ -355,6 +410,15 @@ export const EvaluateStudyBody = zod.object({
 })
 
 export const EvaluateStudyResponse = zod.object({
+  "assessments": zod.array(zod.object({
+  "conceptId": zod.string(),
+  "verdict": zod.enum(['supported', 'partially_understood', 'contradicted', 'not_demonstrated']),
+  "studentEvidence": zod.string().nullable(),
+  "sourceLineIds": zod.array(zod.string()),
+  "confidence": zod.enum(['low', 'medium', 'high']),
+  "explanation": zod.string(),
+  "followUp": zod.string()
+})).optional(),
   "topic": zod.string(),
   "nodes": zod.array(zod.object({
   "id": zod.string(),

@@ -6,6 +6,10 @@
  * OpenAPI spec version: 0.1.0
  */
 
+export * from './assessmentResult';
+export * from './conceptAssessment';
+export * from './conceptAssessmentConfidence';
+export * from './conceptAssessmentVerdict';
 export * from './demoBrowserMessage';
 export * from './demoClaim';
 export * from './demoClaimEvent';
@@ -33,6 +37,7 @@ export * from './demoReportStrength';
 export * from './demoReviewQuestion';
 export * from './demoSentenceEvent';
 export * from './demoSentenceEventType';
+export * from './demoSource';
 export * from './demoStartMessage';
 export * from './demoStartMessageTopicId';
 export * from './demoStartMessageType';
@@ -46,6 +51,7 @@ export * from './demoVerifyInput';
 export * from './demoVerifyInputTopicId';
 export * from './demoVerifyResult';
 export * from './healthStatus';
+export * from './sourceLine';
 export * from './studyEdge';
 export * from './studyEvaluation';
 export * from './studyEvaluationInput';
@@ -55,3 +61,4 @@ export * from './studyMap';
 export * from './studyNode';
 export * from './studyNodeStatus';
 export * from './studySourceInput';
+export * from './verifiedDemoSource';

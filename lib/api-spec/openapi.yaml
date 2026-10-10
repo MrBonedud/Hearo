@@ -13,6 +13,43 @@ tags:
   - name: study
     description: Reference-grounded spoken study
 paths:
+  /study/demo:
+    get:
+      operationId: getDemoSource
+      tags: [study]
+      summary: Get the fixed English lecture source and AI availability
+      responses:
+        "200":
+          description: Source metadata and verbatim excerpts
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DemoSource"
+  /study/demo/upload:
+    post:
+      operationId: uploadDemoPdf
+      tags: [study]
+      summary: Verify the exact approved PDF without storing it
+      requestBody:
+        required: true
+        content:
+          application/pdf:
+            schema:
+              type: string
+              format: binary
+      responses:
+        "200":
+          description: Verified source with a two-hour study authorization
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VerifiedDemoSource"
+        "400":
+          description: Different or corrupt PDF
+        "413":
+          description: File exceeds the approved file size
+        "415":
+          description: Unsupported file type
   /study/messages:
     post:
       operationId: sendDemoMessage
@@ -448,6 +485,8 @@ components:
     StudySourceInput:
       type: object
       properties:
+        sourceToken:
+          type: string
         topic:
           type: string
           minLength: 1
@@ -460,6 +499,8 @@ components:
     StudyEvaluationInput:
       type: object
       properties:
+        sourceToken:
+          type: string
         topic:
           type: string
           minLength: 1
@@ -495,6 +536,10 @@ components:
     StudyEvaluation:
       type: object
       properties:
+        assessments:
+          type: array
+          items:
+            $ref: "#/components/schemas/ConceptAssessment"
         topic:
           type: string
         nodes:
@@ -510,4 +555,62 @@ components:
           items:
             $ref: "#/components/schemas/StudyFeedback"
       required: [topic, nodes, edges, feedback]
+    SourceLine:
+      type: object
+      properties:
+        id: { type: string }
+        page: { type: integer, minimum: 1 }
+        text: { type: string }
+      required: [id, page, text]
+    DemoSource:
+      type: object
+      properties:
+        id: { type: string }
+        title: { type: string }
+        author: { type: string }
+        filename: { type: string }
+        downloadUrl: { type: string }
+        byteLength: { type: integer }
+        pageCount: { type: integer }
+        scope: { type: string }
+        referenceText: { type: string }
+        referenceLines:
+          type: array
+          items:
+            $ref: "#/components/schemas/SourceLine"
+        aiAvailable: { type: boolean }
+      required: [id, title, author, filename, downloadUrl, byteLength, pageCount, scope, referenceText, referenceLines, aiAvailable]
+    VerifiedDemoSource:
+      type: object
+      properties:
+        source:
+          $ref: "#/components/schemas/DemoSource"
+        sourceToken: { type: string }
+      required: [source, sourceToken]
+    ConceptAssessment:
+      type: object
+      properties:
+        conceptId: { type: string }
+        verdict:
+          type: string
+          enum: [supported, partially_understood, contradicted, not_demonstrated]
+        studentEvidence:
+          type: ["string", "null"]
+        sourceLineIds:
+          type: array
+          items: { type: string }
+        confidence:
+          type: string
+          enum: [low, medium, high]
+        explanation: { type: string }
+        followUp: { type: string }
+      required: [conceptId, verdict, studentEvidence, sourceLineIds, confidence, explanation, followUp]
+    AssessmentResult:
+      type: object
+      properties:
+        assessments:
+          type: array
+          items:
+            $ref: "#/components/schemas/ConceptAssessment"
+      required: [assessments]
 

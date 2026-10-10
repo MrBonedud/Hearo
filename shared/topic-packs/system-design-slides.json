@@ -1,0 +1,49 @@
+{
+  "id": "stanford-cs142-large-scale-web-apps",
+  "title": "Large-Scale Web Applications",
+  "author": "Mendel Rosenblum · Stanford CS142",
+  "filename": "LargeScaleWebApps.pdf",
+  "downloadUrl": "https://web.stanford.edu/class/cs142/lectures/LargeScaleWebApps.pdf",
+  "sha256": "250cf7ba2bf22771297a1b81bc2e29240c6d8a80e43992d942d96f40b5ea22f2",
+  "byteLength": 397882,
+  "pageCount": 22,
+  "scope": "This demo checks selected learning objectives from slides 4–10 of the 22-slide English lecture. Other slides remain readable in the PDF but are not assessed. Source passages below are verbatim excerpts with whitespace normalized; concept descriptions and questions are Hearo-authored learning aids. The original PDF is linked, not republished.",
+  "referenceLines": [
+    { "id": "S04-01", "page": 4, "text": "Expand capacity by adding more instances" },
+    { "id": "S04-02", "page": 4, "text": "Scale-up architecture - Switch to a bigger instance" },
+    { "id": "S04-03", "page": 4, "text": "Challenge: Need to manage multiple instances and distribute work to them" },
+    { "id": "S05-01", "page": 5, "text": "Use load balancing to distribute incoming HTTP requests across many front-end web servers" },
+    { "id": "S06-01", "page": 6, "text": "Load balancer directs TCP connection request to one of the many web servers" },
+    { "id": "S06-02", "page": 6, "text": "Load balancer will send all packets for that connection to the same server." },
+    { "id": "S06-03", "page": 6, "text": "Can select web server based on random or on load estimates" },
+    { "id": "S07-01", "page": 7, "text": "Fault tolerant - web server dies the load balance just quits using it" },
+    { "id": "S08-01", "page": 8, "text": "Stateless servers make load balancing easier" },
+    { "id": "S08-02", "page": 8, "text": "Different requests from the same user can be handled by different servers" },
+    { "id": "S08-03", "page": 8, "text": "Requires database to be shared across web servers" },
+    { "id": "S08-04", "page": 8, "text": "WebSockets bind browsers and web server" },
+    { "id": "S09-01", "page": 9, "text": "Data sharding - Spread database over scale-out instances" },
+    { "id": "S09-02", "page": 9, "text": "Each piece is called data shard" },
+    { "id": "S09-03", "page": 9, "text": "Can tolerate failures by replication - place more than one copy of data (3 is common)" },
+    { "id": "S09-04", "page": 9, "text": "Applications must partition data among multiple independent databases, which adds complexity." },
+    { "id": "S10-01", "page": 10, "text": "Key-value store (both keys and values are arbitrary blobs)" },
+    { "id": "S10-02", "page": 10, "text": "Used to cache results of recent database queries" },
+    { "id": "S10-03", "page": 10, "text": "Writes must still go to the DBMS, so no performance improvement for them" },
+    { "id": "S10-04", "page": 10, "text": "Cache misses still hurt performance" },
+    { "id": "S10-05", "page": 10, "text": "Must manage consistency in software (e.g., flush relevant memcache data when database gets modified)" }
+  ],
+  "concepts": [
+    { "id": "scaling", "label": "Scale out vs. scale up", "description": "Distinguish adding instances from using a bigger instance, including the work-distribution challenge.", "supportingLines": ["S04-01", "S04-02", "S04-03"], "question": "How does adding instances differ from switching to a bigger instance?" },
+    { "id": "load-balancing", "label": "Load balancing", "description": "Explain distributing incoming requests across web servers and handling a failed server.", "supportingLines": ["S05-01", "S06-01", "S06-02", "S06-03", "S07-01"], "question": "How are requests distributed, and what happens when a web server fails?" },
+    { "id": "stateless-servers", "label": "Stateless servers", "description": "Explain why requests from one user can reach different servers and why a shared database matters.", "supportingLines": ["S08-01", "S08-02", "S08-03", "S08-04"], "question": "Why do stateless servers make load balancing easier?" },
+    { "id": "sharding", "label": "Data sharding", "description": "Explain partitioning data across database instances and the added application complexity.", "supportingLines": ["S09-01", "S09-02", "S09-04"], "question": "What is split when data is sharded, and what complexity does that add?" },
+    { "id": "replication", "label": "Replication", "description": "Explain keeping more than one copy of data to tolerate failures. Advanced replication and backups are outside this source scope.", "supportingLines": ["S09-03"], "question": "How can keeping multiple copies of data help tolerate failures?" },
+    { "id": "caching", "label": "Caching and consistency", "description": "Explain caching query results, cache misses, writes to the database, and software-managed consistency.", "supportingLines": ["S10-01", "S10-02", "S10-03", "S10-04", "S10-05"], "question": "If the database changes, why might the cached result need to be removed or updated?" }
+  ],
+  "edges": [
+    { "from": "scaling", "to": "load-balancing", "label": "distribute work" },
+    { "from": "load-balancing", "to": "stateless-servers", "label": "simpler routing" },
+    { "from": "scaling", "to": "sharding", "label": "scale storage" },
+    { "from": "sharding", "to": "replication", "label": "tolerate failures" },
+    { "from": "stateless-servers", "to": "caching", "label": "shared data access" }
+  ]
+}

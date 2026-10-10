@@ -1,0 +1,95 @@
+# Hearo — Team GitHub Branches & Isolated Workspaces Setup
+
+Act as a senior Git/GitHub engineer and Replit workspace administrator.
+
+## Objective
+
+Set up a safe collaborative workflow for the existing Hearo project. Four team members must be able to work independently without sharing one Replit Agent session or accidentally overwriting each other's changes.
+
+The existing GitHub repository is `MrBonedud/Hearo`.
+
+## 1. Inspect First
+
+Before making changes:
+
+- Inspect the current Replit workspace and its GitHub connection.
+- Identify the current repository, checked-out branch, working-tree status, uncommitted changes, remote configuration, and available GitHub permissions.
+- Inspect existing branches and recent commits.
+- Determine whether Replit supports creating or connecting separate workspaces for individual branches in this environment.
+- Preserve all existing files, commits, branches, and uncommitted work.
+
+Do not reset, clean, force-push, delete branches, or discard changes.
+
+## 2. Create Four Independent Feature Branches
+
+Keep `main` as the stable integration branch.
+
+Create these four branches from the current appropriate base branch:
+
+- `feature/aya-voice`
+- `feature/faisal-ai-engine`
+- `feature/rama-source-map`
+- `feature/lana-conversation-report`
+
+First verify the repository's actual branch state. If `main` does not contain the latest valid project work, identify the correct base commit and explain your choice before proceeding.
+
+Do not create duplicate branches if they already exist. Do not overwrite existing branch history.
+
+## 3. Set Up Isolated Workspaces
+
+The target setup is:
+
+- One independent Replit workspace per team member.
+- Each workspace connected to the same GitHub repository.
+- Each workspace checked out to its corresponding feature branch.
+- Each member works and commits only on their assigned branch.
+- No shared Replit Agent session or shared working directory between members.
+
+Create or connect these workspaces only if the current Replit environment and permissions support it.
+
+If you cannot create separate workspaces directly, complete the GitHub branch setup where possible and provide exact instructions for each member to create or connect their own Replit workspace and select the correct branch.
+
+Do not claim a workspace is isolated or correctly connected unless you verify it.
+
+## 4. Prevent Team Conflicts
+
+- Keep `main` stable; do not use it for feature development.
+- Do not automatically merge feature branches.
+- Do not modify another member's feature branch.
+- Avoid overlapping file ownership where practical.
+- Identify shared files and API contracts that require coordination.
+- Recommend Pull Requests for integration into `main`.
+- Never force-push or discard another member's work.
+- Do not commit secrets, API keys, or environment-specific credentials.
+
+## 5. Define Ownership
+
+Use these initial ownership areas, adjusting them only after inspecting the existing code and discussing conflicts:
+
+- Aya: microphone input, speech-to-text integration, transcript handling, and submission of finalized explanations.
+- Faisal: AI assessment engine, source-grounded evaluation, evidence retrieval, and assessment API.
+- Rama: source material viewer, source evidence highlighting, and concept map.
+- Lana: conversation interface, follow-up questions, session transcript presentation, and student report.
+
+Do not move or rewrite existing modules merely to match these names. First map the current files and identify shared dependencies.
+
+## 6. Verification
+
+After setup, verify and report:
+
+1. Which branches exist on GitHub.
+2. The base commit or branch used for each new branch.
+3. Which workspaces were actually created or connected.
+4. Which branch each workspace uses.
+5. Any permission or configuration blockers.
+6. Exact next steps required from each team member.
+
+Do not invent branch creation, workspace creation, or connection results.
+
+## Execution Rules
+
+Perform the safe, authorized setup actions directly where possible. Ask for user intervention only when permissions, authentication, or an unavailable Replit feature genuinely prevents progress.
+
+Do not modify application code as part of this task. Do not make unrelated changes.
+
+Start by inspecting the current Git state and available workspace capabilities.

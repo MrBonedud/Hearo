@@ -5,11 +5,13 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+import type { ConceptAssessment } from './conceptAssessment';
 import type { StudyEdge } from './studyEdge';
 import type { StudyFeedback } from './studyFeedback';
 import type { StudyNode } from './studyNode';
 
 export interface StudyEvaluation {
+  assessments?: ConceptAssessment[];
   topic: string;
   nodes: StudyNode[];
   edges: StudyEdge[];

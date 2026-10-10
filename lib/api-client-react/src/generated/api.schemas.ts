@@ -362,6 +362,7 @@ export interface StudyMap {
 }
 
 export interface StudySourceInput {
+  sourceToken?: string;
   /**
      * @minLength 1
      * @maxLength 120
@@ -375,6 +376,7 @@ export interface StudySourceInput {
 }
 
 export interface StudyEvaluationInput {
+  sourceToken?: string;
   /**
      * @minLength 1
      * @maxLength 120
@@ -408,10 +410,71 @@ export interface StudyFeedback {
   explanation: string;
 }
 
+export type ConceptAssessmentVerdict = typeof ConceptAssessmentVerdict[keyof typeof ConceptAssessmentVerdict];
+
+
+export const ConceptAssessmentVerdict = {
+  supported: 'supported',
+  partially_understood: 'partially_understood',
+  contradicted: 'contradicted',
+  not_demonstrated: 'not_demonstrated',
+} as const;
+
+export type ConceptAssessmentConfidence = typeof ConceptAssessmentConfidence[keyof typeof ConceptAssessmentConfidence];
+
+
+export const ConceptAssessmentConfidence = {
+  low: 'low',
+  medium: 'medium',
+  high: 'high',
+} as const;
+
+export interface ConceptAssessment {
+  conceptId: string;
+  verdict: ConceptAssessmentVerdict;
+  /** @nullable */
+  studentEvidence: string | null;
+  sourceLineIds: string[];
+  confidence: ConceptAssessmentConfidence;
+  explanation: string;
+  followUp: string;
+}
+
 export interface StudyEvaluation {
+  assessments?: ConceptAssessment[];
   topic: string;
   nodes: StudyNode[];
   edges: StudyEdge[];
   feedback: StudyFeedback[];
+}
+
+export interface SourceLine {
+  id: string;
+  /** @minimum 1 */
+  page: number;
+  text: string;
+}
+
+export interface DemoSource {
+  id: string;
+  title: string;
+  author: string;
+  filename: string;
+  downloadUrl: string;
+  byteLength: number;
+  pageCount: number;
+  scope: string;
+  referenceText: string;
+  referenceLines: SourceLine[];
+  aiAvailable: boolean;
+}
+
+export interface VerifiedDemoSource {
+  source: DemoSource;
+  sourceToken: string;
+}
+
+export interface AssessmentResult {
+  assessments: ConceptAssessment[];
 }
 
