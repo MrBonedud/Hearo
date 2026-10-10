@@ -1,7 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  clearSavedStudies, deleteSavedStudy, readSavedStudy, readSavedStudies, writeSavedStudy,
+  clearSavedStudies, createSavedStudiesBackup, deleteSavedStudy, importSavedStudies,
+  matchesVerifiedSource, parseSavedStudiesBackup, readSavedStudy, readSavedStudies, writeSavedStudy,
   type SavedStudySession,
 } from './study-session-storage';
 import { studyReportText } from './study-report';
@@ -142,4 +143,96 @@ test('report exports exact quotations, cited slide, follow-up and unassessed ove
   assert.ok(report.includes('Unassessed extra speech'));
   assert.ok(report.includes('Unassessed extra words'));
   assert.equal(report.includes('sourceToken'), false);
+});
+
+test('backup round-trips multiple drafts and reports without PDF bytes or verification tokens', () => {
+  const draftStudy = draft();
+  const reportStudy: SavedStudySession = {
+    ...draft(),
+    id: 'report-1',
+    savedAt: 456,
+    phase: 'review',
+    citedPassageIds: ['S01'],
+    evaluation: {
+      topic: 'Test',
+      nodes: [],
+      edges: [],
+      feedback: [],
+      assessments: [{
+        conceptId: 'concept',
+        verdict: 'supported',
+        confidence: 'high',
+        studentEvidence: 'Evidence',
+        sourceLineIds: ['S01'],
+        explanation: 'Supported.',
+        followUp: 'What comes next?',
+      }],
+    },
+  };
+  const withTransientValues = {
+    ...draftStudy,
+    sourceToken: 'do-not-export-token',
+    verificationToken: 'do-not-export-verification',
+    pdfBytes: 'do-not-export-pdf',
+  } as unknown as SavedStudySession;
+
+  const backup = createSavedStudiesBackup([withTransientValues, reportStudy]);
+  assert.equal(backup.includes('do-not-export-token'), false);
+  assert.equal(backup.includes('do-not-export-verification'), false);
+  assert.equal(backup.includes('do-not-export-pdf'), false);
+  const restored = parseSavedStudiesBackup(backup);
+  assert.equal(restored.rejectedCount, 0);
+  assert.equal(restored.studies.length, 2);
+  assert.deepEqual(restored.studies[0], draftStudy);
+  assert.deepEqual(restored.studies[1], reportStudy);
+});
+
+test('backup import skips invalid entries, merges safely, and keeps existing study IDs', () => {
+  const backup = JSON.parse(createSavedStudiesBackup([draft()])) as { studies: unknown[] };
+  backup.studies.push({ ...draft(), id: 'broken', source: { id: 'test' } });
+  const parsed = parseSavedStudiesBackup(JSON.stringify({ format: 'hearo-study-backup', version: 1, studies: backup.studies }));
+  assert.equal(parsed.studies.length, 1);
+  assert.equal(parsed.rejectedCount, 1);
+
+  const storage = memoryStorage();
+  const existing = { ...draft(), transcript: 'Keep the local version.' };
+  writeSavedStudy(existing, storage);
+  const imported = importSavedStudies([...parsed.studies, { ...draft(), id: 'study-2', savedAt: 456 }], storage);
+  assert.equal(imported.addedCount, 1);
+  assert.equal(imported.duplicateCount, 1);
+  assert.equal(imported.studies.length, 2);
+  assert.equal(imported.studies.find(item => item.id === 'study-1')?.transcript, 'Keep the local version.');
+  assert.throws(() => parseSavedStudiesBackup(JSON.stringify({ format: 'hearo-study-backup', version: 99, studies: [] })));
+});
+
+test('a restored report only matches its original verified source and cited passage IDs', () => {
+  const report: SavedStudySession = {
+    ...draft(),
+    phase: 'review',
+    citedPassageIds: ['S01'],
+    evaluation: {
+      topic: 'Test',
+      nodes: [],
+      edges: [],
+      feedback: [],
+      assessments: [{
+        conceptId: 'concept',
+        verdict: 'supported',
+        confidence: 'high',
+        studentEvidence: 'Evidence',
+        sourceLineIds: ['S01'],
+        explanation: 'Supported.',
+        followUp: 'What comes next?',
+      }],
+    },
+  };
+  const source: DemoSource = {
+    id: 'test', title: 'Test source', author: 'Test author', filename: 'test.pdf',
+    downloadUrl: 'https://example.com/test.pdf', byteLength: 1, pageCount: 1, scope: 'test',
+    aiAvailable: true, referenceText: 'Exact reference',
+    referenceLines: [{ id: 'S01', page: 1, text: 'Exact reference' }],
+  };
+  assert.equal(matchesVerifiedSource(report, report.source, source), true);
+  assert.equal(matchesVerifiedSource(report, { ...report.source, pdfSha256: '2'.repeat(64) }, source), false);
+  assert.equal(matchesVerifiedSource(report, report.source, { ...source, referenceLines: [] }), false);
 });

@@ -1,8 +1,8 @@
-import { useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState, type ChangeEvent, type ReactNode } from 'react';
 import type { StudyEvaluation, StudyMap } from '@workspace/api-client-react';
 import {
   ArrowLeft, ArrowRight, BookOpen, Check, CheckCircle2, ChevronDown, CircleHelp,
-  Headphones, Mic, MicOff, RotateCcw, X,
+  Download, Headphones, Mic, MicOff, RotateCcw, Upload, X,
 } from 'lucide-react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
@@ -14,8 +14,9 @@ import { useSpeechTranscription } from '@/hooks/use-speech-transcription';
 import { isCheckedPrefix } from '@/lib/assessment-queue';
 import { studyReportText } from '@/lib/study-report';
 import {
-  citationsMatchSource, clearSavedStudies, createSavedStudyId, createSourceIdentity,
-  deleteSavedStudy, matchesSource, readSavedStudies, writeSavedStudy,
+  citationsMatchSource, clearSavedStudies, createSavedStudyId, createSavedStudiesBackup, createSourceIdentity,
+  deleteSavedStudy, importSavedStudies, matchesSource, matchesVerifiedSource, MAX_SAVED_STUDY_BACKUP_BYTES,
+  parseSavedStudiesBackup, readSavedStudies, writeSavedStudy,
   type SavedStudySession, type StudySourceIdentity,
 } from '@/lib/study-session-storage';
 import { Toaster } from '@/components/ui/toaster';
@@ -241,6 +242,7 @@ function App() {
   const [sourceIdentity, setSourceIdentity] = useState<StudySourceIdentity | null>(null);
   const [storageMessage, setStorageMessage] = useState('');
   const [sourceIdentityError, setSourceIdentityError] = useState('');
+  const backupFileInput = useRef<HTMLInputElement>(null);
   const allowanceQuery = useGetStudyAllowance({
     query: {
       queryKey: getGetStudyAllowanceQueryKey(),
@@ -362,12 +364,12 @@ function App() {
 
   const reopenSavedStudy = (savedStudy: SavedStudySession) => {
     if (!selectedSource || !sourceIdentity) return;
-    if (!matchesSource(savedStudy, sourceIdentity)) {
-      setStorageMessage('This saved explanation belongs to a different PDF or source version. It was not opened or attached to this source.');
-      return;
-    }
-    if (!citationsMatchSource(savedStudy, selectedSource.source)) {
-      setStorageMessage('This saved report cites passages that are not in the verified source. It was not opened.');
+    if (!matchesVerifiedSource(savedStudy, sourceIdentity, selectedSource.source)) {
+      if (!matchesSource(savedStudy, sourceIdentity)) {
+        setStorageMessage('This saved explanation belongs to a different PDF or source version. It was not opened or attached to this source.');
+      } else if (!citationsMatchSource(savedStudy, selectedSource.source)) {
+        setStorageMessage('This saved report cites passages that are not in the verified source. It was not opened.');
+      }
       return;
     }
     setStudyMap(savedStudy.map);
@@ -402,6 +404,48 @@ function App() {
       setStorageMessage('All saved studies deleted from this browser.');
     } catch {
       setStorageMessage('The browser could not clear saved studies. Try clearing this site’s browser data.');
+    }
+  };
+
+  const exportStudyBackup = () => {
+    try {
+      const backup = createSavedStudiesBackup(savedStudies);
+      const url = URL.createObjectURL(new Blob([backup], { type: 'application/json;charset=utf-8' }));
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `hearo-study-backup-${new Date().toISOString().slice(0, 10)}.json`;
+      link.click();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+      setStorageMessage(`Exported ${savedStudies.length} saved ${savedStudies.length === 1 ? 'study' : 'studies'}. Keep the backup file private.`);
+    } catch {
+      setStorageMessage('The saved studies could not be exported. Your browser data has not changed.');
+    }
+  };
+
+  const importStudyBackup = async (event: ChangeEvent<HTMLInputElement>) => {
+    const input = event.currentTarget;
+    const file = input.files?.[0];
+    input.value = '';
+    if (!file) return;
+    try {
+      if (file.size > MAX_SAVED_STUDY_BACKUP_BYTES) throw new Error('This backup file is larger than 10 MB.');
+      const { studies, rejectedCount } = parseSavedStudiesBackup(await file.text());
+      if (studies.length === 0) {
+        setStorageMessage(rejectedCount
+          ? `No valid studies were found. ${rejectedCount} invalid ${rejectedCount === 1 ? 'entry was' : 'entries were'} skipped.`
+          : 'This backup contains no saved studies.');
+        return;
+      }
+      const result = importSavedStudies(studies);
+      setSavedStudies(result.studies);
+      const details = [
+        `${result.addedCount} ${result.addedCount === 1 ? 'study added' : 'studies added'}`,
+        result.duplicateCount ? `${result.duplicateCount} duplicate ${result.duplicateCount === 1 ? 'skipped' : 'entries skipped'}` : '',
+        rejectedCount ? `${rejectedCount} invalid ${rejectedCount === 1 ? 'entry' : 'entries'} skipped` : '',
+      ].filter(Boolean).join('; ');
+      setStorageMessage(`${details}. Choose and verify the same PDF before reopening imported studies.`);
+    } catch (issue) {
+      setStorageMessage(issue instanceof Error ? issue.message : 'The backup could not be imported. Your saved studies are unchanged.');
     }
   };
 
@@ -480,8 +524,14 @@ function App() {
         {savedStudyLoaded && <section className="saved-study saved-study-history" aria-label="Saved studies">
           <div className="saved-study-history-heading">
             <div><strong>Your saved studies</strong><p>Drafts and reports stay in this browser. Verify the matching PDF before reopening.</p></div>
-            {savedStudies.length > 0 && <button className="saved-study-delete" type="button" onClick={removeAllSavedStudies} data-testid="button-clear-saved-studies">Clear all</button>}
+            <div className="saved-study-tools">
+              <input ref={backupFileInput} className="saved-study-file-input" type="file" accept=".json,application/json" onChange={event => void importStudyBackup(event)} aria-label="Choose a Hearo backup file" data-testid="input-import-study-backup" />
+              <button className="saved-study-backup-button" type="button" onClick={() => backupFileInput.current?.click()} data-testid="button-import-study-backup"><Upload size={14} /> Import</button>
+              <button className="saved-study-backup-button" type="button" onClick={exportStudyBackup} disabled={savedStudies.length === 0} data-testid="button-export-study-backup"><Download size={14} /> Export</button>
+              {savedStudies.length > 0 && <button className="saved-study-delete" type="button" onClick={removeAllSavedStudies} data-testid="button-clear-saved-studies">Clear all</button>}
+            </div>
           </div>
+          <p className="saved-study-hint">Backups include your drafts and reports, but never PDF files or verification tokens. Keep exported files private.</p>
           {savedStudies.length === 0
             ? <p className="saved-study-hint">Your explanations and reports will appear here as you work.</p>
             : <ul className="saved-study-list">{savedStudies.map(savedStudy => {
@@ -513,7 +563,7 @@ function App() {
         <button className="primary-button start-button" type="button" onClick={beginStudy} disabled={prepareStudy.isPending || !selectedSource} data-testid="button-prepare">
           {prepareStudy.isPending ? <><span className="button-loader" /> Opening the study workspace…</> : <>ابدأ الشرح · Start explaining <ArrowRight size={16} /></>}
         </button>
-        <p className="privacy-line"><span className="privacy-dot" /> With live checks enabled, your text and selected source passages go to OpenAI first, with Gemini used if OpenAI fails. Checks happen automatically after a pause. You can turn live checks off and request only a final review. Your browser’s speech service handles microphone audio and may process it remotely; Hearo does not store audio, PDF bytes, or verification tokens. Drafts and reports are saved in this browser, not in an account. Anyone using this browser profile may see them; delete individual saved studies or clear all here, or clear this site’s browser data.</p>
+        <p className="privacy-line"><span className="privacy-dot" /> With live checks enabled, your text and selected source passages go to OpenAI first, with Gemini used if OpenAI fails. Checks happen automatically after a pause. You can turn live checks off and request only a final review. Your browser’s speech service handles microphone audio and may process it remotely; Hearo does not store audio, PDF bytes, or verification tokens. Drafts and reports are saved in this browser, not in an account. Anyone using this browser profile may see them; exported backups also contain your explanations and reports, so keep them private. Delete individual saved studies or clear all here, or clear this site’s browser data.</p>
       </div>
       <div className="how-strip" id="how-it-works">
         <div className="how-title"><span className="mono">A SMALL PROMISE</span><p>We won’t interrupt<br />your train of thought.</p></div>

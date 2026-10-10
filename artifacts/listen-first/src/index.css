@@ -171,6 +171,11 @@ button { transition: background-color .15s; }
 .saved-study { margin-top: 20px; padding: 15px; border: 1px solid var(--line); border-radius: 8px; background: #f7f4eb; }
 .saved-study-history-heading, .saved-study-item { display: flex; align-items: flex-start; justify-content: space-between; gap: 14px; }
 .saved-study-history-heading { align-items: center; }
+.saved-study-tools { display: flex; align-items: center; justify-content: flex-end; flex-wrap: wrap; gap: 10px; }
+.saved-study-file-input { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; }
+.saved-study-backup-button { display: inline-flex; align-items: center; gap: 6px; min-height: 30px; padding: 5px 8px; border: 1px solid var(--line); border-radius: 6px; color: #355c47; font-size: 12px; }
+.saved-study-backup-button:hover:not(:disabled) { background: #ece9df; }
+.saved-study-backup-button:disabled { cursor: not-allowed; opacity: .5; }
 .saved-study-list { display: grid; gap: 10px; margin: 14px 0 0; padding: 0; list-style: none; }
 .saved-study-item { flex-wrap: wrap; padding: 12px; border: 1px solid var(--line); border-radius: 7px; background: rgb(8 9 20 / 40%); }
 .saved-study-item-copy { min-width: min(100%, 230px); flex: 1; }
@@ -315,6 +320,8 @@ button { transition: background-color .15s; }
 [dir="auto"] { unicode-bidi: plaintext; }
 button:disabled { cursor: not-allowed; opacity: .6; }
 @media (max-width: 600px) {
+  .saved-study-history-heading { align-items: flex-start; flex-direction: column; }
+  .saved-study-tools { justify-content: flex-start; }
   .source-download, .verified-source > a { display: flex; }
   .assessment-card { padding: 16px; }
   .site-footer { flex-wrap: wrap; gap: 12px; }
@@ -358,6 +365,8 @@ body { color: #f2efff; background: #080914; }
 .saved-study-warning { color: #ffc66e !important; }
 .saved-study-status { background: #102c2a; }
 .saved-study-delete { color: #ff8394; }
+.saved-study-backup-button { border-color: #403b5c; color: #d0c5f5; }
+.saved-study-backup-button:hover:not(:disabled) { background: #242039; }
 .upload-button, .back-link { color: #c6b4ff; }
 .inline-error { border-color: #6f3646; background: #321a29; color: #ffc3ce; }
 .how-strip { border-color: #292943; }

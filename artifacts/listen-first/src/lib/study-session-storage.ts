@@ -8,6 +8,9 @@ import type {
 const STORAGE_KEY = 'hearo.saved-studies.v2';
 
 const LEGACY_STORAGE_KEY = 'hearo.saved-study.v1';
+const BACKUP_FORMAT = 'hearo-study-backup';
+export const MAX_SAVED_STUDY_BACKUP_BYTES = 10 * 1024 * 1024;
+const MAX_BACKUP_STUDIES = 500;
 export type StudySourceIdentity = {
   id: string;
   title: string;
@@ -184,6 +187,92 @@ export type SavedStudiesRead =
   | { status: 'valid'; value: SavedStudySession[] }
   | { status: 'invalid' }
   | { status: 'unavailable' };
+
+export function createSavedStudiesBackup(studies: SavedStudySession[]): string {
+  if (studies.length > MAX_BACKUP_STUDIES) throw new Error('This backup contains too many studies.');
+  const safeStudies = studies.map(study => {
+    if (!isSavedStudySession(study)) throw new Error('A saved study could not be added to the backup.');
+    return normalizeSavedStudy(study);
+  });
+  const backup = JSON.stringify({
+    format: BACKUP_FORMAT,
+    version: 1,
+    exportedAt: new Date().toISOString(),
+    studies: safeStudies,
+  }, null, 2);
+  if (new TextEncoder().encode(backup).byteLength > MAX_SAVED_STUDY_BACKUP_BYTES) {
+    throw new Error('This backup would be larger than 10 MB. Export fewer studies at a time.');
+  }
+  return backup;
+}
+
+export function parseSavedStudiesBackup(text: string): { studies: SavedStudySession[]; rejectedCount: number } {
+  if (text.length > MAX_SAVED_STUDY_BACKUP_BYTES
+    || new TextEncoder().encode(text).byteLength > MAX_SAVED_STUDY_BACKUP_BYTES) {
+    throw new Error('This backup file is larger than 10 MB.');
+  }
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(text);
+  } catch {
+    throw new Error('This file is not a valid Hearo backup.');
+  }
+  if (!isRecord(parsed)
+    || parsed.format !== BACKUP_FORMAT
+    || parsed.version !== 1
+    || !Array.isArray(parsed.studies)
+    || parsed.studies.length > MAX_BACKUP_STUDIES) {
+    throw new Error('This file is not a supported Hearo backup.');
+  }
+  const studies: SavedStudySession[] = [];
+  let rejectedCount = 0;
+  for (const item of parsed.studies) {
+    if (!isSavedStudySession(item)) {
+      rejectedCount += 1;
+      continue;
+    }
+    studies.push(normalizeSavedStudy(item));
+  }
+  return { studies, rejectedCount };
+}
+
+export function importSavedStudies(
+  imported: SavedStudySession[],
+  storage?: StorageLike,
+): { studies: SavedStudySession[]; addedCount: number; duplicateCount: number } {
+  const target = resolveStorage(storage);
+  if (!target) throw new Error('Saved study storage is unavailable.');
+  const existing = readSavedStudies(target);
+  if (existing.status === 'unavailable') throw new Error('Saved study storage is unavailable.');
+  const studies = existing.status === 'valid' ? existing.value : [];
+  const byId = new Map(studies.map(study => [study.id, study]));
+  let addedCount = 0;
+  let duplicateCount = 0;
+  for (const item of imported) {
+    if (!isSavedStudySession(item)) {
+      duplicateCount += 1;
+      continue;
+    }
+    const safeItem = normalizeSavedStudy(item);
+    if (byId.has(safeItem.id)) {
+      duplicateCount += 1;
+      continue;
+    }
+    byId.set(safeItem.id, safeItem);
+    addedCount += 1;
+  }
+  const next = [...byId.values()].sort((a, b) => b.savedAt - a.savedAt);
+  if (addedCount > 0) {
+    target.setItem(STORAGE_KEY, JSON.stringify(next));
+    try {
+      target.removeItem(LEGACY_STORAGE_KEY);
+    } catch {
+      // The imported v2 history has been saved successfully; a stale legacy copy is harmless.
+    }
+  }
+  return { studies: next, addedCount, duplicateCount };
+}
+
 export function readSavedStudy(storage?: StorageLike): SavedStudyRead {
   const result = readSavedStudies(storage);
   if (result.status === 'valid') return { status: 'valid', value: result.value[0] };
@@ -237,6 +326,14 @@ export function citationsMatchSource(saved: SavedStudySession, source: DemoSourc
   const availableIds = new Set(source.referenceLines.map(line => line.id));
   return saved.citedPassageIds.every(id => availableIds.has(id))
     && (saved.previousReport?.evaluation.assessments ?? []).every(item => item.sourceLineIds.every(id => availableIds.has(id)));
+}
+
+export function matchesVerifiedSource(
+  saved: SavedStudySession,
+  identity: StudySourceIdentity,
+  source: DemoSource,
+): boolean {
+  return matchesSource(saved, identity) && citationsMatchSource(saved, source);
 }
 
 function readLegacyStudy(target: StorageLike): SavedStudiesRead {
