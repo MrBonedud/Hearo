@@ -10,6 +10,8 @@ servers:
 tags:
   - name: health
     description: Health operations
+  - name: study
+    description: Reference-grounded spoken study
 paths:
   /healthz:
     get:
@@ -24,6 +26,50 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+  /study/prepare:
+    post:
+      operationId: prepareStudy
+      tags: [study]
+      summary: Build a concept map from study material
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/StudySourceInput"
+      responses:
+        "200":
+          description: Concept map based on the supplied reference
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StudyMap"
+        "400":
+          description: Invalid study material
+        "503":
+          description: OpenAI key is not configured
+  /study/evaluate:
+    post:
+      operationId: evaluateStudy
+      tags: [study]
+      summary: Check the learner's explanation against the reference
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/StudyEvaluationInput"
+      responses:
+        "200":
+          description: Updated concept map and claim feedback
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StudyEvaluation"
+        "400":
+          description: Invalid evaluation request
+        "503":
+          description: OpenAI key is not configured
 components:
   schemas:
     HealthStatus:
@@ -33,4 +79,108 @@ components:
           type: string
       required:
         - status
+    StudyNode:
+      type: object
+      properties:
+        id:
+          type: string
+        label:
+          type: string
+        description:
+          type: string
+        status:
+          type: string
+          enum: [understood, incorrect, skipped]
+        evidence:
+          type: ["string", "null"]
+      required: [id, label, description, status, evidence]
+    StudyEdge:
+      type: object
+      properties:
+        from:
+          type: string
+        to:
+          type: string
+        label:
+          type: string
+      required: [from, to, label]
+    StudyMap:
+      type: object
+      properties:
+        topic:
+          type: string
+        nodes:
+          type: array
+          items:
+            $ref: "#/components/schemas/StudyNode"
+        edges:
+          type: array
+          items:
+            $ref: "#/components/schemas/StudyEdge"
+      required: [topic, nodes, edges]
+    StudySourceInput:
+      type: object
+      properties:
+        topic:
+          type: string
+          minLength: 1
+          maxLength: 120
+        referenceText:
+          type: string
+          minLength: 80
+          maxLength: 30000
+      required: [topic, referenceText]
+    StudyEvaluationInput:
+      type: object
+      properties:
+        topic:
+          type: string
+          minLength: 1
+          maxLength: 120
+        referenceText:
+          type: string
+          minLength: 80
+          maxLength: 30000
+        transcript:
+          type: string
+          minLength: 1
+          maxLength: 12000
+        nodes:
+          type: array
+          items:
+            $ref: "#/components/schemas/StudyNode"
+        edges:
+          type: array
+          items:
+            $ref: "#/components/schemas/StudyEdge"
+      required: [topic, referenceText, transcript, nodes, edges]
+    StudyFeedback:
+      type: object
+      properties:
+        statement:
+          type: string
+        status:
+          type: string
+          enum: [understood, incorrect]
+        explanation:
+          type: string
+      required: [statement, status, explanation]
+    StudyEvaluation:
+      type: object
+      properties:
+        topic:
+          type: string
+        nodes:
+          type: array
+          items:
+            $ref: "#/components/schemas/StudyNode"
+        edges:
+          type: array
+          items:
+            $ref: "#/components/schemas/StudyEdge"
+        feedback:
+          type: array
+          items:
+            $ref: "#/components/schemas/StudyFeedback"
+      required: [topic, nodes, edges, feedback]
 

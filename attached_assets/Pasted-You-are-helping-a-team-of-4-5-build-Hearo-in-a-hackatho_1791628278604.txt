@@ -1,0 +1,46 @@
+You are helping a team of 4-5 build "Hearo" in a hackathon. The coding window is Saturday 11:00 to Sunday 13:00, so speed and a flawless demo matter more than completeness.
+
+READ FIRST: the attached README.md is the source of truth (vision, architecture, diagrams, event contract, roles, schedule, scope). Follow it. If something is not in the README, ask me instead of inventing it.
+
+WHAT HEARO IS
+A study tool that LISTENS instead of talking. A learner explains a topic out loud. The AI stays completely silent and checks every claim against our reference material live, while a concept map fills in: green = covered correctly, red = said something wrong, amber = couldn't verify, grey = not mentioned yet. At the end the learner gets a report: score, gaps, mistakes with corrections and the exact source line, and tomorrow's review question.
+
+THE DEMO MOMENT (everything is built for this)
+A user explains the topic, says one classic wrong claim, and within a few seconds that node turns red on the map, showing the correction and the exact source line as proof. Hackathon demo topic: "Why we have seasons" (misconception: "we are closer to the Sun in summer"). One polished topic only.
+
+ARCHITECTURE (see README section 3)
+- Browser (React + Vite, Tailwind, React Flow for the concept map): live transcript on the left, concept map on the right, mic button + typed-text box, Session Report modal.
+- Voice service : WebSocket server, speech-to-text (Speechmatics, with Gemini/OpenAI audio as fallback), builds FINISHED sentences, calls the AI service, applies verdict rules, pushes live events to the browser.
+- AI service (FastAPI): POST /verify and POST /report, topic pack loading, evidence check in code.
+- Storage: SQLite. No vector DB, no login, no text-to-speech, no agent frameworks, no fine-tuning.
+- Key idea: the FINISHED SENTENCE is the narrow waist. Live mic, recorded audio and typed text all become the same "final sentence" event, so we can build text-first and replay recordings as a demo fallback.
+
+RULES THAT MUST NOT BREAK
+1. Verdicts are decided in plain code, not by the model. "supported" or "contradicts" only stands if the evidence quote really appears in the cited source line. Otherwise it becomes amber. Low confidence also becomes amber. Never confidently label a claim without evidence.
+2. Per concept the latest verdict wins, history is kept. A self-correction turns the node green and is noted in the report.
+3. Filler and opinion sentences produce no claims.
+4. Only final sentences go to /verify. Max 3 /verify calls in flight per session. Results carry the sentence id. If a call takes over about 3 s, show "checking" then amber.
+5. API keys live in Replit Secrets only, never in client code.
+6. The UI must work in Arabic and English (RTL and LTR mixed in one sentence must display correctly). Big fonts and high contrast, because it is shown on a projector.
+
+EVENT CONTRACT (README section 6)
+Browser -> voice service: start (topic id), audio frames, stop, dev-only text.
+Voice service -> browser: partial, sentence, claim, concept_state, status, report, error.
+The frontend is ONE reducer that turns the event stream into screen state, so a recorded session can be replayed by feeding the same events.
+
+VISUAL REFERENCE (attached screenshots)
+- Screenshots 1-2: an early working prototype of Hearo (dark UI, transcript with "Validated" chips, concept map, Session Report modal). Keep that overall structure.
+- Screenshots 3-4: design mockups with a different brand name (TRACE). Use them ONLY for layout and style: dark theme, lime-green accent, optional source panel on the left with the cited line highlighted, red "contradiction detected" card with a "Re-explain this concept" button, EN/AR toggle, legend (supported / contradiction / not mentioned). Do NOT rename the product. It is Hearo.
+
+HOW I WANT YOU TO WORK
+- Work in small steps and wait for my go-ahead after each one. Explain briefly what you wrote.
+- Each person owns their own folder (/frontend, /voice-service, /ai-service). Do not edit files outside the folder I name.
+- Do not add features, libraries or services that are not in the README.
+
+PHASE 1 (do ONLY this now, then stop and show me)
+1. Create the project structure with the three folders above and one command that starts all three processes (the workspace must not time out).
+2. /ai-service: a STUB FastAPI app with POST /verify and POST /report that return canned answers in the exact contract shape (claims with concept, verdict, confidence, evidence line id and quote). It must start with one command.
+3. /frontend: the layout from the README wireframe, the event reducer, and a "Play pretend events" button that feeds fake events so the concept map recolours without any backend. Include the Session Report modal rendered from a fake report.
+4. A small sample topic pack file for "Why we have seasons" (8-10 reference lines, 5-6 concepts, 1-2 known misconceptions) in the shape of README section 3.6.
+
+Before writing any code, reply with a short plan (files you will create, in what order) and any questions. Then wait for my approval.
