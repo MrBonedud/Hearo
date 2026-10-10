@@ -256,7 +256,7 @@ function App() {
       <div className="intro-copy">
         <div className="eyebrow"><span className="eyebrow-rule" /> مساحة للشرح بصوتك أنت</div>
         <h1 className="serif">اشرح ما<br /><em>فهمته.</em></h1>
-        <p className="intro-text">Hearo يصغي بصمت. تشرح أساسيات <bdi dir="auto">System Design</bdi> جملةً جملة، ثم تفتح الدليل المؤلَّف لترى أين أصبت وأين أخطأت.</p>
+        <p className="intro-text">Hearo يصغي بصمت. اشرح أي موضوع بكلماتك، واكتشف ما أتقنته، وما أخطأت فيه، وما فاتك، بالرجوع إلى مادتك المرجعية.</p>
         <div className="intro-note"><span className="note-mark">“</span><p>الشرح هو طريقة الدراسة.<br />والإنصات هو الهدف.</p></div>
       </div>
       <div className="setup-card enter-delay">
