@@ -16,6 +16,8 @@ import { useFeedbackSounds } from '@/hooks/use-feedback-sounds';
 import { useLiveAssessment } from '@/hooks/use-live-assessment';
 import { useSpeechTranscription } from '@/hooks/use-speech-transcription';
 import { isCheckedPrefix } from '@/lib/assessment-queue';
+import { hasPreviousReportForDraft } from '@/lib/previous-report';
+import { revealSection } from '@/lib/reveal-section';
 import { studyReportText } from '@/lib/study-report';
 import {
   citationsMatchSource, clearSavedStudies, createSavedStudyId, createSavedStudiesBackup, createSourceIdentity,
@@ -167,6 +169,23 @@ function App() {
   const visibleMap = studyMap && !hasCheckedPrefix ? uncheckedMap(studyMap) : studyMap;
   const transcriptWords = transcript.trim() ? transcript.trim().split(/\s+/).length : 0;
   const claims = useMemo(() => (transcript + (interim ? ` ${interim}` : '')).split(/(?<=[.!?])\s+/).filter(Boolean).slice(-5), [transcript, interim]);
+
+  // Screens swap inside one long document, so the window keeps the previous
+  // screen's scroll offset unless it is reset when the screen changes.
+  const screen = showLanding ? 'landing' : sampleMode ? 'sample' : phase;
+  const shownScreen = useRef(screen);
+  const pendingSection = useRef<string | null>(null);
+  useLayoutEffect(() => {
+    if (shownScreen.current === screen) return;
+    shownScreen.current = screen;
+    const section = pendingSection.current;
+    pendingSection.current = null;
+    if (section && revealSection(section)) return;
+    // Runs after the new screen is in the DOM and before it is painted.
+    window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+    // The control that changed the screen has unmounted; keep focus in the page.
+    document.querySelector<HTMLElement>('.app-content h1')?.focus({ preventScroll: true });
+  }, [screen]);
 
   useEffect(() => {
     const result = readSavedStudies();
@@ -410,8 +429,10 @@ function App() {
   const openStudy = () => { setSampleMode(false); setShowLanding(false); };
   const openSample = () => { setSampleMode(true); setShowLanding(false); };
   const openSavedStudies = () => {
+    if (screen === 'setup') { revealSection('saved-studies'); return; }
+    // Revealed by the screen-change layout effect once the setup screen has rendered.
+    pendingSection.current = 'saved-studies';
     openStudy();
-    window.setTimeout(() => document.getElementById('saved-studies')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 60);
   };
   const activeNav: NavKey = showLanding ? 'home' : sampleMode ? 'practice' : 'learn';
   const reportGroups = evaluation?.assessments ? [
@@ -421,8 +442,8 @@ function App() {
     { key: 'unclear', title: t('report.unclearTitle'), hint: t('report.unclearHint'), items: evaluation.assessments.filter(item => { const kind = assessmentKind(item); return kind === 'uncertain' || kind === 'not_demonstrated'; }) },
   ].filter(group => group.items.length > 0) : [];
 
-  return <div className="app-frame" data-phase={showLanding ? 'landing' : sampleMode ? 'sample' : phase}>
-    <TopBar onHome={() => void returnHome()} phase={phase} onLanding={showLanding || sampleMode} />
+  return <div className="app-frame" data-phase={screen}>
+    <TopBar onHome={() => void returnHome()} phase={phase} onLanding={showLanding || sampleMode} showHowItWorks={screen === 'landing' || screen === 'setup'} />
     <SideNav active={activeNav} studyOpen={phase !== 'setup'} onHome={() => void returnHome()} onLearn={openStudy} onPractice={openSample} onSaved={openSavedStudies} />
     <main className="app-main">
     <div className="app-content">
@@ -436,7 +457,7 @@ function App() {
         <Hearo pose="wave" size={160} className="welcome-hearo" />
         <div className="welcome-copy">
           <div className="eyebrow">{t('setup.eyebrow')}</div>
-          <h1>{t('setup.title')} <em>{t('setup.titleEmphasis')}</em></h1>
+          <h1 tabIndex={-1}>{t('setup.title')} <em>{t('setup.titleEmphasis')}</em></h1>
           <p className="intro-text">{t('setup.intro')}</p>
           <div className="steps-rail" role="list" aria-label={t('steps.label')}>
             <span className="step-current" role="listitem" aria-current="step"><bdi>01</bdi> <i>{t('steps.prepare')}</i></span><b aria-hidden="true" /><span role="listitem"><bdi>02</bdi> <i>{t('steps.explain')}</i></span><b aria-hidden="true" /><span role="listitem"><bdi>03</bdi> <i>{t('steps.reflect')}</i></span>
@@ -446,7 +467,7 @@ function App() {
       <div className="setup-card enter-delay">
         <div className="card-kicker"><span>{t('setup.cardKicker')}</span><span className="mono">{t('setup.stepOf', { current: '01', total: '03' })}</span></div>
         <ApprovedPdfSource selected={selectedSource} onChange={setSelectedSource} disabled={prepareStudy.isPending} />
-        {savedStudyLoaded && <section className="saved-study saved-study-history" id="saved-studies" aria-label={t('saved.regionLabel')}>
+        {savedStudyLoaded && <section className="saved-study saved-study-history" id="saved-studies" tabIndex={-1} aria-label={t('saved.regionLabel')}>
           <div className="saved-study-history-heading">
             <div><strong>{t('saved.title')}</strong><p>{t('saved.subtitle')}</p></div>
             <div className="saved-study-tools">
@@ -505,7 +526,7 @@ function App() {
         </button>
         <p className="privacy-line"><span className="privacy-dot" aria-hidden="true" /> {t('setup.privacy')}</p>
       </div>
-      <div className="how-strip" id="how-it-works">
+      <div className="how-strip" id="how-it-works" tabIndex={-1} role="region" aria-label={t('nav.howItWorks')}>
         <div className="how-title"><span className="mono">{t('setup.promiseKicker')}</span><p>{t('setup.promise')}</p></div>
         <div className="how-item"><span className="how-number">01</span><span>{t('setup.how1')}</span></div>
         <div className="how-item"><span className="how-number">02</span><span>{t('setup.how2')}</span></div>
@@ -516,7 +537,7 @@ function App() {
     {phase === 'session' && studyMap && <section className="workspace-page enter">
       <div className="session-head">
         <div><button className="back-link" onClick={resetStudy} type="button" data-testid="button-back-setup"><ArrowLeft size={16} aria-hidden="true" /> {t('session.changeSource')}</button>
-          <h1 className="session-source" data-testid="text-session-source"><span>{t('session.sourceLabel')}</span> <bdi>{selectedSource?.source.title ?? studyMap.topic}</bdi></h1>
+          <h1 className="session-source" tabIndex={-1} data-testid="text-session-source"><span>{t('session.sourceLabel')}</span> <bdi>{selectedSource?.source.title ?? studyMap.topic}</bdi></h1>
         </div>
         <div className="session-status"><span className={`session-status-dot ${listening ? 'active' : ''}`} aria-hidden="true" />{t(listening ? 'session.listening' : 'session.ready')}</div>
       </div>
@@ -602,7 +623,7 @@ function App() {
           </div>
           <CheckLatencyNote latency={live.latency} />
           {Boolean(live.error) && liveEnabled && <div className="live-check-error" role="alert"><p dir="auto">{message(errorMessage(live.error))}</p><button type="button" className="back-link" disabled={live.busy || finishing} onClick={() => { if (assessmentInput) void live.check(assessmentInput, true).catch(() => undefined); }} data-testid="button-retry-live">{t('live.retry')}</button></div>}
-          {previousReport && <div className="live-check-error">
+          {previousReport && hasPreviousReportForDraft(previousReport, transcript) && <div className="live-check-error" data-testid="status-previous-report">
             <p>{t('report.previousNote')}</p>
             <button type="button" className="back-link" onClick={() => downloadReport(true)} data-testid="button-download-previous-report">{t('report.downloadPrevious')}</button>
           </div>}
@@ -623,7 +644,7 @@ function App() {
           <Hearo pose="thumbsup" size={160} className="hearo-success" />
           <div>
             <div className="eyebrow">{t('review.eyebrow')}</div>
-            <h1 className="review-title">{t('review.title')} <em>{t('review.titleEmphasis')}</em></h1>
+            <h1 className="review-title" tabIndex={-1}>{t('review.title')} <em>{t('review.titleEmphasis')}</em></h1>
             <p className="review-description">{t('review.descriptionLead')} <strong><bdi>{studyMap.topic}</bdi></strong>{t('review.descriptionTail')}</p>
             <p className="review-meta"><span>{t('review.wordsExplained', { words: plural('words', transcriptWords) })}</span><span>{plural('concepts', studyMap.nodes.length)}</span></p>
           </div>

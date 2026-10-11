@@ -27,7 +27,7 @@ export function LandingExperience({ onLive, onSample }: { onLive: () => void; on
     <div className="landing-hero">
       <div className="hero-copy">
         <motion.div className="hero-kicker" {...fadeIn(0)}>{t('landing.kicker')}</motion.div>
-        <motion.h1 className="hero-title" {...fadeIn(0.05)}>
+        <motion.h1 className="hero-title" tabIndex={-1} {...fadeIn(0.05)}>
           <span className="line">{t('landing.titleLine1')}</span>
           <span className="line"><em>{t('landing.titleLine2')}</em></span>
         </motion.h1>
@@ -58,7 +58,7 @@ export function LandingExperience({ onLive, onSample }: { onLive: () => void; on
       </div>
     </section>
 
-    <section className="landing-story" id="how-it-works" aria-labelledby="how-heading">
+    <section className="landing-story" id="how-it-works" tabIndex={-1} aria-labelledby="how-heading">
       <div className="story-head">
         <span className="hero-kicker">{t('landing.howKicker')}</span>
         <h2 id="how-heading">{t('landing.howHeading')}</h2>

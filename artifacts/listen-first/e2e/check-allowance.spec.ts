@@ -131,7 +131,9 @@ async function makePreviousReport(page: Page) {
   await page.getByTestId('input-transcript').fill(answer);
   await page.clock.runFor(1500);
   await expectStatus(page, 'status-live-check', 'Current explanation checked');
-  await expect(page.getByTestId('button-download-previous-report')).toBeVisible();
+  // The kept report covers exactly this draft, so it is not "previous" yet;
+  // expectEditableAndDownloadable edits the draft and then downloads it.
+  await expect(page.getByTestId('button-download-previous-report')).toHaveCount(0);
 }
 
 test('an exhausted allowance resets at UTC midnight and resumes automatic checking', async ({ page, context }) => {

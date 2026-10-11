@@ -18,6 +18,30 @@ It also checks that editing and previous-report downloads stay usable while
 automatic checking is paused, and that a final check remains requestable after
 an allowance read fails. No paid AI requests are made.
 
+The previous-report notice is shown only while the draft differs from the
+words the kept report checked. `makePreviousReport` therefore expects no notice
+right after a check of identical text; `expectEditableAndDownloadable` edits the
+draft before downloading, which still covers the visible notice.
+
+## Screen navigation regressions
+
+```sh
+pnpm --filter @workspace/listen-first exec playwright test --config=playwright.config.ts screen-navigation.spec.ts
+```
+
+Covers single-page screen changes with mocked API responses:
+
+- "Finish & report" opens the report at its top with focus on its title, at
+  1280px and 375px, including a second completion and "Back to my explanation".
+- The previous-report notice appears only when the draft moved past the checked
+  words, in the live flow, after a final report, in a new study, and when
+  reopening saved studies.
+- "How it works" is shown only on screens with that section (landing and
+  setup) and reaches it by click, Enter and Space.
+- The practice sample keeps keyboard focus on the new step's heading and its
+  start in view after each Next/Finish.
+- The Saved navigation reveals the saved-studies section after setup renders.
+
 ## Real study API smoke test
 
 From the repository root:

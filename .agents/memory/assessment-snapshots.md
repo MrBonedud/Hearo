@@ -26,3 +26,9 @@ Speech beyond a checking limit must remain available as explicitly unassessed te
 **Why:** A microphone can emit its final words after the learner clicks Finish, including words beyond the input limit.
 
 **How to apply:** Stop transcription gracefully, retain excess words with the draft and report export, and clearly identify which text was actually checked.
+
+The "previous report" notice is only true when a kept report exists and the current draft differs (trimmed) from the words that report checked. Hide it while the draft equals the checked words, including right after a check or a reopened report.
+
+**Why:** QA found the notice telling learners their report was "previous" immediately after checking identical text. An earlier e2e assertion had encoded that wrong behaviour.
+
+**How to apply:** Gate every previous-report surface (notice and its download) on that comparison; a download of the matching report remains available from the report screen.

@@ -4,13 +4,15 @@ import { Hearo } from '@/components/hearo';
 import { LanguageSwitcher } from '@/components/language-switcher';
 import type { TranslationKey } from '@/i18n/translations';
 import { useTranslation } from '@/i18n/useTranslation';
+import { revealSection } from '@/lib/reveal-section';
 
 export type AppPhase = 'setup' | 'session' | 'review';
 export type NavKey = 'home' | 'learn' | 'practice' | 'saved';
 
 const STEPS: Array<[AppPhase, string, TranslationKey]> = [['setup', '01', 'steps.prepare'], ['session', '02', 'steps.explain'], ['review', '03', 'steps.reflect']];
 
-export function TopBar({ onHome, phase, onLanding }: { onHome: () => void; phase: AppPhase; onLanding: boolean }) {
+/** `#how-it-works` exists only on the landing and setup screens; elsewhere the control would do nothing. */
+export function TopBar({ onHome, phase, onLanding, showHowItWorks }: { onHome: () => void; phase: AppPhase; onLanding: boolean; showHowItWorks: boolean }) {
   const { t } = useTranslation();
   return <header className="topbar">
     <button className="brand" type="button" onClick={onHome} data-testid="button-home" aria-label={t('nav.brandHome')}>
@@ -26,9 +28,9 @@ export function TopBar({ onHome, phase, onLanding }: { onHome: () => void; phase
       <span className="quiet-indicator"><span aria-hidden="true" /> {t('nav.quiet')}</span>
     </div>
     <div className="topbar-actions">
-      <button className="help-button" type="button" onClick={() => document.getElementById('how-it-works')?.scrollIntoView({ behavior: 'smooth' })} data-testid="button-how-it-works">
+      {showHowItWorks && <button className="help-button" type="button" onClick={() => revealSection('how-it-works')} data-testid="button-how-it-works">
         <CircleHelp size={16} aria-hidden="true" /><span>{t('nav.howItWorks')}</span>
-      </button>
+      </button>}
       <LanguageSwitcher />
     </div>
   </header>;
