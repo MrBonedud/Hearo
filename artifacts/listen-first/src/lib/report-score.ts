@@ -1,4 +1,5 @@
 import type { StudyEvaluation } from '@workspace/api-client-react';
+import { translate, type Language } from '@/i18n/translations';
 
 export type ReportScore = {
   required: number; supported: number; partial: number; contradicted: number; skipped: number; missing: number;
@@ -29,11 +30,11 @@ export function scoreReport(evaluation: Pick<StudyEvaluation, 'nodes' | 'assessm
   };
 }
 
-export function scoreReportLines(s: ReportScore): string[] {
+export function scoreReportLines(s: ReportScore, lang: Language = 'en'): string[] {
   return [
-    `Local rubric score: ${s.score.toFixed(1)} / 100 (coverage x accuracy; not an academic grade)`,
-    `Coverage: ${s.demonstrated}/${s.required} objectives demonstrated (supported, partial or contradicted)`,
-    `Accuracy: ${s.supported}/${s.demonstrated} demonstrated objectives supported`,
-    `Supported: ${s.supported} | Partial: ${s.partial} (not mastery) | Contradicted: ${s.contradicted} | Not demonstrated: ${s.skipped} | No assessment returned: ${s.missing}`,
+    translate(lang, 'reportFile.score', { score: s.score.toFixed(1) }),
+    translate(lang, 'reportFile.coverage', { demonstrated: s.demonstrated, required: s.required }),
+    translate(lang, 'reportFile.accuracy', { supported: s.supported, demonstrated: s.demonstrated }),
+    translate(lang, 'reportFile.breakdown', { supported: s.supported, partial: s.partial, contradicted: s.contradicted, skipped: s.skipped, missing: s.missing }),
   ];
 }

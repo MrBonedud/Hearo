@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
+import { useTranslation } from '@/i18n/useTranslation';
 
 export function LiveWaveform({ active }: { active: boolean }) {
+  const { t } = useTranslation();
   const barsRef = useRef<HTMLSpanElement[]>([]);
   const [available, setAvailable] = useState(false);
   useEffect(() => {
@@ -39,7 +41,7 @@ export function LiveWaveform({ active }: { active: boolean }) {
       if (context && context.state !== 'closed') void context.close();
     };
   }, [active]);
-  return <span className={`live-waveform ${active ? 'waveform-active' : ''}`} aria-label={active ? available ? 'Live microphone level visualization' : 'Decorative audio pulse' : 'Audio pulse idle'} role="img" data-testid="live-waveform">
+  return <span className={`live-waveform ${active ? 'waveform-active' : ''}`} aria-label={t(active ? available ? 'waveform.live' : 'waveform.decorative' : 'waveform.idle')} role="img" data-testid="live-waveform">
     {Array.from({ length: 13 }, (_, index) => <i key={index} ref={node => { if (node) barsRef.current[index] = node; }} />)}
   </span>;
 }

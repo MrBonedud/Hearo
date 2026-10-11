@@ -1,18 +1,30 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="ar" dir="rtl">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1" />
     <meta name="theme-color" content="#1E3A8A" />
-    <title>Hearo — Learn by explaining</title>
-    <meta name="description" content="Hearo — learn by explaining. Explain an idea aloud in Arabic or English; Hearo listens silently and checks each idea against your source." />
+    <title>Hearo — اتعلّم وانت بتشرح</title>
+    <meta name="description" content="اشرح الفكرة بصوتك بالعربي أو بالإنجليزي. Hearo بسمعك بهدوء، بتحقق من كل فكرة مقابل المصدر، وبرسم خريطة باللي وضّحته." />
     <meta name="robots" content="index, follow" />
-    <meta property="og:title" content="Hearo — Learn by explaining" />
-    <meta property="og:description" content="Hearo — learn by explaining. Explain an idea aloud in Arabic or English; Hearo listens silently and checks each idea against your source." />
+    <meta property="og:title" content="Hearo — اتعلّم وانت بتشرح" />
+    <meta property="og:description" content="اشرح الفكرة بصوتك بالعربي أو بالإنجليزي. Hearo بسمعك بهدوء، بتحقق من كل فكرة مقابل المصدر، وبرسم خريطة باللي وضّحته." />
     <meta property="og:type" content="website" />
+    <meta property="og:locale" content="ar_JO" />
+    <meta property="og:locale:alternate" content="en_US" />
     <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:title" content="Hearo — Learn by explaining" />
-    <meta name="twitter:description" content="Hearo — learn by explaining. Explain an idea aloud in Arabic or English; Hearo listens silently and checks each idea against your source." />
+    <meta name="twitter:title" content="Hearo — اتعلّم وانت بتشرح" />
+    <meta name="twitter:description" content="اشرح الفكرة بصوتك بالعربي أو بالإنجليزي. Hearo بسمعك بهدوء، بتحقق من كل فكرة مقابل المصدر، وبرسم خريطة باللي وضّحته." />
+    <script>
+      // Set the language and direction before first paint (mirrors LanguageContext).
+      (function () {
+        var lang = null;
+        try { lang = localStorage.getItem('hearo.lang'); } catch (e) {}
+        if (lang !== 'ar' && lang !== 'en') lang = /^en(-|$)/i.test(navigator.language || '') ? 'en' : 'ar';
+        document.documentElement.lang = lang;
+        document.documentElement.dir = lang === 'ar' ? 'rtl' : 'ltr';
+      })();
+    </script>
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>

@@ -2,6 +2,8 @@ import { useEffect, useRef, useState, type ChangeEvent } from 'react';
 import { Download, Mic, Square, Upload } from 'lucide-react';
 import type { useAudioRecorder } from '@/hooks/use-audio-recorder';
 import { buildCaptionsFile, checkMediaDuration, dueCaptions, hashesMatch, MAX_RECORDING_MS, readCaptionsFile, sha256Hex, validateAudioFile, type CaptionsFile } from '@/lib/recording';
+import type { UiMessage } from '@/i18n/messages';
+import { useTranslation } from '@/i18n/useTranslation';
 
 type Recorder = ReturnType<typeof useAudioRecorder>;
 
@@ -19,11 +21,12 @@ export function RecordedAudioPanel({ recorder, language, busy, hasDraft, onCapti
   onBeforeReplay: (replace: boolean) => Promise<boolean>;
   onReplayingChange: (replaying: boolean) => void;
 }) {
+  const { t, plural, message } = useTranslation();
   const [audioFile, setAudioFile] = useState<Blob | null>(null);
   const [audioHash, setAudioHash] = useState<string | null>(null);
   const [captions, setCaptions] = useState<CaptionsFile | null>(null);
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
-  const [problem, setProblem] = useState('');
+  const [problem, setProblem] = useState<UiMessage | null>(null);
   const [confirming, setConfirming] = useState(false);
   const [starting, setStarting] = useState(false);
   const [replaying, setReplaying] = useState(false);
@@ -58,34 +61,34 @@ export function RecordedAudioPanel({ recorder, language, busy, hasDraft, onCapti
     const file = event.currentTarget.files?.[0]; event.currentTarget.value = '';
     if (!file || locked) return;
     const issue = validateAudioFile(file);
-    if (issue) { setProblem(issue); return; }
+    if (issue) { setProblem({ raw: issue }); return; }
     const mine = ++token.current;
     const job = sha256Hex(file); hashJob.current = job;
     try {
       const hash = await job;
       if (!mounted.current || token.current !== mine) return;
-      if (captions && !hashesMatch(captions.audioSha256, hash)) { setProblem('This audio does not match the selected captions file (SHA-256 differs). It was not loaded.'); return; }
-      setProblem(''); resetReplay(); setAudioFile(file); setAudioHash(hash);
-    } catch { if (mounted.current) setProblem('The audio file could not be read or fingerprinted.'); }
+      if (captions && !hashesMatch(captions.audioSha256, hash)) { setProblem({ key: 'rec.audioMismatch' }); return; }
+      setProblem(null); resetReplay(); setAudioFile(file); setAudioHash(hash);
+    } catch { if (mounted.current) setProblem({ key: 'rec.audioReadFailed' }); }
   };
   const pickCaptions = async (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.currentTarget.files?.[0]; event.currentTarget.value = '';
     if (!file || locked) return;
     const result = await readCaptionsFile(file);
     if (!mounted.current) return;
-    if (!result.ok) { setProblem(result.error); return; }
+    if (!result.ok) { setProblem({ raw: result.error }); return; }
     let hash = audioHash;
     if (audioFile && !hash && hashJob.current) { try { hash = await hashJob.current; } catch { hash = null; } }
     if (!mounted.current) return;
-    if (audioFile && !hashesMatch(result.value.audioSha256, hash ?? '')) { setProblem('These captions do not belong to the selected audio (SHA-256 differs). They were not loaded.'); return; }
-    setProblem(''); resetReplay(); setCaptions(result.value);
+    if (audioFile && !hashesMatch(result.value.audioSha256, hash ?? '')) { setProblem({ key: 'rec.captionsMismatch' }); return; }
+    setProblem(null); resetReplay(); setCaptions(result.value);
   };
   const useLastTake = () => {
     if (!take || !take.captions.length || !take.sha256 || locked) return;
     clearPair();
     setAudioFile(take.blob); setAudioHash(take.sha256);
     setCaptions(buildCaptionsFile(take.captions, take.language, take.durationMs, take.sha256));
-    setProblem('');
+    setProblem(null);
   };
   const approve = async () => {
     if (locked || starting) return;
@@ -93,7 +96,7 @@ export function RecordedAudioPanel({ recorder, language, busy, hasDraft, onCapti
     const ok = await onBeforeReplay(hasDraft).catch(() => false);
     if (!mounted.current) return;
     setStarting(false); setConfirming(false);
-    if (!ok) { setProblem('Replay did not start and your draft was kept unchanged.'); return; }
+    if (!ok) { setProblem({ key: 'rec.replayRefused' }); return; }
     appended.current = new Set(); setAppendedCount(0); setReplaying(true);
   };
   const sync = () => {
@@ -110,45 +113,45 @@ export function RecordedAudioPanel({ recorder, language, busy, hasDraft, onCapti
     const el = audio.current;
     if (!el || !captions) return;
     const issue = checkMediaDuration(el.duration, captions.durationMs);
-    if (issue) { clearPair(); setProblem(issue); }
+    if (issue) { clearPair(); setProblem({ raw: issue }); }
   };
 
   const stamp = new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-');
   const ready = Boolean(audioFile && captions && audioHash && hashesMatch(audioHash, captions.audioSha256));
 
-  return <section className="rec-panel" aria-label="Recorded audio fallback" data-testid="panel-recorded-audio">
-    <div className="rec-head"><strong>Recorded audio fallback</strong><span>Optional. Audio stays in this browser and is never uploaded.</span></div>
-    {!recorder.supported ? <p className="rec-note">This browser cannot record audio. Normal speech and typing still work.</p> : <div className="rec-row">
+  return <section className="rec-panel" aria-label={t('rec.title')} data-testid="panel-recorded-audio">
+    <div className="rec-head"><strong>{t('rec.title')}</strong><span>{t('rec.subtitle')}</span></div>
+    {!recorder.supported ? <p className="rec-note">{t('rec.unsupported')}</p> : <div className="rec-row">
       <button type="button" className="back-link" disabled={recorder.recording ? false : busy || replaying || starting || recorder.starting} onClick={() => recorder.recording ? void recorder.stop() : void recorder.start(language)} data-testid="button-record-audio">
-        {recorder.recording ? <><Square size={13} /> Stop recording · {clock(recorder.elapsedMs)}</> : <><Mic size={13} /> {recorder.starting ? 'Waiting for microphone...' : 'Record audio alongside speech'}</>}
+        {recorder.recording ? <><Square size={16} aria-hidden="true" /> {t('rec.stop', { time: clock(recorder.elapsedMs) })}</> : <><Mic size={16} aria-hidden="true" /> {t(recorder.starting ? 'rec.waitingMic' : 'rec.record')}</>}
       </button>
-      <small>Limit {clock(MAX_RECORDING_MS)} and 25 MB. Start the study microphone too: captions come from real recognition while you record.</small>
+      <small>{t('rec.limit', { time: clock(MAX_RECORDING_MS) })}</small>
     </div>}
-    {recorder.message && <p className="rec-note" role="status" data-testid="status-recording-message">{recorder.message} <button type="button" className="rec-dismiss" onClick={() => recorder.setMessage('')}>Dismiss</button></p>}
+    {recorder.message && <p className="rec-note" role="status" data-testid="status-recording-message">{t(recorder.message)} <button type="button" className="rec-dismiss" onClick={() => recorder.setMessage('')}>{t('common.dismiss')}</button></p>}
     {take && <div className="rec-row" data-testid="recording-take">
       <audio controls src={take.url} />
-      <button type="button" className="back-link" onClick={() => save(take.blob, `hearo-recording-${stamp}.${take.mime.includes('ogg') ? 'ogg' : take.mime.includes('mp4') ? 'm4a' : 'webm'}`)} data-testid="button-download-audio"><Download size={13} /> Audio</button>
-      <button type="button" className="back-link" disabled={!take.captions.length || !take.sha256} onClick={() => take.sha256 && save(new Blob([JSON.stringify(buildCaptionsFile(take.captions, take.language, take.durationMs, take.sha256), null, 2)], { type: 'application/json' }), `hearo-recording-${stamp}.captions.json`)} data-testid="button-download-captions"><Download size={13} /> Captions JSON ({take.captions.length})</button>
-      <button type="button" className="back-link" disabled={locked || !take.captions.length || !take.sha256} onClick={useLastTake} data-testid="button-load-last-take">Replay this take</button>
-      <button type="button" className="back-link" disabled={recorder.recording} onClick={() => { clearPair(); recorder.clearTake(); }}>Discard</button>
+      <button type="button" className="back-link" onClick={() => save(take.blob, `hearo-recording-${stamp}.${take.mime.includes('ogg') ? 'ogg' : take.mime.includes('mp4') ? 'm4a' : 'webm'}`)} data-testid="button-download-audio"><Download size={16} aria-hidden="true" /> {t('rec.audio')}</button>
+      <button type="button" className="back-link" disabled={!take.captions.length || !take.sha256} onClick={() => take.sha256 && save(new Blob([JSON.stringify(buildCaptionsFile(take.captions, take.language, take.durationMs, take.sha256), null, 2)], { type: 'application/json' }), `hearo-recording-${stamp}.captions.json`)} data-testid="button-download-captions"><Download size={16} aria-hidden="true" /> {t('rec.captionsJson', { count: take.captions.length })}</button>
+      <button type="button" className="back-link" disabled={locked || !take.captions.length || !take.sha256} onClick={useLastTake} data-testid="button-load-last-take">{t('rec.replayTake')}</button>
+      <button type="button" className="back-link" disabled={recorder.recording} onClick={() => { clearPair(); recorder.clearTake(); }}>{t('rec.discard')}</button>
     </div>}
     <div className="rec-row">
-      <label className={`back-link rec-file ${locked ? 'is-disabled' : ''}`} aria-disabled={locked}><Upload size={13} /> Import audio<input type="file" accept="audio/*" hidden disabled={locked} onChange={e => void pickAudio(e)} data-testid="input-import-audio" /></label>
-      <label className={`back-link rec-file ${locked ? 'is-disabled' : ''}`} aria-disabled={locked}><Upload size={13} /> Import captions JSON<input type="file" accept="application/json,.json" hidden disabled={locked} onChange={e => void pickCaptions(e)} data-testid="input-import-captions" /></label>
-      <small>{audioFile ? 'Audio ready' : 'No audio'} · {captions ? `${captions.captions.length} captions` : 'no captions'} · pair is matched by audio SHA-256</small>
+      <label className={`back-link rec-file ${locked ? 'is-disabled' : ''}`} aria-disabled={locked}><Upload size={16} aria-hidden="true" /> {t('rec.importAudio')}<input type="file" accept="audio/*" hidden disabled={locked} onChange={e => void pickAudio(e)} data-testid="input-import-audio" /></label>
+      <label className={`back-link rec-file ${locked ? 'is-disabled' : ''}`} aria-disabled={locked}><Upload size={16} aria-hidden="true" /> {t('rec.importCaptions')}<input type="file" accept="application/json,.json" hidden disabled={locked} onChange={e => void pickCaptions(e)} data-testid="input-import-captions" /></label>
+      <small>{t('rec.pairStatus', { audio: t(audioFile ? 'rec.audioReady' : 'rec.noAudio'), captions: captions ? plural('captions', captions.captions.length) : t('rec.noCaptions') })}</small>
     </div>
-    {problem && <p className="rec-note rec-problem" role="alert" data-testid="status-recording-problem">{problem}</p>}
+    {problem && <p className="rec-note rec-problem" role="alert" dir="auto" data-testid="status-recording-problem">{message(problem)}</p>}
     {ready && <div className="rec-replay">
-      <span className="rec-badge" data-testid="badge-recorded-playback">Recorded playback</span>
-      <p>Captured transcript replay. These are final captions saved from a real recognition session, not fresh speech-to-text of this audio. They feed the same running transcript and live checks.</p>
+      <span className="rec-badge" data-testid="badge-recorded-playback">{t('rec.badge')}</span>
+      <p>{t('rec.replayExplain')}</p>
       {audioUrl && <audio ref={audio} controls src={audioUrl} onLoadedMetadata={loaded} onTimeUpdate={sync} onSeeked={sync} onEnded={sync} data-testid="audio-replay" />}
-      {!replaying && !confirming && <button type="button" className="back-link" disabled={locked} onClick={() => setConfirming(true)} data-testid="button-start-replay">Sync captions to playback</button>}
-      {confirming && <div className="rec-confirm" role="alertdialog" aria-label="Confirm replay">
-        <p>{hasDraft ? 'Your study microphone will stop. Your current draft will be saved as a separate archived study, then replaced by the captured captions as playback advances.' : 'Your study microphone will stop. Captions will be added to your running transcript as playback advances.'}</p>
-        <button type="button" className="back-link" disabled={starting || locked} onClick={() => void approve()} data-testid="button-confirm-replay">{hasDraft ? 'Archive draft, replace and start' : 'Start'}</button>
-        <button type="button" className="back-link" disabled={starting} onClick={() => setConfirming(false)} data-testid="button-cancel-replay">Cancel</button>
+      {!replaying && !confirming && <button type="button" className="back-link" disabled={locked} onClick={() => setConfirming(true)} data-testid="button-start-replay">{t('rec.sync')}</button>}
+      {confirming && <div className="rec-confirm" role="alertdialog" aria-label={t('rec.confirmLabel')}>
+        <p>{t(hasDraft ? 'rec.confirmDraft' : 'rec.confirmNoDraft')}</p>
+        <button type="button" className="back-link" disabled={starting || locked} onClick={() => void approve()} data-testid="button-confirm-replay">{t(hasDraft ? 'rec.archiveAndStart' : 'common.start')}</button>
+        <button type="button" className="back-link" disabled={starting} onClick={() => setConfirming(false)} data-testid="button-cancel-replay">{t('common.cancel')}</button>
       </div>}
-      {replaying && <p className="rec-note" data-testid="status-replay">Replaying captured captions: {appendedCount}/{captions!.captions.length} added. Seeking back never repeats a caption. <button type="button" className="rec-dismiss" onClick={resetReplay}>Stop sync</button></p>}
+      {replaying && <p className="rec-note" data-testid="status-replay">{t('rec.replaying', { added: appendedCount, total: captions!.captions.length })} <button type="button" className="rec-dismiss" onClick={resetReplay}>{t('rec.stopSync')}</button></p>}
     </div>}
   </section>;
 }

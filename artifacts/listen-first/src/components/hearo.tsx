@@ -1,3 +1,5 @@
+import { useTranslation } from '@/i18n/useTranslation';
+
 export type HearoPose = 'wave' | 'mic' | 'thumbsup' | 'thinking';
 
 export interface HearoProps {
@@ -22,10 +24,11 @@ export function hearoImageUrl(pose: HearoPose) {
 }
 
 export function Hearo({ pose, size = 120, floating = false, glow = false, className = '' }: HearoProps) {
+  const { t } = useTranslation();
   const natural = naturalSize[pose];
   const width = Math.round(size * natural.width / natural.height);
   const classes = ['hearo', floating ? 'hearo-floating' : '', glow ? 'hearo-glow' : '', className].filter(Boolean).join(' ');
   return <span className={classes} style={{ width, height: size }} data-pose={pose}>
-    <img src={hearoImageUrl(pose)} alt="Hearo, your AI learning companion" width={width} height={size} draggable={false} decoding="async" />
+    <img src={hearoImageUrl(pose)} alt={t('hearo.alt')} width={width} height={size} draggable={false} decoding="async" />
   </span>;
 }
