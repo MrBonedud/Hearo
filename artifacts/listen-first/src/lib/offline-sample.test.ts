@@ -27,19 +27,24 @@ test('the offline tour advances, finishes, restarts and goes back without any pr
   assert.deepEqual(offlineSampleReducer(state, 'start'), { step: 0, finished: false });
 });
 
-test('every presentation example is supported and explains the full cited objective', () => {
-  assert.ok(offlineSampleSteps.every(step => step.status === 'supported'));
+test('the demo keeps one incomplete answer and one misconception without announcing either in the script', () => {
+  assert.equal(offlineSampleSteps.filter(step => step.status === 'supported').length, 4);
+  assert.equal(offlineSampleSteps.filter(step => step.status === 'partial').length, 1);
+  assert.equal(offlineSampleSteps.filter(step => step.status === 'contradicted').length, 1);
+  for (const step of offlineSampleSteps) {
+    assert.doesNotMatch(step.narration, /خطأ مكتوب مسبقًا|هذا المثال لم يشرح|فهم غلط|مثال جاهز ناقص/);
+  }
   const sharding = offlineSampleSteps.find(step => step.conceptId === 'sharding');
   assert.ok(sharding);
-  assert.match(sharding.narration, /تقسيم البيانات بين قواعد بيانات مستقلة/);
-  assert.match(sharding.narration, /تعقيد/);
+  assert.equal(sharding.status, 'partial');
+  assert.match(sharding.narration, /Data shard/);
+  assert.doesNotMatch(sharding.narration, /تعقيد/);
+  assert.ok(sharding.lineIds.includes('S09-04'));
   const caching = offlineSampleSteps.find(step => step.conceptId === 'caching');
   assert.ok(caching);
-  assert.deepEqual(caching.lineIds, ['S10-01', 'S10-02', 'S10-03', 'S10-04', 'S10-05']);
-  assert.match(caching.narration, /Key-value store/);
-  assert.match(caching.narration, /Cache miss/);
-  assert.match(caching.narration, /الكتابات تظل تذهب إلى DBMS/);
-  assert.match(caching.narration, /إزالة البيانات المؤقتة/);
+  assert.equal(caching.status, 'contradicted');
+  assert.deepEqual(caching.lineIds, ['S10-03']);
+  assert.match(caching.narration, /يسرّع الكتابات تلقائيًا/);
   assert.equal(offlineSampleSource.referenceLines.find(line => line.id === 'S10-03')?.text,
     'Writes must still go to the DBMS, so no performance improvement for them');
 });

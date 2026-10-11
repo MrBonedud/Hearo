@@ -15,8 +15,8 @@ Keep availability failures and environment interruptions beside successful-only 
 
 **How to apply:** Do not restart the measured service while a benchmark is active. Preserve interrupted results and disclose interference; separate successful verdict denominators, failed requests and follow-up formatting failures. Small authored subsets support descriptive results only, not population accuracy or speech certification.
 
-The presentation demo should not deliberately show wrong or incomplete explanations. Use complete, source-supported prepared examples.
+Keep one incomplete explanation and one misconception in the guided demo, but write them naturally without announcing either as a staged mistake.
 
-**Why:** Faisal explicitly requested that the demo not deliberately show that something is incomplete or wrong.
+**Why:** Faisal clarified that removing those examples misunderstood his request; explicit labels identifying staged errors make the presentation look cheap.
 
-**How to apply:** Keep the guided sample positive and clearly labelled as prepared, not AI-evaluated. This does not authorize hiding real assessment errors or changing verdicts for actual learners.
+**How to apply:** Do not prefix answers or evidence with “prepared incomplete example” or “prepared misconception.” Let map feedback and citations convey the differences. Keep the sample’s honest prepared/not-AI disclosure, and do not alter real learner verdicts.
