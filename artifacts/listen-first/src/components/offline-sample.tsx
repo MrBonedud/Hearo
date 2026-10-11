@@ -5,6 +5,7 @@ import type { StudyEvaluation, StudyMap } from '@workspace/api-client-react';
 import { ConceptMap } from '@/components/concept-map';
 import { offlineSampleSource as fixture, offlineSampleSteps as steps, initialOfflineSampleState, offlineSampleReducer } from '@/lib/offline-sample';
 import { useTranslation } from '@/i18n/useTranslation';
+import { useDemoTranscript } from '@/hooks/use-demo-transcript';
 
 const arabicLabels: Record<string, string> = { scaling: 'التوسّع', 'load-balancing': 'توزيع الحمل', 'stateless-servers': 'الخوادم عديمة الحالة', sharding: 'تقسيم البيانات', replication: 'تكرار البيانات', caching: 'التخزين المؤقت والاتساق' };
 
@@ -17,8 +18,9 @@ export function OfflineSample({ onExit }: { onExit: () => void }) {
     const arabic = arabicLabels[id] ?? fallback;
     return language === 'ar' ? [arabic, fallback] : [fallback, arabic];
   };
-  const visibleSteps = useMemo(() => step < 0 ? [] : steps.slice(0, step + 1), [step]);
   const current = step >= 0 ? steps[step] : null;
+  const playback = useDemoTranscript(current && !finished ? current.narration : '', Boolean(reduced));
+  const visibleSteps = useMemo(() => step < 0 ? [] : steps.slice(0, step + (playback.writing ? 0 : 1)), [step, playback.writing]);
   const lineMap = new Map(fixture.referenceLines.map(line => [line.id, line]));
   // Illustrative statuses; relationships come from the same approved source as live sessions.
   const sampleMap: StudyMap = useMemo(() => ({
@@ -76,10 +78,12 @@ export function OfflineSample({ onExit }: { onExit: () => void }) {
         <h1 ref={headingRef} dir="auto" tabIndex={-1} aria-describedby={stepLabelId}>{fixture.title}</h1>
         <p className="sample-explain">{t(step < 0 ? 'sample.introStart' : 'sample.introStep')}</p>
         {current && !finished && <>
-          <div className="sample-script" dir="auto" data-testid="sample-script">{current.narration}</div>
-          <div className="sample-cite" data-testid="sample-evidence">
-            {currentEvidence?.map(line => <p key={line.id} dir="ltr"><bdi>{t('source.slideRef', { id: line.id, page: line.page })}:</bdi> {line.text}</p>)}
+          <div className="sample-script" dir="auto" data-testid="sample-script" aria-busy={playback.writing}>
+            {playback.text}{playback.writing && <span className="sample-writing-cursor" aria-hidden="true" />}
           </div>
+          {!playback.writing && <div className="sample-cite" data-testid="sample-evidence">
+            {currentEvidence?.map(line => <p key={line.id} dir="ltr"><bdi>{t('source.slideRef', { id: line.id, page: line.page })}:</bdi> {line.text}</p>)}
+          </div>}
         </>}
         {finished && <div className="sample-report" data-testid="sample-report">
           <h2>{t('sample.nextStep')}</h2>
@@ -93,7 +97,7 @@ export function OfflineSample({ onExit }: { onExit: () => void }) {
         <div className="sample-controls">
           {step < 0 ? <button className="primary-button" type="button" onClick={start} data-testid="button-sample-begin">{t('sample.start')} <ArrowRight size={16} aria-hidden="true" /></button>
             : finished ? <button className="primary-button" type="button" onClick={start} data-testid="button-sample-restart"><RotateCcw size={16} aria-hidden="true" /> {t('sample.restart')}</button>
-              : <button className="primary-button" type="button" onClick={advance} data-testid={step + 1 === steps.length ? 'button-sample-finish' : 'button-sample-next'}>
+              : <button className="primary-button" type="button" disabled={playback.writing} onClick={advance} data-testid={step + 1 === steps.length ? 'button-sample-finish' : 'button-sample-next'}>
                 {t(step + 1 === steps.length ? 'sample.finish' : 'sample.next')} <ArrowRight size={16} aria-hidden="true" />
               </button>}
           {step > 0 && !finished && <button className="secondary-button" type="button" onClick={() => dispatch('back')} data-testid="button-sample-back"><ArrowLeft size={16} aria-hidden="true" /> {t('common.previous')}</button>}

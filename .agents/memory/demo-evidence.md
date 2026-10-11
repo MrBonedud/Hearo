@@ -20,3 +20,9 @@ Keep one incomplete explanation and one misconception in the guided demo, but wr
 **Why:** Faisal clarified that removing those examples misunderstood his request; explicit labels identifying staged errors make the presentation look cheap.
 
 **How to apply:** Do not prefix answers or evidence with “prepared incomplete example” or “prepared misconception.” Let map feedback and citations convey the differences. Keep the sample’s honest prepared/not-AI disclosure, and do not alter real learner verdicts.
+
+Preserve the demo’s feedback colors and present its explanations progressively, like a real-time transcript.
+
+**Why:** Faisal explicitly requested keeping the colors and making the demo appear to write in real time rather than announcing intentionally incomplete answers.
+
+**How to apply:** Use presentation playback for the prepared text; do not claim that its animation is fresh speech recognition or a live AI evaluation.

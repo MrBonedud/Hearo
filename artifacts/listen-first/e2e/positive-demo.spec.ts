@@ -10,6 +10,12 @@ for (const locale of ['en-US', 'ar-JO']) {
     const sample = page.getByTestId('screen-offline-sample');
     for (let step = 0; step < 6; step++) {
       await expect(page.getByTestId('sample-script')).toBeVisible();
+      if (step === 0) {
+        await expect(page.getByTestId('sample-script')).toHaveAttribute('aria-busy', 'true');
+        await expect(page.getByTestId('concept-scaling')).toHaveClass(/status-unassessed/);
+        await expect(page.getByTestId('button-sample-next')).toBeDisabled();
+      }
+      await expect(page.getByTestId('sample-script')).toHaveAttribute('aria-busy', 'false', { timeout: 10_000 });
       await expect(sample).not.toContainText(/Prepared incomplete example|Prepared misconception|مثال جاهز ناقص|فهم غلط جاهز|خطأ مكتوب مسبقًا/);
       if (step === 3) {
         await expect(page.getByTestId('sample-script')).toHaveText('Sharding يوزّع قاعدة البيانات على عدة مثيلات، ويسمّى كل جزء Data shard.');
@@ -28,3 +34,14 @@ for (const locale of ['en-US', 'ar-JO']) {
     await context.close();
   });
 }
+
+test('reduced motion shows the complete explanation immediately', async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await page.goto('/');
+  await page.getByTestId('button-start-sample').click();
+  await page.getByTestId('button-sample-begin').click();
+  await expect(page.getByTestId('sample-script')).toHaveAttribute('aria-busy', 'false');
+  await expect(page.getByTestId('sample-script')).toContainText('Scale up');
+  await expect(page.getByTestId('concept-scaling')).toHaveClass(/status-understood/);
+  await expect(page.getByTestId('button-sample-next')).toBeEnabled();
+});

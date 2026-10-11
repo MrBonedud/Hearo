@@ -684,6 +684,9 @@ a:hover { color: var(--color-primary-hover); }
 .sample-step { color: var(--color-primary); font-size: var(--font-size-xs); font-weight: var(--font-weight-semibold); letter-spacing: .06em; text-transform: uppercase; }
 .sample-explain { color: var(--hearo-text-secondary); }
 .sample-script { padding: var(--space-4); border-radius: var(--radius-md); background: var(--color-primary-tint); color: var(--color-text); font-style: italic; }
+.sample-writing-cursor { display: inline-block; width: 2px; height: 1em; margin-inline-start: 4px; vertical-align: -0.1em; background: var(--color-primary); animation: sample-cursor-blink .8s step-end infinite; }
+@keyframes sample-cursor-blink { 50% { opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .sample-writing-cursor { animation: none; } }
 .sample-cite { padding: var(--space-3) var(--space-4); border-inline-start: 3px solid var(--color-primary); border-radius: var(--radius-sm); background: var(--color-surface-2); font-size: var(--font-size-sm); }
 .sample-cite small { display: block; margin-bottom: var(--space-1); color: var(--hearo-text-secondary); font-size: var(--font-size-xs); font-weight: var(--font-weight-semibold); }
 .sample-cite p + p { margin-top: var(--space-1); }
