@@ -1,0 +1,583 @@
+═══════════════════════════════════════════════════════════════
+HEARO — COMPLETE VISUAL IDENTITY SYSTEM
+Character Creation + Theme Design + Integration
+═══════════════════════════════════════════════════════════════
+
+⚠️ READ ENTIRELY BEFORE STARTING ⚠️
+
+Stop all current work. Cancel previous tasks. Do NOT create 
+new tasks. Do NOT write a plan. Do NOT ask for approval on 
+routine steps.
+
+This is ONE continuous executable task. Report ONLY at the end.
+
+═══════════════════════════════════════════════════════════════
+PART 1 — CONTEXT & GOAL
+═══════════════════════════════════════════════════════════════
+
+Hearo is a Listen-First Learning platform where students explain 
+concepts aloud (Arabic or English) and receive AI-powered feedback.
+
+We have designed a custom mascot character named "Hearo":
+- A friendly superhero creature (NOT human, NOT a known animal)
+- Blue body with red cape and gold antenna
+- Small screen on chest showing sound waves
+- 4 different poses available as transparent PNG images
+
+GOAL: Transform the entire frontend to match this character's 
+identity — a cohesive, professional, modern EdTech look that 
+feels warm, intelligent, and heroic.
+
+The character is the AI teacher. It appears as a guide, never 
+as decoration.
+
+═══════════════════════════════════════════════════════════════
+PART 2 — DESIGN TOKENS (EXACT VALUES)
+═══════════════════════════════════════════════════════════════
+
+Create or update the global tokens file with EXACTLY these values:
+
+:root {
+  /* PRIMARY — from character body */
+  --color-primary:          #1E3A8A;
+  --color-primary-hover:    #1E40AF;
+  --color-primary-light:    #3B82F6;
+  --color-primary-soft:     #93C5FD;
+  --color-primary-tint:     #DBEAFE;
+
+  /* ACCENT RED — from character cape */
+  --color-cape:             #DC2626;
+  --color-cape-soft:        #FEE2E2;
+
+  /* ACCENT GOLD — from character antenna/screen */
+  --color-gold:             #F59E0B;
+  --color-gold-soft:        #FEF3C7;
+
+  /* SEMANTIC */
+  --color-success:          #10B981;
+  --color-success-soft:     #D1FAE5;
+  --color-warning:          #F59E0B;
+  --color-warning-soft:     #FEF3C7;
+  --color-error:            #EF4444;
+  --color-error-soft:       #FEE2E2;
+  --color-info:             #3B82F6;
+  --color-info-soft:        #DBEAFE;
+
+  /* NEUTRAL */
+  --color-background:       #F8FAFC;
+  --color-surface:          #FFFFFF;
+  --color-surface-2:        #F1F5F9;
+  --color-border:           #E2E8F0;
+  --color-border-strong:    #CBD5E1;
+
+  /* TEXT */
+  --color-text:             #0F172A;
+  --color-text-muted:       #64748B;
+  --color-text-subtle:      #94A3B8;
+  --color-text-inverse:     #FFFFFF;
+
+  /* TYPOGRAPHY */
+  --font-arabic:  'IBM Plex Sans Arabic', 'Cairo', system-ui, sans-serif;
+  --font-english: 'Inter', system-ui, -apple-system, sans-serif;
+  --font-size-xs:   0.75rem;
+  --font-size-sm:   0.875rem;
+  --font-size-base: 1rem;
+  --font-size-lg:   1.125rem;
+  --font-size-xl:   1.25rem;
+  --font-size-2xl:  1.5rem;
+  --font-size-3xl:  1.875rem;
+  --font-size-4xl:  2.25rem;
+  --font-weight-regular:  400;
+  --font-weight-medium:   500;
+  --font-weight-semibold: 600;
+  --font-weight-bold:     700;
+  --line-height-tight: 1.25;
+  --line-height-base:  1.6;
+
+  /* SPACING */
+  --space-1:  4px;   --space-2:  8px;   --space-3:  12px;
+  --space-4:  16px;  --space-5:  20px;  --space-6:  24px;
+  --space-8:  32px;  --space-10: 40px;  --space-12: 48px;
+  --space-16: 64px;
+
+  /* RADIUS */
+  --radius-sm:   8px;
+  --radius-md:   12px;
+  --radius-lg:   16px;
+  --radius-xl:   24px;
+  --radius-full: 9999px;
+
+  /* SHADOWS */
+  --shadow-xs: 0 1px 2px rgba(15,23,42,0.04);
+  --shadow-sm: 0 1px 3px rgba(15,23,42,0.06), 0 1px 2px rgba(15,23,42,0.04);
+  --shadow-md: 0 4px 12px rgba(15,23,42,0.08), 0 2px 4px rgba(15,23,42,0.04);
+  --shadow-lg: 0 12px 32px rgba(15,23,42,0.10), 0 4px 8px rgba(15,23,42,0.04);
+  --shadow-glow-blue: 0 0 24px rgba(59,130,246,0.35);
+  --shadow-glow-gold: 0 0 24px rgba(245,158,11,0.35);
+
+  /* TRANSITIONS */
+  --transition-fast: 150ms cubic-bezier(0.4,0,0.2,1);
+  --transition-base: 250ms cubic-bezier(0.4,0,0.2,1);
+  --transition-slow: 400ms cubic-bezier(0.4,0,0.2,1);
+
+  /* LAYOUT */
+  --sidebar-width:      260px;
+  --topbar-height:      64px;
+  --content-max-width:  1200px;
+}
+
+Import Google Fonts in the main HTML/CSS:
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap');
+
+═══════════════════════════════════════════════════════════════
+PART 3 — CHARACTER CREATION (4 POSES)
+═══════════════════════════════════════════════════════════════
+
+The character "Hearo" must be generated as 4 separate transparent 
+PNG images with consistent design across all poses.
+
+CHARACTER DESIGN SPEC:
+
+Name: Hearo
+Type: Friendly superhero creature (NOT human, NOT cat, NOT bird)
+Purpose: AI teacher who listens, evaluates, and guides
+
+BODY:
+- Large rounded head (helmet-like, slightly oval)
+- Small compact body, about 60% of head size
+- Two short rounded arms
+- Two short rounded legs
+- Small curved tail
+- Overall shape: cute, chunky, huggable
+
+FACE:
+- Two large round eyes (about 35% of face width)
+- Eyes have dark navy irises with subtle white highlight
+- Simple curved smile (no teeth)
+- Small rounded cheeks with soft blush
+- NO visible nose or mouth details besides the smile
+
+HEAD DETAILS:
+- Single thin antenna on top with glowing gold tip
+- The antenna is subtle, not sci-fi aggressive
+
+CHEST:
+- Small rounded rectangle screen on chest
+- Screen shows a soft gold sound wave pattern
+- Screen glow is subtle, not harsh
+
+CAPE:
+- Short red cape attached at shoulders
+- Flows slightly as if in gentle breeze
+- Vibrant red, not dark
+
+COLORS (EXACT):
+- Body: deep blue #1E3A8A
+- Belly and inner face: soft light blue #93C5FD
+- Cape: warm red #DC2626
+- Antenna tip + chest screen: warm gold #F59E0B
+- Eyes: dark navy #0F172A with white highlights
+- Blush: soft pink #FCA5A5
+
+STYLE:
+- 3D cartoon / Pixar-inspired rendering
+- Soft rounded shapes, no sharp angles
+- Gentle ambient shading
+- Clean silhouette (recognizable at 32px)
+- Warm lighting from top-left
+- NO outlines
+- NO text or logos
+
+THE 4 POSES (generate each separately):
+
+POSE 1 — WAVE (hearo-wave.png)
+Standing front-facing, one arm raised in friendly wave, 
+warm smile, eyes open and welcoming.
+
+POSE 2 — MIC (hearo-mic.png)
+Side-angle view, holding a small microphone with one hand, 
+leaning slightly forward, eyes attentive and listening, 
+soft smile.
+
+POSE 3 — THUMBS UP (hearo-thumbsup.png)
+Front-facing, both feet grounded, one hand giving thumbs up, 
+bright confident smile, chest screen glowing brighter.
+
+POSE 4 — THINKING (hearo-thinking.png)
+Front-facing, one hand on chin, eyes looking slightly upward, 
+thoughtful expression, antenna tip glowing softly.
+
+OUTPUT REQUIREMENTS:
+- Format: PNG with transparent background
+- Size: 1024x1024 per image
+- Naming: hearo-wave.png, hearo-mic.png, hearo-thumbsup.png, 
+  hearo-thinking.png
+- NO watermark, NO background elements, NO shadows on background
+- Consistent character proportions across all 4
+
+NEGATIVE PROMPT:
+No humans, no cats, no birds, no owls, no known mascots, 
+no anime, no flat vector, no dark/scary features, no text, 
+no logos, no background, no cluttered details, no extra limbs, 
+no distorted proportions.
+
+If you cannot generate images directly, do the following:
+- Provide the exact prompts above (per-pose) for the user to 
+  run in an external image generator (Midjourney, DALL-E, 
+  Leonardo, Ideogram)
+- Then WAIT for the user to upload the 4 images to 
+  /public/character/
+- After upload, continue with Part 4
+
+═══════════════════════════════════════════════════════════════
+PART 4 — CHARACTER INTEGRATION
+═══════════════════════════════════════════════════════════════
+
+Once the 4 PNG files exist at /public/character/:
+
+Create a reusable <Hearo /> component:
+
+interface HearoProps {
+  pose: 'wave' | 'mic' | 'thumbsup' | 'thinking';
+  size?: number;        // default 120
+  floating?: boolean;   // default false
+  glow?: boolean;       // default false
+  className?: string;
+}
+
+Behavior:
+- Loads /character/hearo-{pose}.png
+- If floating=true: adds gentle float animation (4s, ease-in-out)
+- If glow=true: adds soft radial glow behind the character
+- Always has alt="Hearo, your AI learning companion"
+- Never distorted (preserve aspect ratio)
+
+Use <Hearo /> in these locations:
+
+1. SIDEBAR LOGO
+   - pose: 'wave'
+   - size: 40
+   - Next to the text "Hearo"
+
+2. TOP BAR (optional, small)
+   - pose: 'wave'
+   - size: 32
+
+3. LANDING PAGE HERO
+   - pose: 'thumbsup'
+   - size: 280
+   - floating: true
+   - glow: true
+   - Positioned on the side (right in LTR, left in RTL)
+
+4. HOME DASHBOARD WELCOME
+   - pose: 'wave'
+   - size: 160
+   - Next to the greeting text
+
+5. EMPTY STATES (no sessions, no data)
+   - pose: 'wave' or 'thinking'
+   - size: 140
+   - With a friendly message below
+
+6. LOADING STATE
+   - pose: 'thinking'
+   - size: 100
+   - With a subtle pulse animation
+
+7. RECORDING STATE (when mic is active)
+   - pose: 'mic'
+   - size: 120
+   - Add a pulsing ring around it in --color-primary-light
+
+8. SUCCESS / SESSION COMPLETE
+   - pose: 'thumbsup'
+   - size: 160
+   - With a scale-in animation
+
+═══════════════════════════════════════════════════════════════
+PART 5 — LAYOUT STRUCTURE
+═══════════════════════════════════════════════════════════════
+
+Adopt this layout (modern EdTech style):
+
+┌───────────────────────────────────────────────────────┐
+│  TOP BAR (64px)                                       │
+│  [Hearo] [Search...]        [Streak] [Profile]       │
+├──────────┬────────────────────────────────────────────┤
+│          │                                            │
+│ SIDEBAR  │   MAIN CONTENT                             │
+│ (260px)  │   max-width: 1200px, centered              │
+│          │                                            │
+│  Home    │                                            │
+│  Learn   │                                            │
+│  Practice│                                            │
+│  Progress│                                            │
+│  Library │                                            │
+│  Profile │                                            │
+│          │                                            │
+│  [CTA]   │                                            │
+└──────────┴────────────────────────────────────────────┘
+
+Rules:
+- Top bar: white surface, border-bottom 1px --color-border
+- Sidebar: white surface, border-inline-end 1px --color-border
+- Active nav item: bg --color-primary-tint, text --color-primary, 
+  weight 600
+- Hover nav item: bg --color-surface-2
+- Main content padding: --space-8
+- Content centered, max width --content-max-width
+
+═══════════════════════════════════════════════════════════════
+PART 6 — COMPONENT LIBRARY
+═══════════════════════════════════════════════════════════════
+
+BUTTON (variants: primary, secondary, ghost, danger; sizes: sm/md/lg)
+- Primary: bg --color-primary, white text, radius --radius-full, 
+  weight 600, padding --space-3 --space-5
+- Hover: bg --color-primary-hover, translateY(-1px), shadow-md
+- Secondary: white bg, border 1px --color-border-strong
+- Ghost: transparent, text --color-text-muted
+- Danger: bg --color-error, white text
+
+CARD
+- bg --color-surface, border 1px --color-border, radius --radius-lg
+- padding --space-6, shadow-sm
+- Interactive hover: translateY(-2px), shadow-lg, 
+  border-color --color-primary-soft
+
+INPUT
+- padding --space-3 --space-4, border 1px --color-border-strong
+- radius --radius-md
+- Focus: border --color-primary-light, 
+  box-shadow 0 0 0 3px --color-primary-tint
+
+BADGE (default/success/warning/error/info)
+- radius --radius-full, padding --space-1 --space-3, size xs
+
+PROGRESS BAR
+- height 8px, bg --color-surface-2, radius full
+- fill: linear-gradient(90deg, --color-primary-light, --color-primary)
+
+═══════════════════════════════════════════════════════════════
+PART 7 — FEEDBACK CARDS (CORE FEATURE)
+═══════════════════════════════════════════════════════════════
+
+SUPPORTED (green):
+- bg: linear-gradient(135deg, #ECFDF5, #D1FAE5)
+- border: 1px solid #6EE7B7
+- border-inline-start: 4px solid --color-success
+- radius --radius-lg, padding --space-5 --space-6
+- Title color #065F46, weight 600
+- Evidence: bg rgba(255,255,255,0.6), radius sm, 
+  padding --space-3, italic
+
+CONTRADICTED (red):
+- bg: linear-gradient(135deg, #FEF2F2, #FEE2E2)
+- border: 1px solid #FCA5A5
+- border-inline-start: 4px solid --color-error
+- Title color #991B1B
+- Retry button: ghost, small, color --color-error
+
+NEUTRAL (gray):
+- bg --color-surface, border 1px --color-border
+- border-inline-start: 4px solid --color-text-subtle
+- Title color --color-text-muted
+
+All cards: entrance animation (fade + slide up 8px, 300ms)
+
+═══════════════════════════════════════════════════════════════
+PART 8 — CONCEPT MAP
+═══════════════════════════════════════════════════════════════
+
+- Nodes: rounded rects (--radius-md), padding --space-3 --space-4
+- States:
+  - not visited: border --color-border, text muted
+  - active: border --color-primary, bg --color-primary-tint, 
+    shadow-glow-blue
+  - supported: border --color-success, bg --color-success-soft
+  - contradicted: border --color-error, bg --color-error-soft
+  - partial: border --color-warning, bg --color-warning-soft
+- Connections: stroke --color-border-strong, width 2, curved
+
+═══════════════════════════════════════════════════════════════
+PART 9 — REPORT PAGE
+═══════════════════════════════════════════════════════════════
+
+- Single column, max-width 800px, centered
+- Header card: title + date + duration
+- Sections as cards: Summary, Supported, Review, Partial, Transcript
+- Transcript collapsible (details/summary)
+- Print styles: hide nav, black on white, break-inside avoid
+- Download button top-right, primary variant
+
+═══════════════════════════════════════════════════════════════
+PART 10 — LANDING PAGE
+═══════════════════════════════════════════════════════════════
+
+HERO:
+- Left: heading, subheading, 2 CTAs
+  EN: "Learn by explaining. Master by teaching."
+  AR: "تعلّم بالشرح. أتقن بالتعليم."
+- Right: Hearo (thumbsup, 280px, floating, glow)
+
+FEATURES (3 columns, 1 on mobile):
+1. Speak. Hearo listens.
+2. Get instant feedback.
+3. Watch your concept map grow.
+
+HOW IT WORKS (3 steps):
+1. Pick a topic
+2. Explain aloud
+3. See your progress
+
+FINAL CTA:
+- Background: linear-gradient(135deg, --color-primary, 
+  --color-primary-light)
+- White text, centered, Hearo (wave) small above the button
+
+═══════════════════════════════════════════════════════════════
+PART 11 — ANIMATIONS
+═══════════════════════════════════════════════════════════════
+
+ONLY these, keep subtle:
+
+1. Float (character):
+   @keyframes float {
+     0%,100% { transform: translateY(0); }
+     50%      { transform: translateY(-12px); }
+   }
+   duration: 4s, ease-in-out, infinite
+
+2. Fade-in (cards):
+   opacity 0→1, translateY(8px)→0, 300ms
+
+3. Pulse (recording):
+   scale 1→1.05→1, 2s, infinite
+
+4. Progress fill:
+   width transition 400ms
+
+5. Button hover:
+   translateY(-1px), 150ms
+
+DO NOT add: parallax, particles, complex keyframes.
+
+Respect prefers-reduced-motion:
+@media (prefers-reduced-motion: reduce) {
+  * { animation: none !important; transition: none !important; }
+}
+
+═══════════════════════════════════════════════════════════════
+PART 12 — RESPONSIVE + RTL + ACCESSIBILITY
+═══════════════════════════════════════════════════════════════
+
+RESPONSIVE:
+- <640px:  sidebar becomes bottom nav or drawer
+- 640-1024: sidebar collapses to icons (60px)
+- >1024: full layout
+
+RTL (Arabic):
+- Font: --font-arabic
+- Text align: right
+- Sidebar on right
+- Use logical properties (padding-inline-start, etc.)
+- Character images NOT mirrored
+- Directional icons mirrored
+- Test both AR and EN after implementation
+
+ACCESSIBILITY:
+- Contrast ≥ 4.5:1
+- Visible focus outlines on all interactive elements
+- Alt text on all images
+- Labels on all inputs
+- Never rely on color alone for state
+
+═══════════════════════════════════════════════════════════════
+PART 13 — EXECUTION ORDER
+═══════════════════════════════════════════════════════════════
+
+STEP 1: INSPECT
+- Locate the frontend (likely artifacts/listen-first/)
+- Locate the public folder (confirm path)
+- List all style-related files
+- Identify current layout structure
+- Report findings briefly and continue.
+
+STEP 2: TOKENS
+- Create/update tokens file with Part 2 values
+- Import fonts
+- Apply global styles
+
+STEP 3: CHARACTER IMAGES
+- Check if /public/character/ exists with the 4 PNGs
+- If yes → continue to Step 4
+- If no → output the 4 image generation prompts (from Part 3) 
+  for the user, and STOP so the user can upload them.
+  When user says "uploaded", continue.
+
+STEP 4: HEARO COMPONENT
+- Create <Hearo /> component
+- Integrate in sidebar, top bar, landing hero
+
+STEP 5: LAYOUT
+- Update top bar + sidebar + main content
+
+STEP 6: COMPONENTS
+- Update buttons, cards, inputs, badges, progress bars
+- One at a time, verify no regressions
+
+STEP 7: FEEDBACK CARDS
+- Apply Part 7 styling. Keep behavior.
+
+STEP 8: CONCEPT MAP
+- Apply Part 8 styling. Keep behavior.
+
+STEP 9: REPORT PAGE
+- Apply Part 9 styling. Keep behavior.
+
+STEP 10: LANDING PAGE
+- Apply Part 10.
+
+STEP 11: RESPONSIVE + RTL
+- Test 375px, 768px, 1280px in AR and EN.
+
+STEP 12: VERIFY
+- Run typecheck
+- Run tests
+- Run build
+- Start dev server
+- Confirm no console errors
+
+STEP 13: FINAL REPORT
+Report ONLY here:
+- Files changed
+- Tests: pass / fail
+- Typecheck: pass / fail
+- Build: pass / fail
+- Dev server: URL
+- Issues encountered
+- Whether character images were used or placeholders
+
+═══════════════════════════════════════════════════════════════
+PART 14 — CONSTRAINTS
+═══════════════════════════════════════════════════════════════
+
+❌ Do NOT regenerate character images if already uploaded
+❌ Do NOT change component logic or data flow
+❌ Do NOT change API calls
+❌ Do NOT break existing tests
+❌ Do NOT remove features
+❌ Do NOT add new dependencies without asking
+❌ Do NOT change routing
+❌ Do NOT touch database
+❌ Do NOT push to Git
+❌ Do NOT touch main branch
+❌ Do NOT create tasks
+❌ Do NOT write a plan
+❌ Do NOT stop between steps for approval
+
+═══════════════════════════════════════════════════════════════
+START NOW with Step 1.
+Report ONLY at Step 13.
+═══════════════════════════════════════════════════════════════

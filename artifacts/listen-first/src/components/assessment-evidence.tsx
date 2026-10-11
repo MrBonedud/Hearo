@@ -8,16 +8,22 @@ const meta = {
   not_demonstrated: { text: 'لم توضّح هذا بعد', en: 'Not demonstrated', Icon: MinusCircle },
 } as const;
 
-export function AssessmentEvidence({ assessments, source, map, fileUrl, onPractice }: {
+/** Visual card kind: low-confidence supported or contradicted verdicts are shown as neutral "uncertain". */
+export function assessmentKind(item: ConceptAssessment) {
+  const low = String(item.confidence) === 'low';
+  return low && (item.verdict === 'supported' || item.verdict === 'contradicted') ? 'uncertain' : item.verdict;
+}
+
+export function AssessmentEvidence({ assessments, source, map, fileUrl, onPractice, heading, hint }: {
   assessments: ConceptAssessment[]; source: DemoSource; map: StudyMap; fileUrl: string;
-  onPractice: () => void;
+  onPractice: () => void; heading?: string; hint?: string;
 }) {
-  return <section className="assessment-evidence" aria-label="Source-backed assessment">
-    <h2 className="serif">What your explanation demonstrates</h2>
-    <p className="panel-hint">Meaning, not word matching. AI explanations are separate from exact source quotations. Partial understanding is not counted as mastery.</p>
+  return <section className="assessment-evidence" aria-label={heading ?? 'Source-backed assessment'}>
+    <h2>{heading ?? 'What your explanation demonstrates'}</h2>
+    <p className="panel-hint">{hint ?? 'Meaning, not word matching. AI explanations are separate from exact source quotations. Partial understanding is not counted as mastery.'}</p>
     {assessments.map(item => {
       const low = String(item.confidence) === 'low';
-      const kind = low && (item.verdict === 'supported' || item.verdict === 'contradicted') ? 'uncertain' : item.verdict;
+      const kind = assessmentKind(item);
       const m = meta[item.verdict];
       const Icon = low && kind === 'uncertain' ? CircleHelp : m.Icon;
       const lines = item.sourceLineIds.map(id => ({ id, line: source.referenceLines.find(value => value.id === id) }));
@@ -27,7 +33,7 @@ export function AssessmentEvidence({ assessments, source, map, fileUrl, onPracti
           <h3>{map.nodes.find(node => node.id === item.conceptId)?.label}</h3>
           <span className="assessment-verdict"><Icon size={15} aria-hidden="true" /> {low && kind === 'uncertain' ? 'غير مؤكد، راجع المصدر' : m.text} <small>· {low && kind === 'uncertain' ? 'Uncertain' : m.en}</small></span>
         </div>
-        {item.studentEvidence && <blockquote dir="auto" className="feedback-quote"><span>كلماتك · Your words</span>{item.studentEvidence}</blockquote>}
+        {item.studentEvidence && <blockquote dir="auto" className="feedback-quote"><span dir="ltr">كلماتك · Your words</span>{item.studentEvidence}</blockquote>}
         <p dir="auto" className="feedback-ai"><strong>AI assessment · not source text: </strong>{item.explanation}</p>
         {item.verdict === 'contradicted' && !low && <div className="feedback-compare">
           <div><span>Source · المصدر</span>{found.length ? <q dir="ltr">{found[0].line!.text}</q> : <em>No source passage attached.</em>}</div>
