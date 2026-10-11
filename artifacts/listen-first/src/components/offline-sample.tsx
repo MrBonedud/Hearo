@@ -4,13 +4,9 @@ import { ArrowLeft, ArrowRight, RotateCcw } from 'lucide-react';
 import type { StudyEvaluation, StudyMap } from '@workspace/api-client-react';
 import { ConceptMap } from '@/components/concept-map';
 import { offlineSampleSource as fixture, offlineSampleSteps as steps, initialOfflineSampleState, offlineSampleReducer } from '@/lib/offline-sample';
-import type { TranslationKey } from '@/i18n/translations';
 import { useTranslation } from '@/i18n/useTranslation';
 
 const arabicLabels: Record<string, string> = { scaling: 'التوسّع', 'load-balancing': 'توزيع الحمل', 'stateless-servers': 'الخوادم عديمة الحالة', sharding: 'تقسيم البيانات', replication: 'تكرار البيانات', caching: 'التخزين المؤقت والاتساق' };
-const sampleStatusKeys: Record<string, TranslationKey> = {
-  supported: 'sample.statusSupported', partial: 'sample.statusPartial', contradicted: 'sample.statusContradicted',
-};
 
 export function OfflineSample({ onExit }: { onExit: () => void }) {
   const [{ step, finished }, dispatch] = useReducer(offlineSampleReducer, initialOfflineSampleState);
@@ -21,7 +17,6 @@ export function OfflineSample({ onExit }: { onExit: () => void }) {
     const arabic = arabicLabels[id] ?? fallback;
     return language === 'ar' ? [arabic, fallback] : [fallback, arabic];
   };
-  const statusText = (status: string) => sampleStatusKeys[status] ? t(sampleStatusKeys[status]) : status;
   const visibleSteps = useMemo(() => step < 0 ? [] : steps.slice(0, step + 1), [step]);
   const current = step >= 0 ? steps[step] : null;
   const lineMap = new Map(fixture.referenceLines.map(line => [line.id, line]));
@@ -35,7 +30,7 @@ export function OfflineSample({ onExit }: { onExit: () => void }) {
       const [label, otherLabel] = labelsFor(concept.id, concept.label);
       return {
         id: concept.id, label,
-        description: `${otherLabel} · ${entry ? statusText(entry.status) : t('sample.notVisited')}`,
+        description: entry ? otherLabel : `${otherLabel} · ${t('sample.notVisited')}`,
         status: 'skipped' as const, evidence: lines || null,
       };
     }),
@@ -43,7 +38,7 @@ export function OfflineSample({ onExit }: { onExit: () => void }) {
   }), [visibleSteps, language]);
   const sampleAssessments = useMemo(() => visibleSteps.map(item => ({
     conceptId: item.conceptId, confidence: 'high', sourceLineIds: item.lineIds,
-    verdict: 'supported',
+    verdict: item.status === 'supported' ? 'supported' : item.status === 'contradicted' ? 'contradicted' : 'partially_understood',
   })) as unknown as StudyEvaluation['assessments'], [visibleSteps]);
   // Each step replaces the panel, including the button that was pressed. Move
   // focus to the step heading (announced with its step count) and bring the
@@ -83,7 +78,6 @@ export function OfflineSample({ onExit }: { onExit: () => void }) {
         {current && !finished && <>
           <div className="sample-script" dir="auto" data-testid="sample-script">{current.narration}</div>
           <div className="sample-cite" data-testid="sample-evidence">
-            <small>{t('sample.statusOnly', { status: statusText(current.status) })}</small>
             {currentEvidence?.map(line => <p key={line.id} dir="ltr"><bdi>{t('source.slideRef', { id: line.id, page: line.page })}:</bdi> {line.text}</p>)}
           </div>
         </>}
