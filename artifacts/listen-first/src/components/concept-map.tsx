@@ -53,7 +53,17 @@ export function ConceptMap({ map, compact = false, assessments, assessed = Boole
     if (!a || !b) return [];
     const start = rectEdgePoint(a.x, a.y, b.x + GRAPH_NODE_W / 2, b.y + GRAPH_NODE_H / 2);
     const end = rectEdgePoint(b.x, b.y, a.x + GRAPH_NODE_W / 2, a.y + GRAPH_NODE_H / 2, 6);
-    return [{ key: `${edge.from}-${edge.to}-${index}`, d: `M ${start.x} ${start.y} L ${end.x} ${end.y}`, label: edge.label, x: (start.x + end.x) / 2, y: (start.y + end.y) / 2 }];
+    // A gentle quadratic bow keeps relationships readable without changing the layout.
+    const dx = end.x - start.x;
+    const dy = end.y - start.y;
+    const length = Math.hypot(dx, dy) || 1;
+    const bow = Math.min(24, length * 0.12);
+    const cx = (start.x + end.x) / 2 - dy / length * bow;
+    const cy = (start.y + end.y) / 2 + dx / length * bow;
+    return [{
+      key: `${edge.from}-${edge.to}-${index}`, d: `M ${start.x} ${start.y} Q ${cx} ${cy} ${end.x} ${end.y}`, label: edge.label,
+      x: 0.25 * start.x + 0.5 * cx + 0.25 * end.x, y: 0.25 * start.y + 0.5 * cy + 0.25 * end.y,
+    }];
   });
 
   return <section className={`concept-map ${compact ? 'concept-map-compact' : ''}`} aria-label="Interactive concept map">

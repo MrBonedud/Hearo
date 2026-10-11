@@ -5,6 +5,7 @@ export function ReportScoreCard({ evaluation }: { evaluation: StudyEvaluation })
   const s = scoreReport(evaluation);
   return <section className="score-card" aria-label="Local rubric score" data-testid="card-report-score">
     <div className="score-main"><strong>{s.score.toFixed(1)}</strong><span>/ 100 local rubric score</span></div>
+    <div className="progress-track score-progress" aria-hidden="true"><span className="progress-fill" style={{ width: `${Math.min(100, Math.max(0, s.score))}%` }} /></div>
     <dl>
       <div><dt>Coverage</dt><dd data-testid="text-score-coverage">{s.demonstrated}/{s.required} demonstrated</dd></div>
       <div><dt>Accuracy</dt><dd data-testid="text-score-accuracy">{s.supported}/{s.demonstrated} supported</dd></div>

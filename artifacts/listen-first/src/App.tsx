@@ -1,14 +1,16 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ChangeEvent, type FormEvent, type ReactNode } from 'react';
 import type { StudyEvaluation, StudyMap } from '@workspace/api-client-react';
 import {
-  ArrowLeft, ArrowRight, BookOpen, Check, CheckCircle2, ChevronDown, CircleHelp,
-  Download, Headphones, Mic, MicOff, RotateCcw, Upload, X,
+  ArrowLeft, ArrowRight, BookOpen, Check, ChevronDown,
+  Download, Mic, MicOff, RotateCcw, Upload, X,
 } from 'lucide-react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ConceptMap } from '@/components/concept-map';
 import { ErrorBoundary } from '@/components/error-boundary';
 import { ApprovedPdfSource, SourcePassages, type SelectedSource } from '@/components/approved-pdf-source';
-import { AssessmentEvidence } from '@/components/assessment-evidence';
+import { AssessmentEvidence, assessmentKind } from '@/components/assessment-evidence';
+import { Hearo } from '@/components/hearo';
+import { SideNav, TopBar, type NavKey } from '@/components/app-navigation';
 import { FeedbackSoundToggle } from '@/components/feedback-sound-toggle';
 import { useFeedbackSounds } from '@/hooks/use-feedback-sounds';
 import { useLiveAssessment } from '@/hooks/use-live-assessment';
@@ -48,23 +50,6 @@ function errorMessage(error: unknown) {
   if (apiError?.status === 503) return data?.message || data?.error || 'AI checking is unavailable. Your answer is unchanged. Ask the workspace owner to check the OpenAI or Gemini connection.';
   if (apiError?.status === 401 || apiError?.status === 403) return 'The study service could not authorize this request. Check the API setup and try again.';
   return data?.message || data?.error || apiError?.message || 'Something interrupted the study check. Your notes are still here; please try again.';
-}
-
-function Header({ onHome, phase }: { onHome: () => void; phase: Phase }) {
-  return <header className="topbar">
-    <button className="brand" onClick={onHome} data-testid="button-home" aria-label="Hearo home">
-      <span className="brand-mark"><Headphones size={17} strokeWidth={1.8} /></span>
-      <span>Hearo</span>
-    </button>
-    <div className="top-context">
-      <span className="quiet-indicator"><span /> no voice responses</span>
-      <span className="top-divider" />
-      <span className="step-label">{phase === 'setup' ? '01 / prepare' : phase === 'session' ? '02 / explain' : '03 / reflect'}</span>
-    </div>
-    <button className="help-button" type="button" onClick={() => document.getElementById('how-it-works')?.scrollIntoView({ behavior: 'smooth' })} data-testid="button-how-it-works">
-      <CircleHelp size={16} /><span>How it works</span>
-    </button>
-  </header>;
 }
 
 function StatusKey() {
@@ -405,27 +390,48 @@ function App() {
     skipped: evaluation.nodes.filter(node => node.status === 'skipped').length,
   } : null;
 
-  return <main className="app-shell grain">
-    <Header onHome={() => void returnHome()} phase={phase} />
+  // Navigation only reuses the existing landing, sample and study entry points.
+  const openStudy = () => { setSampleMode(false); setShowLanding(false); };
+  const openSample = () => { setSampleMode(true); setShowLanding(false); };
+  const openSavedStudies = () => {
+    openStudy();
+    window.setTimeout(() => document.getElementById('saved-studies')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 60);
+  };
+  const activeNav: NavKey = showLanding ? 'home' : sampleMode ? 'practice' : 'learn';
+  const reportGroups = evaluation?.assessments ? [
+    { key: 'supported', title: 'Supported · مدعوم بالمصدر', hint: 'Ideas your explanation demonstrated, backed by the source.', items: evaluation.assessments.filter(item => assessmentKind(item) === 'supported') },
+    { key: 'review', title: 'Review · راجع هذه النقاط', hint: 'Ideas the source contradicts. Compare your words with the cited lines, then try again.', items: evaluation.assessments.filter(item => assessmentKind(item) === 'contradicted') },
+    { key: 'partial', title: 'Partial · نحتاج شرحًا أوضح', hint: 'Partly explained. Partial understanding is not counted as mastery.', items: evaluation.assessments.filter(item => assessmentKind(item) === 'partially_understood') },
+    { key: 'unclear', title: 'Not yet clear · غير واضح بعد', hint: 'Uncertain checks and ideas not demonstrated in this explanation.', items: evaluation.assessments.filter(item => { const kind = assessmentKind(item); return kind === 'uncertain' || kind === 'not_demonstrated'; }) },
+  ].filter(group => group.items.length > 0) : [];
+
+  return <div className="app-frame" data-phase={showLanding ? 'landing' : sampleMode ? 'sample' : phase}>
+    <TopBar onHome={() => void returnHome()} phase={phase} onLanding={showLanding || sampleMode} />
+    <SideNav active={activeNav} studyOpen={phase !== 'setup'} onHome={() => void returnHome()} onLearn={openStudy} onPractice={openSample} onSaved={openSavedStudies} />
+    <main className="app-main">
+    <div className="app-content">
     {showLanding && <LandingExperience
       onLive={() => { setSampleMode(false); setShowLanding(false); }}
       onSample={() => { setSampleMode(true); setShowLanding(false); }}
     />}
     {sampleMode && !showLanding && <OfflineSample onExit={() => { setSampleMode(false); setShowLanding(true); }} />}
     {phase === 'setup' && !showLanding && !sampleMode && <section className="setup-page enter">
-      <div className="intro-copy">
-        <div className="eyebrow"><span className="eyebrow-rule" /> A quieter way to study</div>
-        <h1 className="serif">Say what you<br /><em>understand.</em></h1>
-        <p className="intro-text" dir="auto">اشرح أفكارك بصوتك وبكلماتك. Hearo يصغي بصمت ويتحقق منها مقابل المرجع، دون أن يقاطعك. For this demo, read the approved English slides and explain in Arabic or English.</p>
-        <div className="intro-note"><span className="note-mark">“</span><p>Talking it through is the study method.<br />Being heard is the whole point.</p></div>
-        <div className="steps-rail" aria-label="Three steps">
-          <span className="step-current">01 <i>Prepare</i></span><b /><span>02 <i>Explain</i></span><b /><span>03 <i>Reflect</i></span>
+      <div className="intro-copy welcome-card">
+        <Hearo pose="wave" size={160} className="welcome-hearo" />
+        <div className="welcome-copy">
+          <div className="eyebrow">Welcome · أهلًا بك</div>
+          <h1>Say what you <em>understand.</em></h1>
+          <p className="intro-text" dir="auto">اشرح أفكارك بصوتك وبكلماتك. Hearo يصغي بصمت ويتحقق منها مقابل المرجع، دون أن يقاطعك. For this demo, read the approved English slides and explain in Arabic or English.</p>
+          <div className="intro-note"><p>Talking it through is the study method. Being heard is the whole point.</p></div>
+          <div className="steps-rail" aria-label="Three steps">
+            <span className="step-current">01 <i>Prepare</i></span><b /><span>02 <i>Explain</i></span><b /><span>03 <i>Reflect</i></span>
+          </div>
         </div>
       </div>
       <div className="setup-card enter-delay">
-        <div className="card-kicker"><span>LET’S SET THE TABLE</span><span className="mono">01—03</span></div>
+        <div className="card-kicker"><span>Open your source</span><span className="mono">Step 01 of 03</span></div>
         <ApprovedPdfSource selected={selectedSource} onChange={setSelectedSource} disabled={prepareStudy.isPending} />
-        {savedStudyLoaded && <section className="saved-study saved-study-history" aria-label="Saved studies">
+        {savedStudyLoaded && <section className="saved-study saved-study-history" id="saved-studies" aria-label="Saved studies">
           <div className="saved-study-history-heading">
             <div><strong>Your saved studies</strong><p>Drafts and reports stay in this browser. Verify the matching PDF before reopening.</p></div>
             <div className="saved-study-tools">
@@ -437,7 +443,7 @@ function App() {
           </div>
           <p className="saved-study-hint">Backups include your drafts and reports, but never PDF files or verification tokens. Keep exported files private.</p>
           {savedStudies.length === 0
-            ? <p className="saved-study-hint">Your explanations and reports will appear here as you work.</p>
+            ? <div className="empty-state"><Hearo pose="wave" size={140} /><p className="saved-study-hint">Your explanations and reports will appear here as you work.</p></div>
             : <ul className="saved-study-list">{savedStudies.map(savedStudy => {
               const sourceMatches = Boolean(selectedSource && sourceIdentity && matchesSource(savedStudy, sourceIdentity));
               const citationsAreValid = Boolean(selectedSource && citationsMatchSource(savedStudy, selectedSource.source));
@@ -500,12 +506,23 @@ function App() {
       </div>
       <div className="workspace-grid">
         <section className="explain-panel panel">
-          <div className="panel-heading"><div><h2>Explain it your way</h2></div><span className="silence-tag"><span /> SILENT MODE</span></div>
-          <p className="panel-hint" dir="auto">اشرح بالعربية أو الإنجليزية. Speak or type in your own words. Live checking updates the map after pauses; Hearo never speaks back.</p>
+          <div className="explain-intro">
+            <div className="explain-intro-copy">
+              <div className="panel-heading"><div><h2>Explain it your way</h2></div><span className="silence-tag"><span /> SILENT MODE</span></div>
+              <p className="panel-hint" dir="auto">اشرح بالعربية أو الإنجليزية. Speak or type in your own words. Live checking updates the map after pauses; Hearo never speaks back.</p>
+            </div>
+            <div className={`hearo-stage ${listening && !finishing ? 'is-recording' : ''}`} data-testid="hearo-session-pose">
+              {finishing ? <Hearo pose="thinking" size={100} className="hearo-loading" />
+                : listening ? <Hearo pose="mic" size={120} className="hearo-recording" />
+                  : live.busy ? <Hearo pose="thinking" size={100} className="hearo-loading" />
+                    : <Hearo pose="wave" size={120} />}
+            </div>
+          </div>
           <label className="live-toggle"><input type="checkbox" checked={liveEnabled} disabled={finishing} onChange={event => setLiveEnabled(event.target.checked)} data-testid="toggle-live-session" /><span>التحقق المباشر · Live checking</span></label><FeedbackSoundToggle enabled={sounds.enabled} onToggle={sounds.toggle} supported={sounds.supported} />
           <div className={allowance && (!allowance.available || allowance.remainingChecks <= Math.max(1, Math.ceil(allowance.dailyLimit * 0.1))) ? 'saved-study-warning' : 'saved-study-status'} role="status" aria-live="polite" data-testid="status-check-allowance">
             {allowance ? <>
               <p>التحققات المتبقية · Checks remaining in this browser: <strong>{allowance.remainingChecks} / {allowance.dailyLimit}</strong>.</p>
+              <div className="progress-track" aria-hidden="true"><span className="progress-fill" style={{ width: `${allowance.dailyLimit > 0 ? Math.min(100, Math.max(0, allowance.remainingChecks / allowance.dailyLimit * 100)) : 0}%` }} /></div>
               <p>يتجدد الرصيد · Resets at <time dateTime={allowance.resetAt}>{new Date(allowance.resetAt).toISOString().replace('T', ' ').replace('.000Z', '')} UTC</time>.</p>
               {!allowance.available ? <p>{allowance.blockedBy === 'overall'
                 ? 'بلغت الخدمة حدها اليومي · The shared service has reached its daily limit, even if this browser has checks left.'
@@ -585,27 +602,38 @@ function App() {
     </section>}
 
     {phase === 'review' && evaluation && studyMap && overall && <section className="review-page enter">
-      <div className="review-top">
-        <button className="back-link" onClick={() => setPhase('session')} type="button" data-testid="button-back-review"><ArrowLeft size={14} /> Back to my explanation</button>
-        <div className="eyebrow"><span className="eyebrow-rule" /> SESSION REFLECTION</div>
-        <h1 className="serif review-title">You made it <em>yours.</em></h1>
-        <p className="review-description">Here’s what your explanation showed about <strong>{studyMap.topic}</strong>. A map to guide your next pass, not a grade.</p>
+      <header className="review-top report-card">
+        <div className="review-top-bar">
+          <button className="back-link" onClick={() => setPhase('session')} type="button" data-testid="button-back-review"><ArrowLeft size={14} /> Back to my explanation</button>
+          <button className="primary-button report-download" type="button" onClick={() => downloadReport()} data-testid="button-download-report"><Download size={15} /> تنزيل التقرير · Download report</button>
+        </div>
+        <div className="review-hero">
+          <Hearo pose="thumbsup" size={160} className="hearo-success" />
+          <div>
+            <div className="eyebrow">Session reflection · تأمّل الجلسة</div>
+            <h1 className="review-title">You made it <em>yours.</em></h1>
+            <p className="review-description">Here’s what your explanation showed about <strong>{studyMap.topic}</strong>. A map to guide your next pass, not a grade.</p>
+            <p className="review-meta"><span>{transcriptWords} words explained</span><span>{studyMap.nodes.length} concepts in the map</span></p>
+          </div>
+        </div>
         {voiceOverflow && <p className="saved-study-warning" role="status">This report checks only the first 12,000 characters. Extra spoken words are preserved in the download as unassessed text: <bdi>{voiceOverflow}</bdi></p>}
-        <button className="upload-button" type="button" onClick={() => downloadReport()} data-testid="button-download-report">تنزيل التقرير · Download report</button>
+      </header>
+      <section className="review-summary report-card" aria-labelledby="report-summary-heading">
+        <div className="summary-intro"><span className="report-section-label">Summary · الملخص</span><h2 id="report-summary-heading">Understanding has its own shape.</h2></div>
         <ReportScoreCard evaluation={evaluation} />
         <CheckLatencyNote latency={live.latency} />
-      </div>
-      <div className="review-summary">
-        <div className="summary-intro"><span className="mono">YOUR MAP, UPDATED</span><h2 className="serif">Understanding<br />has its own shape.</h2><StatusKey /></div>
         <div className="summary-stats">
           <div className="summary-stat"><span className="stat-dot understood-dot" /><strong>{overall.understood}</strong><span>understood</span></div>
           <div className="summary-stat"><span className="stat-dot incorrect-dot" /><strong>{overall.revisit}</strong><span>to revisit</span></div>
-            <div className="summary-stat"><span className="stat-dot skipped-dot" /><strong>{overall.skipped}</strong><span>not fully demonstrated</span></div>
+          <div className="summary-stat"><span className="stat-dot skipped-dot" /><strong>{overall.skipped}</strong><span>not fully demonstrated</span></div>
         </div>
-         <div className="review-map"><ConceptMap map={studyMap} assessments={evaluation.assessments} assessed /></div>
-      </div>
+        <StatusKey />
+        <div className="review-map"><ConceptMap map={studyMap} assessments={evaluation.assessments} assessed /></div>
+      </section>
       <div className="reflection-section">
-        {evaluation.assessments && selectedSource ? <AssessmentEvidence assessments={evaluation.assessments} source={selectedSource.source} fileUrl={selectedSource.fileUrl} map={studyMap} onPractice={() => setPhase('session')} /> : evaluation.feedback.length ? <div className="feedback-list">
+        {evaluation.assessments && selectedSource && reportGroups.length ? reportGroups.map(group => <div className={`report-card report-group report-group-${group.key}`} key={group.key}>
+          <AssessmentEvidence heading={group.title} hint={group.hint} assessments={group.items} source={selectedSource.source} fileUrl={selectedSource.fileUrl} map={studyMap} onPractice={() => setPhase('session')} />
+        </div>) : !(evaluation.assessments && selectedSource) && evaluation.feedback.length ? <div className="feedback-list report-card">
           {evaluation.feedback.map((item, index) => <article key={`${item.statement}-${index}`} className={`feedback-item feedback-${item.status}`} data-testid={`feedback-${index}`}>
             <button className="feedback-toggle" type="button" onClick={() => setFeedbackOpen(feedbackOpen === `${index}` ? null : `${index}`)} aria-expanded={feedbackOpen === `${index}`} data-testid={`button-feedback-${index}`}>
               <span className="feedback-status-icon">{item.status === 'understood' ? <Check size={15} /> : <RotateCcw size={15} />}</span>
@@ -613,18 +641,20 @@ function App() {
             </button>
             <div className="feedback-explanation"><p>{item.explanation}</p></div>
           </article>)}
-        </div> : <div className="feedback-empty"><CheckCircle2 size={19} /><div><strong>A thoughtful first pass.</strong><p>There weren’t specific claims to annotate. Use the map as a prompt for another round.</p></div></div>}
+        </div> : <div className="feedback-empty report-card"><Hearo pose="thinking" size={140} /><div><strong>A thoughtful first pass.</strong><p>There weren’t specific claims to annotate. Use the map as a prompt for another round.</p></div></div>}
       </div>
-      <section className="transcript-review">
-        <div className="transcript-review-head"><span className="mono">YOUR WORDS, UNCHANGED</span><span>{transcriptWords} words</span></div>
+      <details className="transcript-review report-card" open>
+        <summary className="transcript-review-head"><span className="report-section-label">Transcript · كلماتك كما هي</span><span>{transcriptWords} words</span></summary>
         <p dir="auto">{transcript}</p>
-      </section>
+      </details>
       {error && <div className="inline-error review-error" role="alert" data-testid="status-review-error"><span>!</span>{error}<button type="button" onClick={() => setError('')} aria-label="Dismiss message"><X size={14} /></button></div>}
       {storageMessage && <p className="saved-study-status" role="status" data-testid="status-storage">{storageMessage}</p>}
       <div className="review-actions"><p>Good learning leaves room for a second telling.</p><button className="primary-button" type="button" onClick={resetStudy} data-testid="button-new-session">Start a new session <ArrowRight size={16} /></button></div>
     </section>}
-    <footer className="site-footer"><span>HEARO <i>·</i> A STUDY SPACE</span><span>English source · Arabic or English answers</span></footer>
-  </main>;
+    </div>
+    <footer className="site-footer"><span>Hearo · Listen-first learning</span><span>English source · Arabic or English answers</span></footer>
+    </main>
+  </div>;
 }
 
 function Router() {
