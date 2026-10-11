@@ -1,0 +1,367 @@
+# Hearo — Urgent Frontend, Scrolling & UI/UX Stabilization Before Presentation
+
+You are working on the existing Hearo / Listen First application.
+
+**The presentation is approaching. Your priority is to make the existing application stable, visually polished, intuitive, and fully usable.**
+
+Do not just inspect the application and provide recommendations. You must investigate the actual code, reproduce the problems, implement the fixes, and verify the results.
+
+Do not stop after creating a plan. Execute the work.
+
+## 1. CRITICAL: Fix the scrolling behavior across the entire application
+
+There is a noticeable frontend scrolling problem: when I scroll, the behavior is inconsistent between different parts of the interface. One area scrolls, while another area or the surrounding page behaves differently.
+
+This is especially noticeable on the guided sample page:
+
+- Page/section: Large-Scale Web Applications
+- The page contains a concept map, six concepts, reference excerpts, a sample progress indicator, and a footer.
+- The page currently feels as though its scrolling behavior is not properly coordinated.
+
+**Do not assume the cause. Inspect the actual implementation and identify the root cause before changing the layout.**
+
+Investigate all relevant possibilities, including:
+
+- Nested scroll containers.
+- Multiple elements using `overflow-y: auto`, `overflow-y: scroll`, or `overflow: hidden`.
+- Fixed or sticky elements interfering with normal document scrolling.
+- Incorrect `height`, `min-height`, `max-height`, and `100vh` / `100dvh` combinations.
+- Containers with fixed heights that cut off content.
+- Flexbox or grid children that cannot shrink because `min-height: auto` is applied.
+- Incorrect `position: fixed` or `position: sticky` behavior.
+- Scrollbar behavior and layout shifts.
+- Scroll chaining and overscroll behavior.
+- Horizontal overflow affecting the page layout.
+- Event handlers that intercept or prevent normal scrolling.
+- Modals, drawers, or overlays that leave the document scroll locked.
+- Layout changes caused by conditional rendering, navigation, or changing content.
+- Responsive CSS rules that create different scrolling behavior at different breakpoints.
+
+### Required scrolling outcome
+
+Establish a clear, consistent scrolling model.
+
+1. The main document should scroll naturally when the page content exceeds the viewport.
+2. Independent internal scrolling should only exist when it is intentional and genuinely improves usability.
+3. Users should not have to guess whether they need to scroll the page, a card, a panel, or another nested area.
+4. Scrolling over ordinary content should not unexpectedly move a different section.
+5. No content should become inaccessible because of a fixed height, hidden overflow, or a nested scroll container.
+6. The page must not become trapped in an internal scroll area.
+7. Scrolling should work consistently with a mouse wheel, trackpad, touch gestures, and keyboard navigation.
+8. Sticky elements, if present, must not cover content or make the interface feel broken.
+9. The footer and final content must remain reachable.
+10. Avoid unnecessary nested scrollbars.
+
+**Important:** Do not blindly remove every `overflow` property or force every container to `overflow: visible`. Some components may legitimately require internal scrolling. Make a deliberate decision for each container based on its role.
+
+Inspect the global layout, shared page shell, navigation, main content wrappers, and the specific guided sample page. Fix the underlying shared cause wherever possible instead of applying isolated CSS patches.
+
+## 2. Fix the guided sample page specifically
+
+Reproduce and inspect the complete page, from the top to the footer.
+
+The visible page contains:
+
+- Offline sample notice.
+- Exit sample action.
+- “A small guided tour” introduction.
+- “Large-Scale Web Applications” heading.
+- Introductory description.
+- Start the sample action.
+- Sample badge.
+- Concept map.
+- Progress indicator showing 0/6.
+- Six concepts:
+  - Scale out vs. scale up
+  - Load balancing
+  - Stateless servers
+  - Data sharding
+  - Replication
+  - Caching and consistency
+- Concept relationship descriptions.
+- Concept selection instructions.
+- Reference excerpts section with 21 entries.
+- Hearo / Listen-first learning footer.
+
+### Inspect and fix these specific problems
+
+**A. Page flow and scrolling**
+
+- Ensure the entire page follows a coherent vertical layout.
+- Ensure the introduction, concept map, reference excerpts, and footer are reachable through natural scrolling.
+- Check whether the concept map or reference excerpts are creating an unintended nested scroll area.
+- Ensure the page does not jump unexpectedly when starting the sample or selecting a concept.
+- Ensure the user can scroll from the top to the bottom without fighting the interface.
+
+**B. Concept map layout**
+
+- Make the concept map fit its container without breaking the page width.
+- Prevent the map from creating unexpected horizontal scrolling on desktop or mobile.
+- Keep labels readable and prevent them from overlapping.
+- Ensure connections, nodes, and labels remain aligned.
+- Preserve intentional map interactions.
+- If the map genuinely requires horizontal scrolling on a small screen, contain it within the map area and make that behavior obvious. Do not make the entire page scroll horizontally.
+- Do not sacrifice readability merely to force the entire map into a small viewport.
+
+**C. Reference excerpts section**
+
+The current visible output includes a “Reference excerpts (21)” heading followed by numbered entries from 1 to 21 that appear empty.
+
+Investigate the actual data and rendering logic.
+
+- Determine whether the excerpts are supposed to contain text, citations, selectable evidence, or other content.
+- Determine whether the entries are intentionally empty before the learner starts the sample or whether this is a rendering/data bug.
+- Fix the actual cause.
+- If content is available, render it correctly.
+- If the entries are intentionally unavailable at this stage, display a clear, intentional empty or instructional state instead of a long list of unexplained numbers.
+- Do not invent reference content, fabricate evidence, or change the sample's underlying assessment logic.
+- Do not silently remove meaningful evidence or functionality just to make the page look cleaner.
+
+**D. Sample state and interactions**
+
+Verify the behavior of:
+
+- Start the sample.
+- Selecting each concept.
+- Updating the 0/6 progress indicator.
+- Displaying the selected concept's explanation and evidence.
+- Exiting the sample.
+- Any back, next, or completion controls that actually exist.
+
+Ensure the UI reflects the real application state. Do not make buttons appear functional if they are not.
+
+Preserve the distinction between this prewritten offline illustration and a real AI-evaluated learner assessment. Do not imply that the sample is evaluated by AI.
+
+## 3. Audit and fix the frontend across ALL existing pages
+
+Do not limit the fix to the sample page.
+
+Inspect every existing user-facing route and major interface state, including:
+
+- Landing page.
+- Main learning/study experience.
+- Guided offline sample.
+- Assessment/report page.
+- Navigation and shared page shell.
+- Empty, loading, error, and completion states that already exist.
+- Any dialogs, popovers, menus, or overlays used in the application.
+
+For each page, inspect:
+
+- Vertical scrolling.
+- Horizontal overflow.
+- Responsive layout.
+- Content clipping.
+- Overlapping components.
+- Unintended fixed heights.
+- Broken sticky positioning.
+- Inconsistent spacing.
+- Typography and line wrapping.
+- Button placement and usability.
+- Cards and content alignment.
+- Navigation behavior.
+- Footer placement.
+- Loading and transition behavior.
+
+Fix the actual problems found. Prioritize defects that are visible, disruptive, or likely to appear during the presentation.
+
+Do not invent new product features.
+
+## 4. UI/UX polish — presentation-ready, not a redesign
+
+Improve the existing interface while preserving the established Hearo visual identity, current light theme, typography, colors, components, and overall design direction.
+
+The goal is a coherent, professional interface — not a new design system or an unnecessary rewrite.
+
+### Layout and visual hierarchy
+
+- Establish consistent spacing between sections.
+- Ensure headings, descriptions, cards, and actions have a clear visual hierarchy.
+- Align content to consistent page boundaries.
+- Avoid excessive empty space and unnecessarily cramped sections.
+- Ensure the primary action is visually distinguishable.
+- Keep secondary actions visually secondary.
+- Ensure long pages feel structured rather than like disconnected blocks.
+- Make the relationship between the concept map and its supporting evidence obvious.
+
+### Interaction design
+
+- Buttons must have clear labels and appropriate visual states.
+- Interactive elements must have visible hover, focus, active, and disabled states where applicable.
+- Ensure clickable elements look clickable.
+- Prevent misleading buttons, dead links, and controls that do nothing.
+- Provide clear feedback when an action changes the interface.
+- Avoid unexpected page jumps after interactions.
+- Preserve keyboard accessibility.
+
+### Typography and content
+
+- Prevent text clipping, awkward wrapping, and overlapping labels.
+- Ensure text remains readable at all supported viewport sizes.
+- Keep the existing English and Arabic content accurate.
+- Preserve the distinction between informational notices, sample content, evidence, and assessment results.
+- Do not rewrite content unnecessarily or introduce exaggerated product claims.
+
+### Accessibility
+
+- Verify sufficient text/background contrast.
+- Ensure visible keyboard focus.
+- Ensure interactive elements are keyboard accessible.
+- Respect reduced-motion preferences.
+- Use semantic headings and landmarks.
+- Give icon-only buttons accessible names.
+- Ensure sticky headers and overlays do not obscure focused elements.
+
+## 5. Responsive testing
+
+Test the actual running application at these viewport sizes:
+
+- 375 × 812 — mobile.
+- 768 × 1024 — tablet.
+- 1280 × 800 — desktop.
+- 1440 × 900 — larger desktop.
+
+At each size, inspect the complete page, including the bottom of the page.
+
+Specifically verify:
+
+- No unintended horizontal scrollbar on the document.
+- No content clipped at the viewport edges.
+- No overlapping navigation, headings, cards, or buttons.
+- No nested scrolling unless explicitly intended.
+- No inaccessible content below fixed-height containers.
+- No footer overlap.
+- No broken concept-map layout.
+- No layout shifts that make scrolling confusing.
+
+Test the actual application in a browser. Do not treat a successful build or a passing unit test as proof that the layout is correct.
+
+## 6. Arabic, RTL, and English
+
+Preserve and verify the existing localization behavior.
+
+Where Arabic is supported:
+
+- Ensure the correct document direction is applied.
+- Verify the alignment of headings, body text, buttons, navigation, and cards.
+- Verify that mixed Arabic and English content renders correctly.
+- Check punctuation, numbers, and reference excerpts.
+- Ensure the concept map remains readable and its relationships are understandable.
+- Ensure scrolling and layout do not break when switching direction.
+
+Where English is supported, verify the equivalent LTR layout.
+
+Do not add a fake language switcher or claim full localization if the application does not support it.
+
+## 7. Fix known issues from the previous QA review
+
+In addition to the new scrolling issue, reproduce and fix these previously identified issues if they still exist:
+
+1. After clicking “Finish & report”, the report page may open at a position below the top instead of starting at the beginning of the report.
+2. A “previous report” notice may appear when it does not apply.
+3. The “How it works” button may do nothing on the study and report pages where its target section does not exist.
+
+For each issue:
+
+- Reproduce it.
+- Identify the actual cause.
+- Implement the smallest correct fix.
+- Add a regression test where appropriate.
+- Verify the behavior in the running application.
+
+For the report navigation issue, ensure that navigating to a new report presents the user with the report's intended starting position, without breaking legitimate browser navigation or focus behavior.
+
+For the previous-report notice, ensure that it appears only when the relevant previous-report state genuinely exists.
+
+For “How it works”, either make the action navigate to a valid destination or remove/disable it in contexts where it has no meaningful destination. Do not leave a dead action.
+
+## 8. Implementation constraints
+
+- Work in the existing repository and current application.
+- Inspect the actual current code before editing.
+- Identify the relevant layout components, CSS, route structure, and state management.
+- Preserve existing functionality and user data.
+- Do not replace the application with a new implementation.
+- Do not perform a broad refactor when a targeted fix is sufficient.
+- Do not change APIs, database schemas, authentication, assessment logic, or data models unless a verified bug makes it necessary.
+- Do not add dependencies unless absolutely necessary.
+- Do not introduce fake content or fake functionality.
+- Do not delete tests or weaken assertions to make the suite pass.
+- Do not remove test IDs or test-checked text merely to bypass failures.
+- Do not overwrite unrelated user changes.
+- Do not commit or push changes unless explicitly requested.
+
+If you find a shared CSS or layout problem, fix it at the appropriate shared level and verify that the change does not break other pages.
+
+## 9. Verification — mandatory
+
+After implementing the fixes:
+
+1. Run the existing test suite.
+2. Run type checking.
+3. Run linting if configured.
+4. Run the production build.
+5. Start the application using the repository's existing workflow.
+6. Open the actual running application in a browser.
+7. Test the guided sample from top to bottom.
+8. Test the other major pages.
+9. Test the scrolling behavior with a mouse wheel or trackpad.
+10. Test the responsive viewport sizes listed above.
+11. Test both Arabic RTL and English LTR where supported.
+12. Test the relevant interactions and navigation.
+13. Inspect the browser console for errors.
+14. Inspect the browser for horizontal overflow, clipped content, and unintended nested scrollbars.
+15. Recheck all previously identified QA issues.
+
+When browser automation is available, use it. Otherwise, use the available browser preview and clearly state what could and could not be verified.
+
+Do not claim to have visually tested a page if you only inspected its source code.
+
+Do not claim all tests pass unless you actually ran them and observed the results.
+
+If a test fails, determine whether it is caused by your changes or is pre-existing. Fix regressions introduced by your changes.
+
+## 10. Execution priority
+
+Because the presentation is approaching, follow this order:
+
+**P0 — Presentation blockers**
+- Broken or confusing scrolling.
+- Content that cannot be reached.
+- Horizontal overflow.
+- Broken layout or overlapping elements.
+- Dead primary actions.
+- Broken report navigation.
+- Empty or misleading reference-excerpt rendering.
+
+**P1 — Major UX defects**
+- Inconsistent page spacing.
+- Broken responsive behavior.
+- Confusing navigation.
+- Misleading states or notices.
+- Accessibility problems that prevent interaction.
+
+**P2 — Final polish**
+- Minor alignment, spacing, typography, and transition inconsistencies.
+
+Fix P0 issues first. Do not spend time on decorative changes while fundamental scrolling and navigation problems remain.
+
+## 11. Final report
+
+When finished, provide a concise but specific report containing:
+
+1. The root cause of the scrolling problem.
+2. The exact files and components changed.
+3. The issues fixed on the guided sample page.
+4. The other pages and UI/UX problems fixed.
+5. The status of the three previously identified QA issues.
+6. Test results, including actual pass/fail counts where available.
+7. The viewport sizes and pages actually tested.
+8. Any remaining issues or limitations.
+
+Clearly distinguish between:
+- Fixed and verified.
+- Fixed but not fully verified.
+- Not fixed.
+
+**Start by inspecting and reproducing the scrolling problem in the current running application. Then fix it and continue through the remaining priorities. Do not stop at an audit, a proposed plan, or a list of recommendations.**

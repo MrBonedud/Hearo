@@ -1,9 +1,9 @@
-import { useId, useMemo, useState } from 'react';
+import { useId, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type { StudyEvaluation, StudyMap } from '@workspace/api-client-react';
 import { BookOpen } from 'lucide-react';
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import {
-  GRAPH_NODE_H, GRAPH_NODE_W, computeGraphLayout, rectEdgePoint, shortConceptLabel,
+  COMPACT_GRAPH_SIZING, DEFAULT_GRAPH_SIZING, computeGraphLayout, rectEdgePoint, shortConceptLabel,
 } from '@/lib/concept-graph-layout';
 import type { TranslationKey } from '@/i18n/translations';
 import { useTranslation } from '@/i18n/useTranslation';
@@ -29,7 +29,25 @@ export function ConceptMap({ map, compact = false, assessments, assessed = Boole
     const ids = new Set(map.nodes.map(node => node.id));
     return map.edges.filter(edge => ids.has(edge.from) && ids.has(edge.to) && edge.from !== edge.to);
   }, [map.nodes, map.edges]);
-  const layout = useMemo(() => computeGraphLayout(map.nodes.map(node => node.id), validEdges), [map.nodes, validEdges]);
+  // The map container is measured so narrow screens get the compact layout instead of a clipped one.
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const [available, setAvailable] = useState(Infinity);
+  useLayoutEffect(() => {
+    const element = scrollRef.current;
+    if (!element) return;
+    const measure = () => setAvailable(element.clientWidth);
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, [map.nodes.length]);
+  const layout = useMemo(() => {
+    const ids = map.nodes.map(node => node.id);
+    const full = computeGraphLayout(ids, validEdges);
+    return full.width <= available ? full : computeGraphLayout(ids, validEdges, COMPACT_GRAPH_SIZING);
+  }, [map.nodes, validEdges, available]);
+  const overflows = layout.width > available + 1;
+  const isCompact = layout.node.w !== DEFAULT_GRAPH_SIZING.nodeW;
   const selectedNode = map.nodes.find(node => node.id === selectedId) ?? null;
 
   const statusFor = (nodeId: string, nodeStatus: StudyMap['nodes'][number]['status']): { status: VisualStatus; uncertain: boolean } => {
@@ -54,8 +72,9 @@ export function ConceptMap({ map, compact = false, assessments, assessed = Boole
     const a = layout.positions[edge.from];
     const b = layout.positions[edge.to];
     if (!a || !b) return [];
-    const start = rectEdgePoint(a.x, a.y, b.x + GRAPH_NODE_W / 2, b.y + GRAPH_NODE_H / 2);
-    const end = rectEdgePoint(b.x, b.y, a.x + GRAPH_NODE_W / 2, a.y + GRAPH_NODE_H / 2, 6);
+    const { w, h } = layout.node;
+    const start = rectEdgePoint(a.x, a.y, b.x + w / 2, b.y + h / 2, 3, layout.node);
+    const end = rectEdgePoint(b.x, b.y, a.x + w / 2, a.y + h / 2, 6, layout.node);
     // A gentle quadratic bow keeps relationships readable without changing the layout.
     const dx = end.x - start.x;
     const dy = end.y - start.y;
@@ -70,13 +89,15 @@ export function ConceptMap({ map, compact = false, assessments, assessed = Boole
   });
 
   return <section className={`concept-map ${compact ? 'concept-map-compact' : ''}`} aria-label={t('map.regionLabel')}>
-    <div className="concept-map-scroll" tabIndex={0} aria-label={t('map.scrollLabel')}>
-      <div className={`concept-map-canvas ${validEdges.length ? 'has-edges' : 'no-edges'}`} style={{ width: layout.width, height: layout.height }} data-testid="concept-map-graph">
+    {overflows && <p className="concept-map-scroll-hint" data-testid="text-map-scroll-hint">{t('map.scrollHint')}</p>}
+    <div ref={scrollRef} className={`concept-map-scroll ${overflows ? 'is-overflowing' : ''}`} tabIndex={0} aria-label={t('map.scrollLabel')}>
+      <div className={`concept-map-canvas ${validEdges.length ? 'has-edges' : 'no-edges'} ${isCompact ? 'is-compact' : ''}`} style={{ width: layout.width, height: layout.height }} data-testid="concept-map-graph">
         {arrows.length > 0 && <svg className="concept-map-links" width={layout.width} height={layout.height} viewBox={`0 0 ${layout.width} ${layout.height}`} aria-hidden="true">
           <defs><marker id={markerId} markerWidth="9" markerHeight="9" refX="7" refY="4.5" orient="auto" markerUnits="userSpaceOnUse"><path d="M 0 0 L 9 4.5 L 0 9 z" /></marker></defs>
           {arrows.map((arrow, index) => <g key={arrow.key}>
             <motion.path d={arrow.d} markerEnd={`url(#${markerId})`} initial={{ pathLength: 0, opacity: 0 }} animate={{ pathLength: 1, opacity: 1 }} transition={{ duration: reducedMotion ? 0 : .5, delay: reducedMotion ? 0 : index * .06 }} />
-            {arrow.label && <text x={arrow.x + 6} y={arrow.y - 4} textAnchor="start">{arrow.label}</text>}
+            {/* Centred on the curve (with a halo) so neighbouring labels never run into each other in narrow layouts. */}
+            {arrow.label && <text x={arrow.x} y={arrow.y + 3} textAnchor="middle">{arrow.label}</text>}
           </g>)}
         </svg>}
         {map.nodes.map((node, index) => {
@@ -87,7 +108,7 @@ export function ConceptMap({ map, compact = false, assessments, assessed = Boole
           return <motion.button
             key={node.id}
             className={`concept-node status-${status} ${selected ? 'is-selected' : ''}`}
-            style={{ left: pos.x, top: pos.y, width: GRAPH_NODE_W, height: GRAPH_NODE_H }}
+            style={{ left: pos.x, top: pos.y, width: layout.node.w, height: layout.node.h }}
             type="button"
             aria-expanded={selected}
             aria-controls={`${markerId}-details`}

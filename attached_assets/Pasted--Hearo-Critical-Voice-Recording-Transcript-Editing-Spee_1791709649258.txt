@@ -1,0 +1,323 @@
+# Hearo — Critical Voice Recording, Transcript Editing & Speech Recognition Bug Fix
+
+You are working on the existing Hearo / Listen First application. This is a critical usability issue that must be fixed before the upcoming presentation.
+
+Do not merely inspect the code and suggest solutions. Investigate the actual implementation, reproduce the issue, fix the root cause, and verify the complete voice-recording workflow in the running application.
+
+## 1. The reported bug
+
+When a learner records their voice and speaks, they may notice that they misspoke or used the wrong word. They want to edit that specific word in the transcript.
+
+Currently, editing the spoken text can cause the transcript to become corrupted, mixed up, overwritten, or incorrectly interpreted. Instead of correcting one word, the learner may lose or disturb other parts of the transcript.
+
+This makes the voice-based learning experience unreliable.
+
+**The expected behavior is simple: recording a response, editing one word, and continuing should never unexpectedly destroy, replace, reorder, or corrupt the rest of the transcript.**
+
+First, reproduce this behavior in the current application. Do not assume the implementation uses a particular speech recognition API or transcription architecture. Inspect the actual code and determine what is happening.
+
+## 2. Trace the entire voice-to-transcript workflow
+
+Inspect all relevant components, hooks, state, and event handlers involved in:
+
+- Starting and stopping a recording.
+- Receiving microphone audio.
+- Speech recognition and transcription.
+- Handling interim and final recognition results.
+- Displaying the transcript.
+- Editing the transcript manually.
+- Saving or updating the edited text.
+- Resuming recording after editing, if supported.
+- Submitting the response for evaluation.
+- Generating and displaying assessment results.
+
+Identify the actual source of the corruption.
+
+Investigate possible causes, including:
+
+- Speech recognition results overwriting manually edited text.
+- Interim transcription results replacing previously finalized text.
+- Repeated recognition events appending the same words multiple times.
+- Stale React state or stale closures.
+- Incorrect state synchronization between the audio recorder, speech recognition hook, and transcript editor.
+- Multiple event listeners or recognition sessions running simultaneously.
+- Incorrect use of `onresult`, `onend`, `onerror`, or equivalent callbacks.
+- Incorrect transcript concatenation or replacement logic.
+- Controlled input values being reset during re-rendering.
+- Textarea cursor position or selection being lost during updates.
+- Recording being restarted without preserving the existing transcript.
+- Edited text being replaced by an older transcript stored elsewhere.
+- Race conditions between recording events, state updates, and manual edits.
+- Duplicate submissions or transcript processing triggered by multiple events.
+
+These are investigation targets, not assumptions. Fix the cause demonstrated by the actual code and reproduction.
+
+## 3. Establish a safe transcript state model
+
+Implement a clear separation between the following concepts wherever the current architecture requires them:
+
+1. **Recognized transcript:** Text produced by speech recognition.
+2. **Editable transcript:** The current text displayed to and controlled by the learner.
+3. **Final submitted transcript:** The exact text submitted for assessment.
+
+Do not allow incoming speech recognition events to silently overwrite manually edited text.
+
+Use a single, clearly defined source of truth for the editable transcript. Avoid multiple independent state variables that continuously overwrite each other.
+
+If the application supports interim and final recognition results, handle them separately and consistently. Do not treat every recognition event as a completely new transcript.
+
+Preserve the existing architecture where practical. Do not introduce unnecessary state-management libraries or rewrite unrelated parts of the application.
+
+### Required data integrity rules
+
+- Existing transcript text must not disappear because of a new recognition event.
+- A manually corrected word must not be replaced by an older recognition result.
+- Repeated recognition events must not duplicate previously accepted words.
+- The text must remain in the correct order.
+- Editing one part of the transcript must preserve the rest.
+- The final submitted text must match the text the learner actually sees and intends to submit.
+- A failed recording or recognition event must not erase existing text.
+- The application must not silently reset the transcript when recording starts or stops.
+
+If the learner intentionally clears or replaces the transcript, respect that explicit action.
+
+## 4. Make manual transcript editing reliable
+
+Inspect the existing transcript editing UI and fix any problems that interfere with normal text editing.
+
+The learner must be able to:
+
+- Click anywhere in the transcript.
+- Correct a misspelled or incorrectly recognized word.
+- Insert or delete words.
+- Edit a sentence without changing unrelated sentences.
+- Select and replace a specific portion of text.
+- Use Backspace, Delete, arrow keys, Ctrl+A, copy, paste, and undo where supported by the browser.
+- Move the cursor normally without it unexpectedly jumping to the end.
+- Continue editing while the component re-renders.
+- Preserve line breaks and normal spacing.
+
+Do not re-render or reset the editor value unnecessarily while the learner types.
+
+If the transcript editor is a controlled React input or textarea, ensure that its value and change handler are correctly synchronized and that asynchronous recognition updates do not reset the current editing session.
+
+Do not automatically replace the user's current editing value with a fresh recognition result.
+
+## 5. Define safe behavior when editing and recording overlap
+
+Investigate whether the application currently allows the learner to edit while recording or recognition is still active.
+
+Implement behavior appropriate to the existing product flow.
+
+At minimum, support this safe sequence:
+
+1. The learner starts recording.
+2. The learner speaks a response.
+3. The learner stops recording or pauses at the appropriate point.
+4. The transcript becomes available for editing.
+5. The learner corrects a specific word.
+6. The corrected text remains intact.
+7. The learner reviews the final text.
+8. The learner submits it for assessment.
+
+If recording can continue while the transcript is being edited, ensure that incoming recognition events cannot overwrite the user's edits. If that cannot be guaranteed safely in the existing architecture, prevent conflicting editing and recognition operations with a clear UI state rather than allowing silent data corruption.
+
+Do not add a complicated new workflow unless it is necessary.
+
+If resuming recording after manual edits is supported, ensure that new recognized speech is integrated without replacing previously edited content or duplicating earlier speech.
+
+If the existing implementation cannot safely merge resumed speech into manually edited text, use an explicit and understandable transition rather than guessing where the new speech belongs.
+
+## 6. Preserve recording and transcript state
+
+Review all transitions between:
+
+- Idle.
+- Recording.
+- Paused, if supported.
+- Processing or recognition.
+- Ready to edit.
+- Submitted.
+- Error.
+
+Use the states that actually exist in the application; do not invent unnecessary states.
+
+Verify that:
+
+- Starting a new recording does not accidentally erase a previous transcript without an intentional user action.
+- Stopping a recording preserves the recognized text.
+- A recognition error does not erase previously accepted text.
+- Re-rendering does not reset the input.
+- Navigating between relevant states does not unexpectedly discard edits.
+- Reset and clear actions work intentionally and predictably.
+- Repeated start/stop actions do not create duplicate recognition sessions or event listeners.
+
+If the learner is about to discard meaningful transcript content, provide an appropriate confirmation when necessary.
+
+Do not persist audio or transcript data to a new external service or database unless the existing architecture already requires it.
+
+## 7. Ensure assessment uses the correct transcript
+
+This is a learning application, so transcript correctness directly affects the usefulness of the assessment.
+
+Trace the exact text passed from the transcript editor to the assessment logic or API.
+
+Before submission:
+
+- Use the current edited transcript, not a stale recognition result.
+- Ensure all user edits are reflected in the submitted payload.
+- Prevent duplicate submissions caused by repeated events.
+- Keep the current assessment logic, API contracts, and data formats intact.
+- Do not fabricate transcript content or assessment results.
+- Do not silently revert the text after submission.
+- Ensure the report corresponds to the response that was actually submitted.
+
+If the current application distinguishes between a raw transcript and an assessed response, preserve that distinction.
+
+Do not change the assessment algorithm merely to work around a frontend synchronization bug.
+
+## 8. Improve the recording UI/UX
+
+Keep the existing Hearo design system and visual identity. Make focused improvements that communicate the recording and transcript states clearly.
+
+Inspect the actual UI and ensure:
+
+- Recording status is immediately understandable.
+- The learner can tell whether recording is active or stopped.
+- The transcript is visibly editable when appropriate.
+- The learner can identify how to stop recording and review the transcript.
+- Processing or recognition states do not make the editor appear broken.
+- Errors are communicated clearly without exposing technical stack traces.
+- Existing text is not silently replaced.
+- Important actions have clear labels and appropriate disabled/loading states.
+- The transcript area remains usable on mobile and desktop.
+- Keyboard navigation and focus behavior remain functional.
+
+If recognition is active while editing is unsafe, provide a clear, understandable state or action to stop/pause recognition before editing. Do not silently ignore the learner's input.
+
+Do not add decorative controls that do not work.
+
+Do not claim the application supports pause, resume, undo history, or any other capability unless it actually does.
+
+## 9. Regression tests — mandatory
+
+Add or update tests using the existing test framework. Do not remove tests or weaken assertions.
+
+Cover at least the following scenarios.
+
+### Scenario A: Correct one word
+
+Initial transcript:
+
+"The database store the user information."
+
+The learner edits it to:
+
+"The database stores the user information."
+
+Expected result: only the intended word changes. The rest of the transcript remains unchanged.
+
+### Scenario B: Edit after recognition finishes
+
+1. Receive a recognition result.
+2. Stop recording.
+3. Edit a word.
+4. Trigger any remaining asynchronous recognition callback.
+
+Expected result: the manually edited transcript is not silently overwritten by the stale callback.
+
+### Scenario C: Repeated recognition events
+
+Simulate repeated or overlapping recognition events.
+
+Expected result: already accepted text is not duplicated and the transcript remains in the correct order.
+
+### Scenario D: Edit while recognition is active
+
+If the product permits simultaneous editing and recognition, verify that incoming results do not overwrite the user's edits.
+
+If the product intentionally prevents simultaneous editing, verify that the UI prevents conflicting actions clearly and safely.
+
+### Scenario E: Recording error
+
+1. Receive valid transcript text.
+2. Edit part of the text.
+3. Trigger a recognition or recording error.
+
+Expected result: previously accepted and manually edited text remains intact.
+
+### Scenario F: Resume recording
+
+If supported:
+
+1. Record an initial response.
+2. Stop and correct a word.
+3. Resume recording.
+4. Receive additional recognized speech.
+
+Expected result: the existing edited transcript is preserved and new speech is integrated without duplicating old content or destroying the correction.
+
+### Scenario G: Final submission
+
+1. Receive a transcript.
+2. Manually correct it.
+3. Submit it.
+
+Expected result: the submitted payload contains the exact corrected text.
+
+### Scenario H: Text editing behavior
+
+Verify that typing, selecting, deleting, pasting, moving the cursor, and editing text in the middle of the transcript work without unexpected cursor jumps or content replacement.
+
+Use realistic event ordering where possible. Mock speech recognition when needed for deterministic tests, and perform a browser-level test of the actual UI.
+
+## 10. Verify the actual implementation
+
+After the changes:
+
+1. Run the relevant existing unit and integration tests.
+2. Run type checking.
+3. Run linting if configured.
+4. Run the production build.
+5. Start the existing application.
+6. Test the complete recording and editing flow in a browser.
+7. Inspect the browser console for errors.
+8. Confirm that the assessment receives the final edited text.
+9. Verify that unrelated study, report, and navigation flows still work.
+
+If microphone access is available in the browser testing environment, perform a real recording test. Otherwise, clearly distinguish simulated recognition tests from real microphone verification.
+
+Do not claim that microphone recording was tested if only mocked events were tested.
+
+## 11. Implementation constraints
+
+- Work in the current repository and inspect the existing code before editing.
+- Preserve existing functionality and the current design system.
+- Do not replace the application with a new implementation.
+- Do not rewrite the entire recording subsystem unless the investigation proves it is necessary.
+- Do not add dependencies without a clear need.
+- Do not change database schemas, API contracts, or assessment logic unnecessarily.
+- Do not introduce fake AI transcription or fabricated results.
+- Do not remove tests or bypass failures.
+- Do not overwrite unrelated user changes.
+- Do not commit or push changes unless explicitly requested.
+
+Prioritize data integrity over cosmetic changes.
+
+## 12. Final report
+
+After completing the work, report:
+
+1. The root cause of the transcript corruption.
+2. The exact files and components changed.
+3. How recognized text and manually edited text are now synchronized.
+4. How stale and repeated recognition events are handled.
+5. Whether resuming recording is supported and how it behaves.
+6. Whether the final edited transcript is confirmed to reach the assessment.
+7. The tests actually executed and their results.
+8. Whether real microphone recording was tested or only simulated.
+9. Any remaining limitations.
+
+Distinguish clearly between fixes that were implemented and fixes that were verified in the running application.
+
+**Start by tracing the existing recording and transcript state flow, then reproduce the corruption, fix its root cause, and verify the complete workflow. Do not stop at an explanation or proposed plan.**

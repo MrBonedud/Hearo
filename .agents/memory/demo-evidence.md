@@ -14,3 +14,9 @@ Keep availability failures and environment interruptions beside successful-only 
 **Why:** A development benchmark had valid successful verdicts alongside model failures and two transport failures around an API restart; quoting only successful agreement would misrepresent readiness.
 
 **How to apply:** Do not restart the measured service while a benchmark is active. Preserve interrupted results and disclose interference; separate successful verdict denominators, failed requests and follow-up formatting failures. Small authored subsets support descriptive results only, not population accuracy or speech certification.
+
+The presentation demo should not deliberately show wrong or incomplete explanations. Use complete, source-supported prepared examples.
+
+**Why:** Faisal explicitly requested that the demo not deliberately show that something is incomplete or wrong.
+
+**How to apply:** Keep the guided sample positive and clearly labelled as prepared, not AI-evaluated. This does not authorize hiding real assessment errors or changing verdicts for actual learners.

@@ -34,6 +34,7 @@ import { ArabicRehearsalLab } from '@/components/arabic-rehearsal-lab';
 import { CheckLatencyNote } from '@/components/check-latency';
 import { ReportScoreCard } from '@/components/report-score-card';
 import { useAudioRecorder } from '@/hooks/use-audio-recorder';
+import { useFitsViewport } from '@/hooks/use-fits-viewport';
 import { LiveWaveform } from '@/components/live-waveform';
 import NotFound from '@/pages/not-found';
 import { Route, Switch, useLocation, Router as WouterRouter } from 'wouter';
@@ -65,6 +66,13 @@ function pluralIn(language: Language, key: PluralKey, count: number) {
   return formatPlural(language, count, plurals[language][key]);
 }
 
+/** Keys that would change text; caret movement, selection and copy stay allowed in a read-only transcript. */
+function isEditingKey(event: { key: string; ctrlKey: boolean; metaKey: boolean; altKey: boolean }) {
+  if (event.key === 'Backspace' || event.key === 'Delete' || event.key === 'Enter') return true;
+  if (event.ctrlKey || event.metaKey) return ['v', 'x', 'z', 'y'].includes(event.key.toLowerCase());
+  return event.key.length === 1 && !event.altKey;
+}
+
 function StatusKey() {
   const { t } = useTranslation();
   return <div className="status-key" aria-label={t('map.keyLabel')}>
@@ -80,6 +88,7 @@ function StatusKey() {
 function App() {
   const { t, plural, message, number, dateTime, language } = useTranslation();
   const prepareStudy = usePrepareStudy();
+  const [mapPanelRef, mapPanelFits] = useFitsViewport<HTMLElement>();
   const [phase, setPhase] = useState<Phase>('setup');
   const [showLanding, setShowLanding] = useState(true);
   const [sampleMode, setSampleMode] = useState(false);
@@ -131,7 +140,18 @@ function App() {
   const recorderNoteRef = useRef(recorder.noteCaption);
   recorderNoteRef.current = recorder.noteCaption;
   const stopSpeechRef = useRef<() => Promise<void>>(async () => undefined);
+  // Transcript model: `transcript` is the one editable text and the exact text
+  // submitted. Recognised speech and replayed captions are only ever appended
+  // to its end, once, and never while the learner can edit (see transcriptLocked).
+  const transcriptInputRef = useRef<HTMLTextAreaElement>(null);
+  const keptSelection = useRef<{ start: number; end: number; direction: 'forward' | 'backward' | 'none'; scrollTop: number } | null>(null);
   const appendToTranscript = useCallback((text: string, fromSpeech: boolean) => {
+    // Appending replaces the textarea value, which would move a caret or
+    // selection the learner placed earlier in the text to the very end.
+    const input = transcriptInputRef.current;
+    if (input && document.activeElement === input && !(input.selectionStart === input.selectionEnd && input.selectionEnd >= input.value.length)) {
+      keptSelection.current = { start: input.selectionStart, end: input.selectionEnd, direction: input.selectionDirection ?? 'none', scrollTop: input.scrollTop };
+    }
     const next = [transcriptRef.current.trimEnd(), text].filter(Boolean).join(' ');
     changeTranscript(next.slice(0, 12000));
     if (next.length > 12000) {
@@ -143,9 +163,17 @@ function App() {
     if (isFinal) recorderNoteRef.current(text);
     appendToTranscript(text, true);
   });
-  const { supported: supportsSpeech, listening, interim, message: micMessage, setMessage: setMicMessage,
+  const { supported: supportsSpeech, listening, stopping: speechStopping, interim, message: micMessage, setMessage: setMicMessage,
     start: startListening, stop: stopListening } = speech;
   stopSpeechRef.current = stopListening;
+  useLayoutEffect(() => {
+    const kept = keptSelection.current;
+    keptSelection.current = null;
+    const input = transcriptInputRef.current;
+    if (!kept || !input || document.activeElement !== input) return;
+    input.setSelectionRange(kept.start, kept.end, kept.direction);
+    input.scrollTop = kept.scrollTop;
+  }, [transcript]);
   const assessmentInput = studyMap && selectedSource ? {
     topic: studyMap.topic, referenceText, transcript: transcript.trim(),
     sourceToken: selectedSource.sourceToken, nodes: studyMap.nodes, edges: studyMap.edges,
@@ -367,8 +395,22 @@ function App() {
     }
   };
 
+  // While speech or caption replay can still append, the text is read-only so
+  // an append can never move the caret mid-edit or race a keystroke.
+  const transcriptLocked = listening || replayActive;
+  const lockNoteRef = useRef<HTMLDivElement>(null);
+  const nudgeLockNote = () => lockNoteRef.current?.animate(
+    [{ boxShadow: '0 0 0 3px var(--color-primary-soft)' }, { boxShadow: '0 0 0 0 transparent' }], { duration: 900 });
+  const pauseToEdit = async () => {
+    await stopListening();
+    transcriptInputRef.current?.focus();
+  };
+
+  // Guards against a second click landing before the disabled state renders.
+  const finishingRef = useRef(false);
   const finishStudy = async () => {
-    if (!studyMap || !selectedSource) return;
+    if (!studyMap || !selectedSource || finishingRef.current) return;
+    finishingRef.current = true;
     setFinishing(true);
     setError(null);
     try {
@@ -387,7 +429,7 @@ function App() {
       setStudyMap({ topic: result.topic, nodes: result.nodes, edges: result.edges });
       setPhase('review');
     } catch (issue) { setError(errorMessage(issue)); }
-    finally { setFinishing(false); }
+    finally { finishingRef.current = false; setFinishing(false); }
   };
 
   const resetStudy = async () => {
@@ -572,8 +614,10 @@ function App() {
           {selectedSource && !selectedSource.source.aiAvailable && <p className="ai-unavailable" role="status">{t('session.aiUnavailable')}</p>}
           {supportsSpeech && <div className="mic-row">
             <label className="speech-language">{t('speech.language')}<select value={speech.language} disabled={listening || finishing} onChange={event => speech.setLanguage(event.target.value)} data-testid="select-speech-language"><option value="ar-SA" lang="ar">العربية</option><option value="en-US" lang="en">English</option></select></label>
-            <button className={`mic-button ${listening ? 'mic-active' : ''}`} type="button" disabled={finishing || labBusy || replayActive} onClick={listening ? () => void stopListening() : startListening} data-testid="button-microphone">
-              {listening ? <><span className="recording-wave" aria-hidden="true"><i /><i /><i /><i /><i /></span> {t('session.pause')}</> : <><Mic size={16} aria-hidden="true" /> {t('session.speak')}</>}
+            <button className={`mic-button ${listening ? 'mic-active' : ''}`} type="button" disabled={finishing || labBusy || replayActive || speechStopping} onClick={listening ? () => void stopListening() : startListening} data-testid="button-microphone">
+              {speechStopping ? <><span className="button-loader" /> {t('session.stopping')}</>
+                : listening ? <><span className="recording-wave" aria-hidden="true"><i /><i /><i /><i /><i /></span> {t('session.pause')}</>
+                  : <><Mic size={16} aria-hidden="true" /> {t(transcript.trim() ? 'session.resume' : 'session.speak')}</>}
             </button>
             {listening && <span className="listening-caption"><i className="pulse-dot" aria-hidden="true" /> {t('session.micActive')}</span>}
             <LiveWaveform active={listening} />
@@ -596,9 +640,16 @@ function App() {
             }} />
           <ArabicRehearsalLab blocked={listening || recorder.recording || finishing} onBusyChange={setLabBusy} />
           <label className="field-label transcript-label" htmlFor="transcript-input">{t(supportsSpeech ? 'session.transcriptLabel' : 'session.explanationLabel')}{replayCaptions > 0 && <em> · {t('session.replayIncluded', { captions: plural('captions', replayCaptions) })}</em>}</label>
+          {transcriptLocked && <div ref={lockNoteRef} className="transcript-lock" id="transcript-lock-note" role="status" data-testid="status-transcript-locked">
+            <span>{t(replayActive ? 'session.lockReplay' : speechStopping ? 'session.lockStopping' : 'session.lockRecording')}</span>
+            {listening && !speechStopping && <button type="button" className="secondary-button" onClick={() => void pauseToEdit()} data-testid="button-pause-to-edit">{t('session.pauseToEdit')}</button>}
+          </div>}
           <div className="transcript-wrap">
-            <textarea id="transcript-input" dir="auto" readOnly={finishing} value={transcript} onChange={event => changeTranscript(event.target.value.slice(0, 12000))} maxLength={12000} placeholder={t('session.placeholder')} data-testid="input-transcript" />
-            {interim && <div className="interim-line" dir="auto"><span className="pulse-dot" aria-hidden="true" />{interim}</div>}
+            <textarea ref={transcriptInputRef} id="transcript-input" dir="auto" className={transcriptLocked ? 'is-locked' : undefined}
+              readOnly={finishing || transcriptLocked} aria-describedby={transcriptLocked ? 'transcript-lock-note' : undefined}
+              onKeyDown={event => { if (transcriptLocked && isEditingKey(event)) nudgeLockNote(); }}
+              value={transcript} onChange={event => changeTranscript(event.target.value.slice(0, 12000))} maxLength={12000} placeholder={t('session.placeholder')} data-testid="input-transcript" />
+            {interim && <div className="interim-line" dir="auto" data-testid="text-interim"><span className="pulse-dot" aria-hidden="true" /><span className="interim-tag">{t('session.interimTag')}</span>{interim}</div>}
             {!transcript && !interim && <div className="writing-prompt" aria-hidden="true"><span>{t('session.tryThis')}</span>{t('session.prompt')}</div>}
           </div>
           <div className="transcript-meta"><span>{plural('words', transcriptWords)}</span><span>{t('session.characters', { count: transcript.length, max: 12000 })}</span></div>
@@ -615,7 +666,7 @@ function App() {
           </button>
           <p className="finish-note">{t('session.finishNote')}</p>
         </section>
-        <aside className="map-panel panel">
+        <aside ref={mapPanelRef} className={`map-panel panel ${mapPanelFits ? 'fits-viewport' : ''}`} data-testid="panel-study-map">
           <div className="panel-heading"><div><h2>{t('map.heading')}</h2></div></div>
           <StatusKey />
           <div className="live-check-status" role="status" data-testid="status-live-check">

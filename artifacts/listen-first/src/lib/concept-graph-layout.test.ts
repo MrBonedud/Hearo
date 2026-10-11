@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { computeGraphLayout, GRAPH_NODE_H, GRAPH_NODE_W, rectEdgePoint, shortConceptLabel } from './concept-graph-layout';
+import { COMPACT_GRAPH_SIZING, computeGraphLayout, GRAPH_NODE_H, GRAPH_NODE_W, rectEdgePoint, shortConceptLabel } from './concept-graph-layout';
 
 test('branches follow supplied relationships without overlapping nodes', () => {
   const result = computeGraphLayout(['root', 'left', 'right', 'leaf', 'isolated'], [
@@ -39,6 +39,31 @@ test('cycles and empty graphs have finite bounded dimensions', () => {
       assert.ok(Number.isFinite(point.x) && Number.isFinite(point.y));
     }
   }
+});
+
+test('the compact layout fits a two-column map in a 375px phone panel without overlapping nodes', () => {
+  // The guided sample: one root, two branches, deeper single children.
+  const ids = ['scaling', 'load-balancing', 'sharding', 'stateless', 'replication', 'caching'];
+  const edges = [
+    { from: 'scaling', to: 'load-balancing' }, { from: 'scaling', to: 'sharding' },
+    { from: 'load-balancing', to: 'stateless' }, { from: 'sharding', to: 'replication' }, { from: 'stateless', to: 'caching' },
+  ];
+  const full = computeGraphLayout(ids, edges);
+  const compact = computeGraphLayout(ids, edges, COMPACT_GRAPH_SIZING);
+  // 375px viewport minus page and panel padding leaves about 300px for the map.
+  assert.ok(full.width > 300);
+  assert.ok(compact.width <= 300);
+  assert.deepEqual(compact.node, { w: COMPACT_GRAPH_SIZING.nodeW, h: COMPACT_GRAPH_SIZING.nodeH });
+  const points = Object.values(compact.positions);
+  for (let i = 0; i < points.length; i++) {
+    assert.ok(points[i].x + compact.node.w <= compact.width && points[i].y + compact.node.h <= compact.height);
+    for (let j = i + 1; j < points.length; j++) {
+      assert.ok(Math.abs(points[i].x - points[j].x) >= compact.node.w || Math.abs(points[i].y - points[j].y) >= compact.node.h);
+    }
+  }
+  // Arrow endpoints use the node size they are drawn with.
+  const down = rectEdgePoint(0, 0, compact.node.w / 2, 300, 3, compact.node);
+  assert.deepEqual(down, { x: compact.node.w / 2, y: compact.node.h + 3 });
 });
 
 test('arrow endpoints leave node rectangles and degenerate rays remain finite', () => {

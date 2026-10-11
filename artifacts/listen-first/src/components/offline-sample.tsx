@@ -1,4 +1,4 @@
-import { useId, useLayoutEffect, useMemo, useReducer, useRef } from 'react';
+import { useId, useLayoutEffect, useMemo, useReducer, useRef, useState } from 'react';
 import { motion, useReducedMotion } from 'framer-motion';
 import { ArrowLeft, ArrowRight, RotateCcw } from 'lucide-react';
 import type { StudyEvaluation, StudyMap } from '@workspace/api-client-react';
@@ -43,7 +43,7 @@ export function OfflineSample({ onExit }: { onExit: () => void }) {
   }), [visibleSteps, language]);
   const sampleAssessments = useMemo(() => visibleSteps.map(item => ({
     conceptId: item.conceptId, confidence: 'high', sourceLineIds: item.lineIds,
-    verdict: item.status === 'supported' ? 'supported' : item.status === 'contradicted' ? 'contradicted' : 'partially_understood',
+    verdict: 'supported',
   })) as unknown as StudyEvaluation['assessments'], [visibleSteps]);
   // Each step replaces the panel, including the button that was pressed. Move
   // focus to the step heading (announced with its step count) and bring the
@@ -65,6 +65,9 @@ export function OfflineSample({ onExit }: { onExit: () => void }) {
   }, [step, finished, reduced]);
   const start = () => dispatch('start');
   const advance = () => dispatch('next');
+  // The 21 excerpts render only once opened, in the page flow (no inner scroll box).
+  const [excerptsOpen, setExcerptsOpen] = useState(false);
+  const usedLineIds = new Set<string>(current && !finished ? current.lineIds : []);
   const currentEvidence = current?.lineIds.map(id => lineMap.get(id)).filter((line): line is NonNullable<typeof line> => Boolean(line));
 
   return <section className="sample-shell" data-testid="screen-offline-sample">
@@ -106,9 +109,18 @@ export function OfflineSample({ onExit }: { onExit: () => void }) {
         <div className="panel-heading"><div><span className="panel-index">{t('sample.mapIndex')}</span><h2>{t('map.heading')}</h2></div><span className="node-count mono" dir="ltr">{visibleSteps.length}/{fixture.concepts.length}</span></div>
         <p className="panel-hint">{t('sample.mapHint')}</p>
         <ConceptMap map={sampleMap} assessments={sampleAssessments} assessed={false} />
-        <details className="sample-source-access" data-testid="details-sample-source">
-          <summary>{t('sample.excerpts', { count: fixture.referenceLines.length })}</summary>
-          <ol dir="ltr">{fixture.referenceLines.map(line => <li key={line.id}><bdi>{t('source.slideRef', { id: line.id, page: line.page })}:</bdi> {line.text}</li>)}</ol>
+        <details className="sample-source-access" data-testid="details-sample-source" onToggle={event => setExcerptsOpen(event.currentTarget.open)}>
+          <summary data-testid="button-sample-excerpts">{t('sample.excerpts', { count: fixture.referenceLines.length })}</summary>
+          {excerptsOpen && <div className="sample-excerpts">
+            <p className="panel-hint">{t('sample.excerptsNote')}</p>
+            <ol dir="ltr" data-testid="list-sample-excerpts">{fixture.referenceLines.map(line => {
+              const used = usedLineIds.has(line.id);
+              return <li key={line.id} className={used ? 'is-used' : undefined} data-testid={`sample-excerpt-${line.id}`}>
+                <span className="sample-excerpt-ref"><bdi>{t('source.slideRef', { id: line.id, page: line.page })}</bdi>{used && <em dir="auto">{t('sample.excerptInStep')}</em>}</span>
+                <p>{line.text}</p>
+              </li>;
+            })}</ol>
+          </div>}
         </details>
       </aside>
     </div>

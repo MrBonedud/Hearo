@@ -27,10 +27,19 @@ test('the offline tour advances, finishes, restarts and goes back without any pr
   assert.deepEqual(offlineSampleReducer(state, 'start'), { step: 0, finished: false });
 });
 
-test('the prepared contradiction cites the actual slide statement, not the rejected authored guide', () => {
-  const contradiction = offlineSampleSteps.find(step => step.status === 'contradicted');
-  assert.ok(contradiction);
-  assert.deepEqual(contradiction.lineIds, ['S10-03']);
+test('every presentation example is supported and explains the full cited objective', () => {
+  assert.ok(offlineSampleSteps.every(step => step.status === 'supported'));
+  const sharding = offlineSampleSteps.find(step => step.conceptId === 'sharding');
+  assert.ok(sharding);
+  assert.match(sharding.narration, /تقسيم البيانات بين قواعد بيانات مستقلة/);
+  assert.match(sharding.narration, /تعقيد/);
+  const caching = offlineSampleSteps.find(step => step.conceptId === 'caching');
+  assert.ok(caching);
+  assert.deepEqual(caching.lineIds, ['S10-01', 'S10-02', 'S10-03', 'S10-04', 'S10-05']);
+  assert.match(caching.narration, /Key-value store/);
+  assert.match(caching.narration, /Cache miss/);
+  assert.match(caching.narration, /الكتابات تظل تذهب إلى DBMS/);
+  assert.match(caching.narration, /إزالة البيانات المؤقتة/);
   assert.equal(offlineSampleSource.referenceLines.find(line => line.id === 'S10-03')?.text,
     'Writes must still go to the DBMS, so no performance improvement for them');
 });

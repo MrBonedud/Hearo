@@ -1,11 +1,15 @@
 export const GRAPH_NODE_W = 168;
-export const GRAPH_NODE_H = 64;
-const GAP_X = 40;
-const GAP_Y = 76;
-const PAD = 16;
+// Tall enough for a two-line label plus its status line without clipping either.
+export const GRAPH_NODE_H = 72;
+
+export type GraphSizing = { nodeW: number; nodeH: number; gapX: number; gapY: number; pad: number };
+export const DEFAULT_GRAPH_SIZING: GraphSizing = { nodeW: GRAPH_NODE_W, nodeH: GRAPH_NODE_H, gapX: 40, gapY: 76, pad: 16 };
+/** Narrower nodes and gaps for small containers (phones); labels wrap onto two lines instead of being cut off. */
+export const COMPACT_GRAPH_SIZING: GraphSizing = { nodeW: 128, nodeH: 76, gapX: 16, gapY: 64, pad: 12 };
 
 export type GraphLayout = {
   positions: Record<string, { x: number; y: number }>;
+  node: { w: number; h: number };
   width: number;
   height: number;
   connectedIds: string[];
@@ -13,7 +17,8 @@ export type GraphLayout = {
 };
 
 /** Layered top-down layout. Uses only the supplied edges; isolated nodes get their own column on the right. */
-export function computeGraphLayout(nodeIds: string[], edges: Array<{ from: string; to: string }>): GraphLayout {
+export function computeGraphLayout(nodeIds: string[], edges: Array<{ from: string; to: string }>, sizing: GraphSizing = DEFAULT_GRAPH_SIZING): GraphLayout {
+  const { nodeW, nodeH, gapX, gapY, pad } = sizing;
   const known = new Set(nodeIds);
   const list = edges.filter(edge => known.has(edge.from) && known.has(edge.to) && edge.from !== edge.to);
   const touched = new Set(list.flatMap(edge => [edge.from, edge.to]));
@@ -51,29 +56,29 @@ export function computeGraphLayout(nodeIds: string[], edges: Array<{ from: strin
   });
 
   const widest = Math.max(1, ...layers.map(layer => layer?.length ?? 0));
-  const treeWidth = widest * GRAPH_NODE_W + (widest - 1) * GAP_X;
+  const treeWidth = widest * nodeW + (widest - 1) * gapX;
   const positions: GraphLayout['positions'] = {};
   layers.forEach((layer, row) => {
     if (!layer) return;
-    const rowWidth = layer.length * GRAPH_NODE_W + (layer.length - 1) * GAP_X;
-    const start = PAD + (treeWidth - rowWidth) / 2;
-    layer.forEach((id, index) => { positions[id] = { x: start + index * (GRAPH_NODE_W + GAP_X), y: PAD + row * (GRAPH_NODE_H + GAP_Y) }; });
+    const rowWidth = layer.length * nodeW + (layer.length - 1) * gapX;
+    const start = pad + (treeWidth - rowWidth) / 2;
+    layer.forEach((id, index) => { positions[id] = { x: start + index * (nodeW + gapX), y: pad + row * (nodeH + gapY) }; });
   });
 
   const rows = Math.max(layers.length, 1);
-  const treeHeight = rows * GRAPH_NODE_H + (rows - 1) * GAP_Y;
+  const treeHeight = rows * nodeH + (rows - 1) * gapY;
   let width = connectedIds.length ? treeWidth : 0;
   if (isolatedIds.length) {
-    const colX = PAD + (connectedIds.length ? treeWidth + GAP_X * 1.6 : 0);
+    const colX = pad + (connectedIds.length ? treeWidth + gapX * 1.6 : 0);
     // Disconnected ideas sit in a deliberate side column, offset so they do not read as tree leaves.
-    isolatedIds.forEach((id, index) => { positions[id] = { x: colX, y: PAD + index * (GRAPH_NODE_H + GAP_Y * .45) }; });
-    width = colX - PAD + GRAPH_NODE_W;
+    isolatedIds.forEach((id, index) => { positions[id] = { x: colX, y: pad + index * (nodeH + gapY * .45) }; });
+    width = colX - pad + nodeW;
   }
-  const isoHeight = isolatedIds.length ? isolatedIds.length * GRAPH_NODE_H + (isolatedIds.length - 1) * GAP_Y * .45 : 0;
+  const isoHeight = isolatedIds.length ? isolatedIds.length * nodeH + (isolatedIds.length - 1) * gapY * .45 : 0;
   return {
-    positions, connectedIds, isolatedIds,
-    width: width + PAD * 2,
-    height: Math.max(connectedIds.length ? treeHeight : 0, isoHeight) + PAD * 2,
+    positions, connectedIds, isolatedIds, node: { w: nodeW, h: nodeH },
+    width: width + pad * 2,
+    height: Math.max(connectedIds.length ? treeHeight : 0, isoHeight) + pad * 2,
   };
 }
 
@@ -83,14 +88,15 @@ export function shortConceptLabel(label: string, max = 34) {
 }
 
 /** Point where a ray from the node centre toward (tx,ty) leaves the node rectangle. */
-export function rectEdgePoint(x: number, y: number, tx: number, ty: number, gap = 3) {
-  const cx = x + GRAPH_NODE_W / 2;
-  const cy = y + GRAPH_NODE_H / 2;
+export function rectEdgePoint(x: number, y: number, tx: number, ty: number, gap = 3, node = { w: GRAPH_NODE_W, h: GRAPH_NODE_H }) {
+  const { w, h } = node;
+  const cx = x + w / 2;
+  const cy = y + h / 2;
   const dx = tx - cx;
   const dy = ty - cy;
   if (Math.abs(dx) < .001 && Math.abs(dy) < .001) return { x: cx, y: cy };
-  const sx = Math.abs(dx) < .001 ? Infinity : (GRAPH_NODE_W / 2 + gap) / Math.abs(dx);
-  const sy = Math.abs(dy) < .001 ? Infinity : (GRAPH_NODE_H / 2 + gap) / Math.abs(dy);
+  const sx = Math.abs(dx) < .001 ? Infinity : (w / 2 + gap) / Math.abs(dx);
+  const sy = Math.abs(dy) < .001 ? Infinity : (h / 2 + gap) / Math.abs(dy);
   const s = Math.min(sx, sy);
   return { x: cx + dx * s, y: cy + dy * s };
 }
