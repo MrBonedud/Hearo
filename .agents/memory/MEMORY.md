@@ -8,4 +8,4 @@
 - [Owner checking policy](owner-checking-policy.md) — Trusted operations controls only; limit changes preserve usage and serialize with reservations.
 - [Demo evidence](demo-evidence.md) — Caption replay is not fresh recognition; report failed requests and benchmark interference alongside successful verdicts.
 - [Feedback experience](feedback-experience.md) — Supportive source-backed cards, silent by default, with optional gentle tones rather than game penalties.
-- [Frontend test execution](frontend-test-execution.md) — Bundled React SSR tests need compatible Node requires; discover nested test files and reject zero-test passes.
+- [Test execution](frontend-test-execution.md) — Per-package typechecks after merges; bundled test runtime needs, approved-PDF test input, and zero-test guards.

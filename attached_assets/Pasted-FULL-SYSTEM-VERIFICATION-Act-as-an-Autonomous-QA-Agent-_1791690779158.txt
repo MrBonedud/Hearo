@@ -1,0 +1,231 @@
+FULL SYSTEM VERIFICATION — Act as an Autonomous QA Agent
+
+Stop all current work. Do NOT create tasks. Do NOT write plans.
+Do NOT ask for approval on routine steps. Execute the full 
+verification autonomously and report at the end.
+
+CONTEXT:
+The Hearo project must be fully verified before we move to the 
+next phase (implementing three roles: Teacher, Student, Admin).
+Your job now is to prove — with actual evidence — that the 
+entire system works end-to-end.
+
+=== PHASE 1: ENVIRONMENT CHECK ===
+
+1. Identify and report:
+   - Package manager (pnpm/npm/yarn) and version
+   - Node version
+   - Project structure (monorepo? workspaces?)
+   - Exact location of API server
+   - Exact location of frontend
+   - Exact location of shared libraries
+
+2. Check Replit Secrets exist (report NAMES only, never values):
+   - GITHUB_TOKEN
+   - GEMINI_API_KEY
+   - OPENAI_API_KEY
+   - DATABASE_URL
+   - Any other env vars referenced in code
+
+3. List all environment variables referenced in code but 
+   MISSING from Secrets (names only).
+
+Continue immediately to Phase 2.
+
+=== PHASE 2: DEPENDENCY + BUILD VERIFICATION ===
+
+1. Install dependencies:
+   - Run the correct install command for the package manager
+   - Report success/failure
+   - Fix simple issues (missing lockfile, wrong version) if safe
+
+2. Run type checking:
+   - Execute the existing typecheck script
+   - Report pass/fail with exact errors if any
+
+3. Run linter (if configured):
+   - Execute the lint script
+   - Report pass/fail
+
+4. Run the build:
+   - Build both API server and frontend
+   - Report success/failure
+   - Capture any build warnings
+
+Continue immediately to Phase 3.
+
+=== PHASE 3: START SERVICES ===
+
+1. Start the API server:
+   - Use the existing configured start command
+   - Report the port and URL
+   - Wait for "ready" signal
+
+2. Start the frontend:
+   - Use the existing configured start command
+   - Report the port and URL
+   - Wait for "ready" signal
+
+3. Verify both respond:
+   - Curl/fetch the API health endpoint (if exists)
+   - Curl/fetch the frontend root
+   - Report HTTP status codes
+
+Continue immediately to Phase 4.
+
+=== PHASE 4: API ENDPOINT AUDIT ===
+
+For EACH API endpoint in the codebase:
+
+1. List:
+   - HTTP method
+   - Path
+   - Purpose (from code comments or handler name)
+   - Auth required? (yes/no)
+
+2. Test each endpoint:
+   - Use curl or fetch with a sample request
+   - Report the actual response (status + body)
+   - Mark as: WORKING / BROKEN / NEEDS-AUTH / STUB
+
+3. Identify:
+   - Endpoints that return mock data instead of real data
+   - Endpoints that fail with 500 errors
+   - Endpoints that require secrets not configured
+
+Format as a table:
+
+| Method | Path | Purpose | Auth | Status | Notes |
+|--------|------|---------|------|--------|-------|
+
+Continue immediately to Phase 5.
+
+=== PHASE 5: FRONTEND FEATURE AUDIT ===
+
+For EACH user-visible feature in the frontend:
+
+1. Identify the feature from the UI or code
+2. Trace its data source:
+   - Real API call? → which endpoint?
+   - Mock data? → which file?
+   - Hardcoded? → which file?
+3. Test the flow:
+   - Does clicking/interacting trigger the correct call?
+   - Does the response render correctly?
+
+Features to check (at minimum):
+- Starting a new learning session
+- Speaking (microphone input) in Arabic
+- Speaking in English
+- Typing an explanation
+- Live feedback cards (green/red/neutral)
+- Optional sound toggle
+- Concept map updates
+- Final session report
+- Report download
+- Language switching (AR/EN)
+
+Format as a table:
+
+| Feature | Data Source | Working? | Notes |
+|---------|-------------|----------|-------|
+
+Continue immediately to Phase 6.
+
+=== PHASE 6: END-TO-END FLOW TEST ===
+
+Simulate a complete user journey:
+
+1. Open the frontend
+2. Start a new session
+3. Explain a concept (typed Arabic — most reliable)
+4. Verify:
+   - Feedback card appears
+   - Verdict is correct (green for supported)
+   - Concept map updates
+   - Report is generated
+5. Download the report and verify its contents
+6. End the session
+
+Report:
+- Did the full flow work? (yes/no)
+- At which step did it fail (if any)?
+- Exact error messages
+
+Continue immediately to Phase 7.
+
+=== PHASE 7: TEST SUITE ===
+
+1. Run all existing tests:
+   - Report total tests
+   - Report pass count
+   - Report fail count
+   - Report skipped count
+
+2. For any failing test:
+   - Show the exact failure
+   - Determine if it's a real bug or a stale test
+   - Fix if clearly a bug (minimal change)
+
+Continue immediately to Phase 8.
+
+=== PHASE 8: ERROR + WARNING SWEEP ===
+
+1. Check server logs for:
+   - Runtime errors
+   - Warnings
+   - Deprecation notices
+
+2. Check browser console (if accessible):
+   - JavaScript errors
+   - Failed network requests
+   - Warnings
+
+3. Check for:
+   - Unhandled promise rejections
+   - Missing error boundaries
+   - Console.log left in production code
+
+Continue immediately to Phase 9.
+
+=== PHASE 9: FINAL REPORT ===
+
+Produce ONE consolidated report:
+
+SECTION A — System Status
+- API server: [running/stopped] at [URL]
+- Frontend: [running/stopped] at [URL]
+- Database: [connected/not configured]
+- Total endpoints: [N] working / [N] broken / [N] stubbed
+- Total features: [N] working / [N] partial / [N] missing
+- Tests: [N] passed / [N] failed / [N] skipped
+
+SECTION B — What Works (with evidence)
+- Bullet list, each item with a file or curl proof
+
+SECTION C — What Is Broken
+- Bullet list, each item with:
+  - Symptom
+  - Exact error
+  - Root cause (if identified)
+  - Suggested fix
+
+SECTION D — What Is Missing
+- Features referenced but not implemented
+- Environment variables not configured
+- Endpoints not connected to frontend
+
+SECTION E — Recommendations
+- Top 3 priorities to fix before moving to the Roles phase
+- Estimated effort for each
+
+RULES:
+- Do NOT create tasks
+- Do NOT write a plan
+- Do NOT push to Git
+- Do NOT touch main
+- Do NOT stop for routine confirmations
+- If you hit a blocker, note it and continue with the next step
+- Report only at the very end with the consolidated report
+
+Start now with Phase 1 and continue through all phases.
