@@ -1,4 +1,4 @@
-import { useMemo, useReducer } from 'react';
+import { useId, useLayoutEffect, useMemo, useReducer, useRef } from 'react';
 import { motion, useReducedMotion } from 'framer-motion';
 import { ArrowLeft, ArrowRight, RotateCcw } from 'lucide-react';
 import type { StudyEvaluation, StudyMap } from '@workspace/api-client-react';
@@ -45,6 +45,24 @@ export function OfflineSample({ onExit }: { onExit: () => void }) {
     conceptId: item.conceptId, confidence: 'high', sourceLineIds: item.lineIds,
     verdict: item.status === 'supported' ? 'supported' : item.status === 'contradicted' ? 'contradicted' : 'partially_understood',
   })) as unknown as StudyEvaluation['assessments'], [visibleSteps]);
+  // Each step replaces the panel, including the button that was pressed. Move
+  // focus to the step heading (announced with its step count) and bring the
+  // panel's start into view so the new step is read from its beginning.
+  const panelRef = useRef<HTMLElement>(null);
+  const headingRef = useRef<HTMLHeadingElement>(null);
+  const stepLabelId = useId();
+  const shownStep = useRef(`${step}-${finished}`);
+  useLayoutEffect(() => {
+    const key = `${step}-${finished}`;
+    if (shownStep.current === key) return;
+    shownStep.current = key;
+    const panel = panelRef.current;
+    if (!panel) return;
+    const topInset = parseFloat(getComputedStyle(document.documentElement).scrollPaddingTop) || 0;
+    const top = panel.getBoundingClientRect().top;
+    if (top < topInset || top > window.innerHeight) panel.scrollIntoView({ behavior: reduced ? 'auto' : 'smooth', block: 'start' });
+    headingRef.current?.focus({ preventScroll: true });
+  }, [step, finished, reduced]);
   const start = () => dispatch('start');
   const advance = () => dispatch('next');
   const currentEvidence = current?.lineIds.map(id => lineMap.get(id)).filter((line): line is NonNullable<typeof line> => Boolean(line));
@@ -55,9 +73,9 @@ export function OfflineSample({ onExit }: { onExit: () => void }) {
       <button type="button" onClick={onExit} data-testid="button-exit-sample">{t('sample.exit')}</button>
     </div>
     <div className="sample-layout">
-      <motion.section className="sample-main" key={`${step}-${finished}`} initial={{ opacity: 0, y: reduced ? 0 : 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: reduced ? 0 : .35 }}>
-        <div className="sample-step">{finished ? t('sample.complete') : step < 0 ? t('sample.tour') : t('sample.stepCount', { current: String(step + 1).padStart(2, '0'), total: steps.length })}</div>
-        <h1 dir="auto">{fixture.title}</h1>
+      <motion.section ref={panelRef} className="sample-main" key={`${step}-${finished}`} initial={{ opacity: 0, y: reduced ? 0 : 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: reduced ? 0 : .35 }}>
+        <div className="sample-step" id={stepLabelId}>{finished ? t('sample.complete') : step < 0 ? t('sample.tour') : t('sample.stepCount', { current: String(step + 1).padStart(2, '0'), total: steps.length })}</div>
+        <h1 ref={headingRef} dir="auto" tabIndex={-1} aria-describedby={stepLabelId}>{fixture.title}</h1>
         <p className="sample-explain">{t(step < 0 ? 'sample.introStart' : 'sample.introStep')}</p>
         {current && !finished && <>
           <div className="sample-script" dir="auto" data-testid="sample-script">{current.narration}</div>

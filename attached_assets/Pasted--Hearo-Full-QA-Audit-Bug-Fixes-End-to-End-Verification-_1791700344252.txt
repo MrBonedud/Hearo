@@ -1,0 +1,377 @@
+# Hearo — Full QA Audit, Bug Fixes & End-to-End Verification
+
+## Your mission
+
+Continue working on the existing Hearo project in this Replit workspace.
+
+Your job is to **identify, reproduce, fix, and verify all current application issues**, including every unresolved issue documented in the previous QA report, any regressions introduced by recent changes, and any additional bugs discovered during a comprehensive QA audit.
+
+Do not stop after reviewing the code, listing bugs, or writing a plan. Execute the fixes directly in the codebase, run the available checks, and verify the results.
+
+The existing redesign has already been implemented. Do not rebuild the application from scratch or rewrite the entire stylesheet without a demonstrated technical reason.
+
+### Rules you must follow
+
+- Inspect the actual current code and working tree before making changes.
+- Review the previous QA findings and verify which issues are still present.
+- Reproduce bugs where possible before changing code.
+- Fix root causes instead of hiding symptoms with CSS workarounds or arbitrary delays.
+- Preserve all working functionality and the existing visual identity.
+- Do not change API contracts, database schemas, authentication, routing, or data flows unless a specific bug requires a carefully scoped change.
+- Do not introduce fake features, dummy data presented as real data, or unnecessary dependencies.
+- Do not remove existing tests, test assertions, or accessibility behavior just to make checks pass.
+- Do not weaken validation, skip failing tests, or suppress errors to produce a green report.
+- Do not push to Git or create commits.
+- Do not expose, print, or overwrite secrets.
+- Continue through implementation and verification without asking for approval between ordinary debugging steps.
+- If a genuine blocker prevents a fix, investigate alternatives and document the exact blocker.
+
+## 1. Inspect the current application
+
+Before modifying anything:
+
+1. Inspect the project structure and identify the actual application root.
+2. Review the current Git working tree and preserve unrelated user changes.
+3. Inspect the current implementation of the landing page, study screen, report screen, navigation, Hearo components, concept map, assessment evidence, and relevant shared components.
+4. Inspect existing styles, localization infrastructure if present, routing, session state, report generation, and browser storage.
+5. Read the available test suites and package scripts to understand what is already covered.
+6. Review the previous QA report and the issues it explicitly left unresolved.
+
+Work against the current source code, not assumptions based on an earlier snapshot or report.
+
+If the project uses `artifacts/listen-first/`, verify that this is still the correct application directory before making changes. Do not assume a previous directory or development server URL is still valid.
+
+## 2. Fix every previously reported QA issue
+
+### Bug A — Finish & report opens the report at the wrong scroll position
+
+Previous finding: After clicking `Finish & report`, the report opens partway down the page, below its new header and Hearo section.
+
+Required behavior:
+
+- Complete the existing session-finish and report-generation flow correctly.
+- Navigate to the report using the application's existing mechanism.
+- Ensure the report opens at the top, with its title and introductory content visible.
+- Handle React rendering and navigation timing correctly.
+- Do not introduce arbitrary timeouts if a reliable lifecycle or navigation mechanism is available.
+- Preserve browser history and existing navigation behavior.
+- Do not lose the generated report or session data.
+- Verify repeated session completion and navigation between study and report screens.
+
+Reproduce the issue first, implement the smallest reliable fix, and add a regression test.
+
+### Bug B — Incorrect previous-report notice
+
+Previous finding: A previous-report notice sometimes appears when it should not.
+
+Investigate:
+
+- The conditions under which the notice is rendered.
+- How the application determines whether a report exists.
+- Whether session and report state can become stale.
+- Whether state from a previous session is accidentally reused.
+- Whether the notice is displayed during initialization before the current state is resolved.
+- Whether browser storage or asynchronous state updates contribute to the issue.
+
+Fix the actual cause.
+
+The notice must appear only when the underlying application state genuinely warrants it. Do not simply remove the notice, hardcode it to false, or hide it with CSS.
+
+Add tests for both valid and invalid display conditions.
+
+### Bug C — How it works button does nothing on study and report screens
+
+Previous finding: The `How it works` button has no working destination on the study and report pages.
+
+Inspect every occurrence of this control.
+
+- If an appropriate explanatory section exists, navigate or scroll to it.
+- If the control is only meaningful on the landing page, display it there only.
+- If a shared navigation component renders it everywhere, make its behavior context-aware.
+- Do not introduce a fake section, broken anchor, or unnecessary new page.
+- Preserve accessible button/link semantics and keyboard behavior.
+
+Test the control in every screen where it remains visible.
+
+## 3. Complete Arabic/English localization and RTL QA
+
+The previous report explicitly stated that a working Arabic/English language switcher had not been implemented. Do not treat RTL support alone as completed localization.
+
+Audit the existing implementation and finish any missing requirements.
+
+### Language infrastructure
+
+- Support Arabic and English throughout the implemented interface.
+- Use Arabic as the default for a first-time visitor unless a valid saved preference exists.
+- Detect the browser language on the first visit: English browsers may default to English; Arabic or unsupported browser languages should default to Arabic.
+- A saved user selection must take priority over browser detection.
+- Persist the selected language using `hearo.lang` in `localStorage`.
+- Update `<html lang>` and `<html dir>` immediately when the language changes.
+- Update the document title and meta description to match the selected language.
+- Avoid a full-page reload where the current architecture permits live switching.
+- Handle invalid or missing stored values safely.
+
+Use the lightweight localization architecture specified for this project. Do not install a heavy localization library merely to implement these requirements.
+
+### Translation coverage
+
+Inspect every implemented screen and translate all user-facing text, including:
+
+- Navigation and shared controls.
+- Landing-page content and calls to action.
+- Study-session instructions and recording states.
+- File-upload messages and validation errors.
+- Assessment feedback and reference labels.
+- Concept-map labels and reports.
+- Empty states, confirmations, notifications, and error messages.
+- Tooltips, placeholders, accessibility labels, and dynamic status text.
+
+Use natural, concise Jordanian Arabic for user-facing Arabic copy, consistent with the existing product tone. Avoid literal translations and preserve familiar technical terms when appropriate.
+
+Keep `Hearo` as the product name.
+
+Do not translate user-generated content or technical identifiers indiscriminately.
+
+### RTL and LTR correctness
+
+Inspect actual component behavior in both directions.
+
+- Sidebar placement and navigation order.
+- Top-bar alignment and profile controls.
+- Form fields, buttons, cards, dialogs, and dropdowns.
+- Directional icons versus non-directional icons.
+- Concept-map labels, connections, and scrolling.
+- Mixed Arabic/English text and user-generated quotations.
+- Text wrapping, alignment, spacing, and responsive overflow.
+
+Use logical CSS properties where appropriate. Do not blindly flip all icons or replace every physical positioning property without inspecting its purpose.
+
+Use `dir="auto"` for user-generated text when appropriate.
+
+### Language-switching regression tests
+
+Verify:
+
+1. First-visit language selection.
+2. Switching Arabic to English.
+3. Switching English to Arabic.
+4. Persistence after refreshing the page.
+5. Correct behavior when `localStorage` contains an invalid value.
+6. Correct document direction, language, and metadata.
+7. Complete translation coverage across the implemented screens.
+
+If some of these requirements are already implemented correctly, preserve them and test them instead of unnecessarily rewriting them.
+
+## 4. Audit the complete user journey
+
+Test the application's real user-facing flows, not just isolated components.
+
+### Landing page
+
+- Initial rendering and primary call to action.
+- Navigation to the study experience.
+- How-it-works navigation.
+- Responsive layout and character presentation.
+- Section visibility and animation behavior.
+- Keyboard navigation and accessible control labels.
+
+### Study experience
+
+- Starting a session.
+- Opening or uploading a supported source document.
+- File validation and error handling.
+- Recording and stopping recording, where supported.
+- Typing an explanation, where supported.
+- Loading, processing, and feedback states.
+- Assessment results and reference evidence.
+- Finishing the session and generating the report.
+
+Do not assume every feature works simply because its component renders. Verify actual interactions using the existing application behavior.
+
+### Report experience
+
+- Correct report data.
+- Correct session association.
+- Report heading and initial scroll position.
+- Score card and progress indicator.
+- Summary and assessment evidence.
+- Concept-map readability.
+- Any existing report-download functionality.
+- Correct previous-report notice behavior.
+- Navigation back to the study experience.
+
+Verify that repeated sessions do not accidentally display stale report data or mix results from different sessions.
+
+### Shared interface
+
+- Language switcher.
+- Sidebar and top bar.
+- Dialogs, menus, and buttons.
+- Focus indicators and keyboard interactions.
+- Loading indicators and asynchronous errors.
+- Browser console errors and unhandled exceptions.
+
+Do not invent functionality that does not exist. Test supported functionality and report any genuine limitations.
+
+## 5. Responsive, visual, and accessibility QA
+
+Verify the application at these viewport widths:
+
+- 375px — mobile.
+- 768px — tablet.
+- 1280px — desktop.
+
+Test all six combinations of viewport and language: three widths in Arabic and three in English.
+
+Inspect:
+
+- Horizontal page overflow.
+- Text clipping and overlapping elements.
+- Unusable or off-screen controls.
+- Sidebar behavior.
+- Top-bar wrapping.
+- Concept-map scrolling and initial position.
+- Modal and dropdown placement.
+- Arabic typography and line-height.
+- Character-image clarity and scaling.
+- Focus visibility and keyboard access.
+- Reduced-motion behavior.
+- Contrast of text and controls.
+
+The concept map may scroll within its own container if necessary, but it must not force the entire report page beyond the viewport.
+
+Preserve existing accessibility improvements. Do not solve contrast issues by removing important text or making controls indistinguishable.
+
+Use browser automation or screenshots if the environment supports them. If actual visual inspection is unavailable, do not claim that all six combinations have been visually verified.
+
+## 6. Check application stability and regressions
+
+Inspect the application for additional current bugs, including:
+
+- Runtime exceptions.
+- Failed or duplicated event handlers.
+- Stale React state.
+- Incorrect conditional rendering.
+- Missing React keys or broken component props.
+- Invalid translation keys.
+- Broken navigation.
+- Incorrect asynchronous loading states.
+- Incorrect report/session association.
+- Failed asset loading.
+- Responsive layout regressions.
+- Accessibility regressions.
+- Errors introduced by recent CSS or component changes.
+
+Prioritize bugs by severity:
+
+1. Data loss, incorrect reports, broken core flows, and application crashes.
+2. Incorrect session state, broken navigation, and incomplete localization.
+3. Responsive failures and inaccessible controls.
+4. Minor visual inconsistencies.
+
+Do not make speculative changes to unrelated modules. Fix confirmed issues and add regression tests where appropriate.
+
+## 7. Automated verification
+
+Inspect the actual package scripts and available testing infrastructure before running commands.
+
+Run all relevant existing checks, including:
+
+- Unit tests.
+- Component and integration tests.
+- Browser/end-to-end tests.
+- API-backed tests where configured.
+- TypeScript typecheck.
+- Lint, if configured.
+- Production build.
+
+Add targeted regression tests for each confirmed bug fixed.
+
+For the production build:
+
+- Confirm that the build succeeds.
+- Inspect warnings and determine whether they are new or pre-existing when the available evidence allows.
+- Do not spend time refactoring unrelated bundle-size issues unless they create a real blocker or regression.
+
+After making fixes, rerun affected tests and the full relevant suite. Do not rely exclusively on test results from before the changes.
+
+## 8. Development server and deployed application
+
+Use the existing Replit environment and the actual current application directory.
+
+- Start or reuse the development server using the project's configured scripts.
+- Confirm that it starts and responds successfully.
+- Inspect the real current URL reported by the environment.
+- Do not invent a URL or reuse a stale URL from an earlier report.
+- Distinguish the development preview from the production deployment.
+- Do not claim the deployed website has been updated unless the deployment was actually performed and verified.
+
+Do not change deployment settings or expose environment secrets unnecessarily.
+
+## 9. Execution requirements
+
+Work in this order:
+
+1. Inspect the current project and previous QA findings.
+2. Reproduce the known bugs.
+3. Fix the root causes of confirmed issues.
+4. Complete any missing localization and RTL behavior.
+5. Test the complete supported user journey.
+6. Perform responsive and accessibility checks.
+7. Add regression tests and run automated verification.
+8. Fix newly discovered regressions.
+9. Rerun the relevant checks.
+10. Report the final verified results.
+
+Do not stop after producing an audit, a checklist, or a proposed implementation plan. Execute the work directly.
+
+Do not repeatedly rewrite files without validating the effect of each change. Prefer small, targeted fixes that preserve the existing architecture.
+
+If a check fails, investigate and fix the underlying cause when it is within scope. If it cannot be fixed safely, document the failure and its cause rather than hiding it.
+
+## 10. Final report
+
+When implementation and verification are complete, report:
+
+### A. Previous QA issues
+For each of the three previously reported bugs, provide:
+- Whether the issue was reproduced.
+- Its confirmed cause, if established.
+- The actual fix.
+- The regression test and its result.
+
+### B. Additional issues
+List the additional bugs discovered, their severity, and the fixes implemented.
+
+### C. Localization
+Report:
+- Translation infrastructure and files changed.
+- Language-switcher status.
+- Translation coverage.
+- RTL/LTR verification.
+- Any remaining untranslated strings or localization limitations.
+
+### D. Test results
+Provide actual pass/fail results for:
+- Unit tests.
+- Integration and browser tests.
+- Typecheck.
+- Lint, if configured.
+- Production build.
+- Browser console checks.
+- Responsive and visual verification.
+
+### E. Application status
+Provide:
+- Actual development server status and URL.
+- Whether the production deployment was inspected or updated.
+- Any known issues that remain.
+- Any checks that could not be executed and why.
+
+Clearly distinguish confirmed results from assumptions. Do not mark an item as fixed or verified unless the corresponding implementation or check was actually completed.
+
+## Final instruction
+
+Start inspecting the current codebase now. Fix all confirmed current issues, including the previously reported QA bugs, and continue until the relevant implementation and verification work is complete.
+
+**Do not stop at the first successful build. Do not assume passing tests mean the application is bug-free. Do not claim success without evidence. Preserve working functionality, avoid unrelated changes, and do not push to Git.**
