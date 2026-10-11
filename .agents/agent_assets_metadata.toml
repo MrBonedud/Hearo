@@ -56,3 +56,17 @@ mtime_ms = 1791649315005
 storage_uri = "gcs://replit-rams-assets-kirk/rams/assets/repl:f5eb4a40-0d19-49b7-a42a-e724840955a9/fa0fe008-4028-4047-9dd8-085174b50876/8f65d92d-b09d-4005-8cb3-c8424bcb7f1e"
 storage_version_token = "1791649343278388"
 content_type = "text/html"
+
+[[outputs]]
+id = "xrav6dTBdyKJmTWX7B82a"
+uri = "file://generated-artifacts/hearo-pitch.pptx"
+type = "slides"
+title = "Hearo hackathon pitch (8 slides)"
+description = "Real .pptx, 8 slides, speaker notes total about 170 seconds."
+logical_id = "7349f385-8576-4b72-bbda-fef60ada9871"
+content_hash = "sha256:24374fa6cfdf8281264cedc21f653aec4e3258250255efd0569eae0ec63523e2"
+size = 369919
+mtime_ms = 1791714873507
+storage_uri = "gcs://replit-rams-assets-kirk/rams/assets/repl:f5eb4a40-0d19-49b7-a42a-e724840955a9/7349f385-8576-4b72-bbda-fef60ada9871/ead8d535-8690-48f6-99b9-902172f378a6"
+storage_version_token = "1791714878187503"
+content_type = "application/vnd.openxmlformats-officedocument.presentationml.presentation"
