@@ -1,0 +1,37 @@
+Create a PowerPoint presentation (.pptx) for a hackathon pitch. Build it as a real downloadable .pptx file (use python-pptx or pptxgenjs), not a web page.
+
+PRODUCT: Hearo, a tool where a learner explains a topic out loud and the AI stays silent while it fact-checks their claims live against their course material. It then produces a concept map and a session report showing what they actually understood. Track: Education Technology. Target users: students and learners mastering complex material (medicine, law, certifications) in Jordan.
+
+HARD FORMAT RULES
+- Exactly 8 slides. The whole pitch is 180 seconds, followed by 3 minutes of Q&A with the judges.
+- Slide order and time budget:
+  01 PROBLEM (~20 sec)
+  02 IMPACT (~15 sec)
+  03 SOLUTION (~15 sec)
+  04 DEMO (~60 sec, a RECORDED video, not live)
+  05 MARKET (~20 sec)
+  06 BUSINESS (~15 sec)
+  07 TEAM (~10 sec)
+  08 THE ASK (~15 sec)
+- Put the timing and a short speaker script for each slide in the speaker notes, written to be spoken within that time.
+- Anything I still need to provide (team names, real numbers, sources, the demo video, the specific ask) goes in [RED BRACKETS], in red text, so I can find and replace it easily.
+
+THE 10 MISTAKES TO AVOID (build the deck around these)
+1. Don't pitch the idea, pitch the product. Show what was built (screenshots of the real app), not a vision.
+2. Don't open with "Hi, we are team...". Open with the user's pain. The team comes last (slide 07).
+3. No walls of text. One idea per slide, a headline of at most ~8 words, and at most 2-3 short supporting lines. The speaker says it; the slide doesn't spell it out.
+4. No live demo without a backup. Slide 04 is a recorded video. Add a placeholder for the embedded video and a fallback screenshot.
+5. Don't start the demo at the login screen. The demo slide should jump straight to the moment the AI catches a wrong claim, and add a note saying so.
+6. Never say "we have no competitors". The market slide must name real alternatives (WhatsApp study groups, paper notes, flashcard apps, ChatGPT, NotebookLM) and say why Hearo is different.
+7. No made-up numbers. Every statistic must have a source on the slide. If I haven't given a source, use [CITE SOURCE: statistic] in red brackets instead of inventing a figure.
+8. Don't use "AI" as a buzzword. Show exactly what the AI does (listens, extracts claims, checks them against the course material, flags errors) and why that matters to the learner.
+9. Don't go over time. Make sure the speaker notes add up to 180 seconds or less.
+10. Don't end without an ask. Slide 08 closes with ONE clear request, then stops. No "thank you" or "any questions?" slide.
+
+DESIGN
+- Bold, high-contrast look: white or off-white background, black text, red accent (#D7263D), a monospace or pixel-style heading font with a clean sans-serif for body text.
+- 16:9, consistent layout across slides, big readable type for a stage projector (minimum 28pt body text, 40pt+ headlines).
+- Add a thin progress bar or the slide number "01/08" in the corner of each slide.
+
+OUTPUT
+Generate the .pptx file. After that, give me a short list of every [RED BRACKET] placeholder I need to fill in.
