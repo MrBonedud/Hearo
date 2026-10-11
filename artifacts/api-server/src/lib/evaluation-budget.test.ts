@@ -15,7 +15,7 @@ test("session identity is signed and survives a new request/instance", () => {
     const res = { cookie: (name: string, value: string, opts: Record<string, unknown>) => {
       assert.equal(name, BUDGET_COOKIE); cookie = value; options = opts;
     } } as unknown as Response;
-    const id = randomUUID();
+    const id = budgetSession({ cookies: {} } as Request, res);
     assert.equal(budgetSession({ cookies: { [BUDGET_COOKIE]: cookie } } as unknown as Request, res), id);
     assert.equal(options.httpOnly, true);
     assert.equal(options.sameSite, "lax");
@@ -32,14 +32,16 @@ test("session identity is signed and survives a new request/instance", () => {
 });
 
 test("database failure rolls back and never grants allowance", async () => {
-  let queries = 0;
-  let released = 0;
-    const database = { connect: async () => {
-      const client = await originalConnect();
-      await client.query(`SET search_path TO "${schema}"`);
-      return { query: (sql: string, values?: unknown[]) => client.query(sql, values),
-        release: () => { client.release(true); } };
-    } };
+  const queries: string[] = [];
+  let released = false;
+  const database = { connect: async () => ({
+    query: async (sql: string) => {
+      queries.push(sql);
+      if (sql.includes("pg_advisory")) throw new Error("Synthetic unavailable storage");
+      return { rows: [] };
+    },
+    release: () => { released = true; },
+  }) };
   await assert.rejects(reserveEvaluation(randomUUID(), database));
   assert.ok(queries.includes("ROLLBACK"));
   assert.equal(queries.includes("COMMIT"), false);
@@ -47,12 +49,7 @@ test("database failure rolls back and never grants allowance", async () => {
 });
 
 test("owner values are validated before opening a database connection", async () => {
-    const database = { connect: async () => {
-      const client = await originalConnect();
-      await client.query(`SET search_path TO "${schema}"`);
-      return { query: (sql: string, values?: unknown[]) => client.query(sql, values),
-        release: () => { client.release(true); } };
-    } };
+  const database = { connect: async (): Promise<never> => { throw new Error("must not connect"); } };
   for (const input of [
     { session: -1, overall: 5 }, { session: 1.5, overall: 5 },
     { session: 1, overall: 1_000_001 }, { session: NaN, overall: 5 },
@@ -69,12 +66,17 @@ test("allowance reads only the current session, clamps exhausted counts and rele
   let used = 0;
   let overall = false;
   let sessionLimit = 3;
-    const database = { connect: async () => {
-      const client = await originalConnect();
-      await client.query(`SET search_path TO "${schema}"`);
-      return { query: (sql: string, values?: unknown[]) => client.query(sql, values),
-        release: () => { client.release(true); } };
-    } };
+  const database = { connect: async () => ({
+    query: async (sql: string, values?: unknown[]) => {
+      assert.doesNotMatch(sql, /\b(INSERT|UPDATE|DELETE|pg_advisory)\b/i);
+      if (!sql.includes("WITH clock")) return { rows: [] };
+      queries++;
+      assert.deepEqual(values, ["session:current-session"]);
+      return { rows: [{ reset_at: new Date("2026-10-11T00:00:00Z"), session_limit: sessionLimit, overall_limit: 5,
+        session_used: used, overall_exhausted: overall }] };
+    },
+    release: () => { released++; },
+  }) };
   const read = () => readEvaluationAllowance("current-session", database);
   assert.deepEqual(await read(), { remainingChecks: 3, dailyLimit: 3, resetAt: "2026-10-11T00:00:00.000Z", available: true });
   used = 2;
@@ -223,7 +225,6 @@ test("PostgreSQL: concurrent instances, reconnects, both ceilings, and UTC reset
     app.set("trust proxy", true);
     app.use(express.json());
     app.use((req, _res, next) => { req.log = { warn() {}, error() {} } as unknown as typeof req.log; next(); });
-    app.use((req, _res, next) => { req.log = { warn() {}, error() {} } as unknown as typeof req.log; next(); });
     app.use("/api", router);
     const server = app.listen(0, "127.0.0.1");
     await new Promise<void>(resolve => server.once("listening", resolve));
@@ -257,8 +258,7 @@ test("PostgreSQL: concurrent instances, reconnects, both ceilings, and UTC reset
       Object.defineProperty(pool, "connect", { configurable: true, value: database.connect });
       const controlBefore = await originalConnect();
       const before = await controlBefore.query(`SELECT scope, used, day::text FROM "${schema}".evaluation_daily_budgets ORDER BY scope`);
-
-      const sessionPause = await readAllowance("");
+      controlBefore.release();
       const exhaustedRead = await readAllowance();
       assert.equal(exhaustedRead.status, 200);
       assert.equal(exhaustedRead.headers.get("Cache-Control"), "private, no-store");
@@ -340,7 +340,3 @@ test("PostgreSQL: concurrent instances, reconnects, both ceilings, and UTC reset
     await pool.end();
   }
 });
-
-      const sessionPauseBody = await sessionPause.json() as Record<string, unknown>;
-
-      const overallPause = await readAllowance("");
