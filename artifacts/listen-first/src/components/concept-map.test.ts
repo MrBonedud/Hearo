@@ -1,10 +1,15 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { createElement } from 'react';
+import { createElement, type ReactElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import type { StudyMap, StudyEvaluation } from '@workspace/api-client-react';
 import { ConceptMap } from './concept-map';
 import { OfflineSample } from './offline-sample';
+import { LanguageProvider } from '@/i18n/LanguageContext';
+import type { Language } from '@/i18n/translations';
+
+const inLanguage = (language: Language, element: ReactElement) =>
+  renderToStaticMarkup(createElement(LanguageProvider, { initialLanguage: language }, element));
 
 const map: StudyMap = {
   topic: 'Reference',
@@ -14,8 +19,8 @@ const map: StudyMap = {
 function assessment(id: string, verdict: string, confidence = 'high') {
   return { conceptId: id, verdict, confidence, studentEvidence: 'My words', sourceLineIds: ['S01'], explanation: 'Explanation', followUp: 'Try again' };
 }
-function render(items?: ReturnType<typeof assessment>[], assessed?: boolean) {
-  return renderToStaticMarkup(createElement(ConceptMap, { map, assessments: items as StudyEvaluation['assessments'], assessed }));
+function render(items?: ReturnType<typeof assessment>[], assessed?: boolean, language: Language = 'en') {
+  return inLanguage(language, createElement(ConceptMap, { map, assessments: items as StudyEvaluation['assessments'], assessed }));
 }
 
 test('map draws supplied arrows and exposes relationship text without numbered cards', () => {
@@ -52,11 +57,25 @@ test('low-confidence partial remains uncertain rather than confirmed yellow', ()
 test('unchecked concepts remain distinguishable from evaluated omissions', () => {
   assert.match(render(), /Not assessed yet/);
   assert.match(render(undefined, true), /Not demonstrated/);
+  assert.match(render(undefined, false, 'ar'), /لسا ما تقيّم/);
+  assert.match(render(undefined, true, 'ar'), /ما انشرح/);
+});
+
+test('Arabic map keeps concept labels as provided and the graph in a fixed left-to-right layout', () => {
+  const html = render([assessment('a', 'supported')], false, 'ar');
+  assert.match(html, /العلاقات بين المفاهيم/);
+  assert.match(html, /Concept a/);
+  assert.match(html, /مدعوم/);
+  assert.match(html, /marker-end=/);
+  assert.doesNotMatch(html, /Directed concept relationships/);
 });
 
 test('offline sample uses actual source relationships and preserves its disclaimer', () => {
-  const html = renderToStaticMarkup(createElement(OfflineSample, { onExit: () => undefined }));
+  const html = inLanguage('en', createElement(OfflineSample, { onExit: () => undefined }));
   assert.match(html, /It is not evaluated by AI/);
   assert.match(html, /marker-end=/);
   assert.match(html, /Directed concept relationships/);
+  const arabic = inLanguage('ar', createElement(OfflineSample, { onExit: () => undefined }));
+  assert.match(arabic, /ما بيقيّمه الذكاء الاصطناعي/);
+  assert.match(arabic, /marker-end=/);
 });

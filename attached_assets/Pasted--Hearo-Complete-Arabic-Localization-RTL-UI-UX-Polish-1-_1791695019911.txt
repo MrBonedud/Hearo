@@ -1,0 +1,397 @@
+# Hearo — Complete Arabic Localization, RTL & UI/UX Polish
+
+## 1. Your mission
+
+Work directly on the existing Hearo project in this Replit workspace.
+
+The redesign is already implemented. Your job is to refine the existing UI/UX and implement complete Arabic/English localization with correct RTL support, while preserving the current design identity and all working functionality.
+
+**Execute the changes directly in the codebase. Do not just provide recommendations, create a task list, or explain what you would do.**
+
+### Priority order
+1. Complete Arabic/English localization and correct RTL behavior.
+2. Improve UI/UX consistency and remove unnecessary visual noise.
+3. Verify the actual implementation and fix any issues introduced.
+
+## 2. Critical rules
+
+- Inspect the existing codebase before making changes. Identify the framework, entry points, routing, components, styling system, available scripts, and existing functionality.
+- Work with the current architecture and conventions. Reuse existing components and styling wherever practical.
+- Do not rebuild the application from scratch or replace working components without a clear technical reason.
+- Do not change API contracts, backend behavior, authentication, database schemas, routing logic, or existing data flows.
+- Do not remove working features, existing content, or functionality just to simplify the interface.
+- Do not install a heavy i18n library. Implement a lightweight translation system using the existing framework.
+- Do not add fake features, placeholder content, unsupported marketing claims, or unnecessary dependencies.
+- Do not push to Git, commit changes, or overwrite unrelated work.
+- Do not create tasks or stop after writing a plan.
+- Keep the existing Hearo identity, character, color palette, and established visual direction.
+- Make changes incrementally and preserve working functionality.
+- If an existing feature cannot be completed because of a genuine technical limitation, preserve it, investigate the limitation, and report it accurately.
+
+**Definition of done:** The existing application works in both Arabic and English, the language switcher functions correctly, RTL is verified across the actual interface, and available checks have been executed with their real results reported.
+
+## 3. Audit and implementation approach
+
+First, inspect the current project and identify all user-visible text, including text in shared components, forms, dialogs, navigation, notifications, loading states, validation messages, error states, reports, and dynamically rendered content.
+
+Use this audit to guide implementation, but do not spend a separate response listing every string. Make the changes directly.
+
+For existing copy, classify each item internally as KEEP, SHORTEN, or REMOVE.
+
+- KEEP useful content that communicates real functionality.
+- SHORTEN unnecessarily long or repetitive content without losing meaning.
+- REMOVE redundant decorative copy, obsolete placeholders, and empty marketing claims.
+- Never remove functional instructions, accessibility labels, meaningful error details, or information users need to complete a task.
+
+After the audit, continue through implementation, verification, and final reporting without asking for approval between stages.
+
+## 4. Localization infrastructure
+
+Create a lightweight localization structure under `src/i18n/`, adapting paths if the existing project uses a different source directory:
+
+- `translations.ts` — all user-facing English and Arabic translations.
+- `LanguageContext.tsx` — language provider, language state, and switching logic.
+- `useTranslation.ts` — a reusable `t(key)` hook.
+- Add a small utility for pluralization and localized date formatting if needed.
+
+Use TypeScript types for supported languages and translation keys. Keep translation keys consistent across both languages.
+
+Requirements:
+
+- Supported languages: `ar` and `en`.
+- Default language: Arabic.
+- On the first visit, inspect `navigator.language`. If the browser language is English, use English; otherwise default to Arabic.
+- Once a user has selected a language, their saved preference must take priority over browser detection.
+- Persist the selection in `localStorage` using `hearo.lang`.
+- Handle missing or invalid saved values safely.
+- Avoid hydration mismatches, initialization flicker, and unnecessary re-renders.
+- Integrate the provider at the appropriate application root without disrupting existing providers or routing.
+- Avoid duplicating translation state across components.
+
+The translation function must support all actual strings used by the interface, including interpolation where necessary. Do not leave scattered hardcoded UI text outside the translation system.
+
+Do not translate API payloads, database values, identifiers, or internal technical values unless they are explicitly intended for display.
+
+## 5. Arabic language and writing style
+
+**The Arabic interface must sound natural to a Jordanian user, not like a literal translation or a formal government website.**
+
+Use simple, friendly Jordanian Arabic similar to everyday language, with clear wording that is understandable across Jordan.
+
+Preferred examples:
+
+- Home → الرئيسية
+- Learn → تعلّم
+- Practice → تدرّب
+- Progress → تقدّمي
+- Library → مكتبتي
+- Settings → الإعدادات
+- Start → ابدأ
+- Continue → كمّل
+- Next → التالي
+- Back → رجوع
+- Cancel → إلغاء
+- Save → احفظ
+- Delete → احذف
+- Retry → جرّب مرة ثانية
+- Submit → إرسال
+- Download → تحميل
+- Share → مشاركة
+- Finish → إنهاء
+- End session → إنهاء الجلسة
+- Start a session → ابدأ جلسة
+- Upload a PDF → ارفع ملف PDF
+- Explain aloud → اشرح بصوتك
+- Type your explanation → اكتب شرحك
+- Recording... → جاري التسجيل...
+- Hearo is listening → Hearo بسمعك
+- Hearo is thinking → Hearo بفكّر
+- Supported → مدعوم
+- Contradicted → متعارض
+- Partial → جزئي
+- Uncertain → مش واضح بشكل كافي
+- Try explaining again → جرّب تشرح مرة ثانية
+- Your words → كلامك
+- Reference → المرجع
+- Session Report → تقرير الجلسة
+- Summary → الملخّص
+- What went well → إيش زبط معك
+- Areas to review → نقاط بدها مراجعة
+- Full transcript → النص الكامل
+- Concepts covered → المفاهيم اللي شرحتها
+- Download Report → حمّل التقرير
+- No sessions yet → لسه ما عندك جلسات
+- Start your first session → ابدأ أول جلسة
+- Nothing here yet → لسه ما في إشي هون
+- Something went wrong → صار خطأ
+- Please try again → جرّب مرة ثانية
+- Connection lost → انقطع الاتصال
+- File too large → حجم الملف كبير
+- Invalid file → الملف غير صالح
+
+These are reference translations, not rigid templates. Adapt wording to the context, preserve the intended meaning, and keep the overall voice consistent.
+
+Writing rules:
+
+- Use direct, friendly, concise language.
+- Prefer familiar Jordanian expressions when they sound natural in a product interface.
+- Avoid exaggerated slang, excessive colloquialisms, and expressions that may confuse users outside Jordan.
+- Do not mix formal Arabic and colloquial Arabic randomly within the same screen.
+- Keep technical terms such as API, PDF, React, and Load Balancer in English when that is clearer.
+- Keep the product name `Hearo` unchanged.
+- Never translate word-for-word if the result sounds unnatural.
+- Do not invent functionality, promises, or feedback that the application does not actually provide.
+
+For English, use concise, natural product English with consistent terminology.
+
+## 6. Document language, direction, and metadata
+
+Update the document language and direction whenever the selected language changes:
+
+- Arabic: `<html lang="ar" dir="rtl">`
+- English: `<html lang="en" dir="ltr">`
+
+Also update the document title and meta description to the correct language. Keep the title and description accurate to the existing product.
+
+Update `index.html` where appropriate, but ensure the runtime language switch also updates the document attributes and metadata.
+
+### CSS requirements
+
+- Prefer logical CSS properties over physical left/right properties.
+- Use `margin-inline-start`, `margin-inline-end`, `padding-inline-start`, `padding-inline-end`, `inset-inline-start`, and `inset-inline-end` where appropriate.
+- Use `text-align: start` or `end` where appropriate.
+- Avoid broad RTL overrides that accidentally break individual components.
+- Preserve intentional physical positioning for elements that must not mirror.
+- Do not blindly replace every occurrence of `left` and `right`; inspect the purpose of each rule first.
+
+Use targeted `[dir="rtl"]` selectors only where needed. Keep the existing responsive behavior intact.
+
+## 7. Typography
+
+Load appropriate fonts for both languages using the existing font-loading approach where possible.
+
+- Arabic primary: IBM Plex Sans Arabic.
+- Arabic fallbacks: Cairo, Tajawal, system-ui.
+- English primary: Inter.
+- English fallbacks: system-ui.
+
+Use CSS variables for font families and language-specific typography.
+
+Arabic:
+- `letter-spacing: normal` or `0`.
+- Target body line-height around `1.75`, adjusted for the existing type scale.
+- Allow Arabic text to wrap naturally without clipping or overflowing components.
+
+English:
+- Target body line-height around `1.6`.
+
+Avoid unnecessary font requests or loading multiple unused weights. If a font cannot load, ensure the fallback remains readable.
+
+## 8. Complete translation coverage
+
+Translate every user-visible string in every implemented feature.
+
+This includes:
+
+- Navigation, sidebar, top bar, profile menus, and settings.
+- Landing page, onboarding, feature descriptions, and calls to action.
+- Study sessions, file upload, recording, typed explanations, and loading states.
+- Feedback labels, reference content, concept maps, and reports.
+- Forms, placeholders, tooltips, validation, confirmations, and dialogs.
+- Empty states, error states, success messages, and notifications.
+- Accessibility labels, button names, and relevant screen-reader text.
+- Dates, relative labels, counts, and dynamic status messages.
+- Any existing teacher, progress, or session views that are actually implemented.
+
+Do not add translations for hypothetical screens as a substitute for translating existing ones.
+
+Preserve proper names, technical terminology, code, and user-generated content as appropriate.
+
+Use a translation-key fallback during development so missing keys are detectable. Before completion, search the codebase for remaining hardcoded user-facing strings and resolve every relevant occurrence.
+
+## 9. Language switcher
+
+Add a compact, accessible language switcher in the existing top bar, near the profile control.
+
+Requirements:
+
+- Use a globe icon or an existing equivalent.
+- Provide `العربية` and `English` options.
+- Clearly indicate the selected language.
+- Support keyboard navigation, accessible labels, visible focus, and appropriate ARIA attributes.
+- Close the menu when the user presses Escape, clicks outside, or selects a language.
+- Update translations, `dir`, `lang`, title, and description immediately.
+- Save the preference to `localStorage`.
+- Avoid a full-page reload unless the existing architecture genuinely requires one.
+- Use a subtle transition of approximately 200ms.
+- Respect `prefers-reduced-motion`.
+- Match the existing top bar's visual style, height, spacing, and responsive behavior.
+
+Do not introduce a large or visually dominant language control.
+
+## 10. RTL audit across components
+
+Inspect the actual component tree and verify the rendered interface in both directions.
+
+### Layout
+
+- The sidebar must move to the right in Arabic and return to the left in English.
+- The top bar, navigation, content alignment, and relevant control placement must follow the correct direction.
+- Flex and grid layouts must remain stable in both languages.
+- Check nested containers, cards, forms, dropdowns, dialogs, and responsive layouts.
+- Prevent clipping, overlapping text, broken spacing, and horizontal overflow.
+
+### Icons
+
+- Mirror directional icons such as back arrows, forward arrows, and directional chevrons when their meaning requires it.
+- Do not mirror non-directional icons such as search, user, home, or settings.
+- Keep the Hearo character facing its original direction.
+- Inspect icon alignment and spacing instead of blindly flipping entire icon groups.
+
+### Content direction
+
+- Set `dir="auto"` on user-generated explanations, quotations, and mixed-language text where the content's direction should be detected automatically.
+- Preserve readable formatting for English technical terms embedded in Arabic text.
+- Ensure the concept map remains readable in RTL. Do not mirror the nodes themselves unless the existing interaction model requires it; adjust connections only when needed.
+
+### Numbers
+
+Keep Western numerals (`1, 2, 3`) by default. Do not change numeral systems unnecessarily.
+
+## 11. Pluralization and dates
+
+Implement a reusable `formatPlural(lang, count, forms)` utility or an equivalent typed helper that matches the application's actual translation structure.
+
+Arabic session-count rules:
+
+- 0: ما في جلسات
+- 1: جلسة واحدة
+- 2: جلستان
+- 3–10: use the appropriate plural form, such as `3 جلسات`.
+- 11 and above: use the appropriate singular form, such as `11 جلسة`.
+
+Handle the relevant Arabic plural categories correctly rather than relying exclusively on English-style singular/plural logic. Use `Intl.PluralRules` with the appropriate locale where practical.
+
+English:
+
+- 0: No sessions
+- 1: 1 session
+- 2+: N sessions
+
+Use `Intl.DateTimeFormat` with `ar-JO` for Arabic and `en-US` for English, or the appropriate existing product locale.
+
+Examples:
+
+- Arabic: `11 أكتوبر 2026`
+- English: `Oct 11, 2026`
+
+Keep dates consistent throughout the application. Do not change stored timestamps or backend date formats; localize only their presentation.
+
+## 12. UI/UX refinement
+
+Refine the current implementation without replacing the redesign.
+
+### Visual consistency
+
+- Use an 8px spacing system where compatible with the existing design.
+- Keep the typography hierarchy restrained, targeting no more than five primary font sizes.
+- Reserve the primary color for primary actions and meaningful emphasis.
+- Maintain consistent icon sizes and stroke weights within the same context.
+- Ensure spacing, alignment, borders, radii, and component states feel intentional.
+- Remove unnecessary decorative elements and duplicated text.
+- Keep the existing dark/neon visual identity where it already exists and works.
+- Do not redesign every screen merely to demonstrate activity.
+
+### Interaction design
+
+- Each screen should have one obvious primary action where appropriate.
+- First-time users should understand the next step within approximately three seconds.
+- Every implemented action should provide meaningful feedback.
+- Show loading, success, and error states where appropriate.
+- Keep error messages specific, human-readable, and actionable.
+- Empty states should contain a relevant icon where useful, one concise sentence, and a meaningful action when available.
+- Preserve keyboard accessibility, logical tab order, focus visibility, Enter submission where appropriate, and Escape dismissal.
+- Keep micro-interactions around 150–250ms unless a longer duration is functionally justified.
+- Avoid animations that block interaction or delay user progress.
+
+Do not claim that every action responds within 100ms if its actual operation requires network or processing time. Provide immediate visual feedback where appropriate and handle asynchronous work honestly.
+
+## 13. Creative details — maximum two
+
+Choose no more than two enhancements from this list, and only if they fit the existing product and can be implemented safely:
+
+- An animated waveform during recording.
+- Concept-map connections that draw in briefly.
+- A subtle Hearo character reaction for actual states such as listening or thinking.
+- A brief, restrained completion animation after a successful session.
+
+Prefer enhancements that reinforce an existing feature rather than introduce new complexity.
+
+Rules:
+
+- Do not invent new functionality.
+- Never delay completion or block the user.
+- Never play audio without explicit user activation.
+- Respect `prefers-reduced-motion`.
+- Avoid decorative animation that competes with study content.
+
+## 14. Implementation and verification
+
+Complete the work directly in the existing project.
+
+1. Inspect the codebase and identify the correct integration points.
+2. Implement the localization infrastructure.
+3. Integrate language state at the application root.
+4. Replace existing user-facing hardcoded strings with translation keys.
+5. Add the language switcher.
+6. Apply and verify RTL/LTR behavior across all implemented screens.
+7. Refine UI/UX and implement up to two suitable creative enhancements.
+8. Run the available typecheck, tests, lint, and production build scripts as applicable.
+9. Start or use the existing development server.
+10. Inspect the actual rendered application at viewport widths of 375px, 768px, and 1280px in both Arabic and English.
+11. Fix issues discovered during verification and rerun the relevant checks.
+12. Report the final results accurately.
+
+### Verification requirements
+
+- Confirm the selected language persists after refresh.
+- Confirm first-visit language detection works as specified.
+- Confirm language switching updates the entire interface without a full-page reload.
+- Confirm `lang`, `dir`, title, and meta description are correct in both languages.
+- Check for untranslated strings, missing translation keys, and incorrect fallbacks.
+- Check RTL navigation, directional icons, forms, dropdowns, dialogs, mixed-language content, and concept maps.
+- Check responsive layout, text wrapping, overflow, and accessibility basics.
+- Check for browser console errors and runtime exceptions.
+- Verify existing functionality has not been unintentionally broken.
+
+Do not claim that a visual inspection, browser test, command, or build passed unless it was actually executed and its result was checked.
+
+If a check cannot run because of a missing dependency, unavailable browser, environment limitation, or existing unrelated failure, explain the exact limitation. Do not fabricate a passing result.
+
+Do not alter unrelated code just to make a check appear successful.
+
+## 15. Final report
+
+After implementation and verification, provide a concise report covering:
+
+- **Localization:** files created or modified and how language persistence works.
+- **Translation coverage:** languages supported, approximate or verified number of translated keys, and any remaining untranslated strings.
+- **Language switcher:** behavior verified and any limitations.
+- **RTL/LTR:** actual layout issues found and fixed.
+- **Copy cleanup:** meaningful content removed or shortened.
+- **UI/UX:** specific refinements made.
+- **Creative enhancements:** what was implemented and why, or why none was necessary.
+- **Verification:** actual results for typecheck, tests, lint, production build, and console checks.
+- **Responsive review:** which viewport sizes and languages were actually inspected.
+- **Development server:** actual URL if it is running and accessible.
+- **Remaining issues:** anything unresolved, with a clear explanation.
+
+Separate verified results from checks that could not be performed. Do not report hypothetical fixes or untested assumptions as completed work.
+
+## Final instruction
+
+Start by inspecting the existing application, then execute the required changes directly in the codebase. Continue through implementation and verification without stopping after an audit or plan.
+
+Preserve working functionality, avoid unrelated changes, and do not push to Git.
+
+**The task is complete only when the implementation has been verified to the extent the current Replit environment allows and the final report reflects what actually happened.**

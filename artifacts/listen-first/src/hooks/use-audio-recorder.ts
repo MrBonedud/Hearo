@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { MAX_RECORDING_BYTES, MAX_RECORDING_MS, sha256Hex, type CaptionEntry } from '@/lib/recording';
+import type { TranslationKey } from '@/i18n/translations';
 
 export type RecordedTake = { blob: Blob; url: string; mime: string; durationMs: number; captions: CaptionEntry[]; language: string; sha256: string | null };
 
@@ -8,7 +9,8 @@ export function useAudioRecorder() {
   const [recording, setRecording] = useState(false);
   const [starting, setStarting] = useState(false);
   const [elapsedMs, setElapsedMs] = useState(0);
-  const [message, setMessage] = useState('');
+  // Translation keys, so messages already on screen follow a language switch.
+  const [message, setMessage] = useState<TranslationKey | ''>('');
   const [take, setTake] = useState<RecordedTake | null>(null);
   const supported = typeof MediaRecorder !== 'undefined' && Boolean(navigator.mediaDevices?.getUserMedia);
   const recorder = useRef<MediaRecorder | null>(null);
@@ -63,8 +65,8 @@ export function useAudioRecorder() {
       pending.current = false; setStarting(false);
       const name = (issue as { name?: string })?.name;
       setMessage(name === 'NotAllowedError' || name === 'SecurityError'
-        ? 'تم رفض الميكروفون للتسجيل. Microphone access was denied, so nothing was recorded. Normal speech and typing still work.'
-        : 'تعذر بدء التسجيل. Could not start recording; no audio was captured.');
+        ? 'recorder.denied'
+        : 'recorder.startFailed');
       return;
     }
     if (generation.current !== mine || !mounted.current) { media.getTracks().forEach(track => track.stop()); return; }
@@ -77,7 +79,7 @@ export function useAudioRecorder() {
         if (!event.data.size) return;
         chunks.current.push(event.data);
         bytes.current += event.data.size;
-        if (bytes.current >= MAX_RECORDING_BYTES) { if (mounted.current) setMessage('Recording stopped at the 25 MB limit.'); void stop(); }
+        if (bytes.current >= MAX_RECORDING_BYTES) { if (mounted.current) setMessage('recorder.sizeLimit'); void stop(); }
       };
       instance.onstop = () => {
         const durationMs = Math.min(MAX_RECORDING_MS, Math.round(performance.now() - startedAt.current));
@@ -92,9 +94,9 @@ export function useAudioRecorder() {
             takeUrl.current = url;
             setTake({ blob, url, mime, durationMs, captions: taken, language: language.current, sha256: null });
             void sha256Hex(blob).then(sha256 => { if (mounted.current && takeUrl.current === url) setTake(prev => prev && prev.url === url ? { ...prev, sha256 } : prev); })
-              .catch(() => { if (mounted.current) setMessage('This browser could not fingerprint the recording, so a matched captions file cannot be exported.'); });
-            if (!taken.length) setMessage('No final captions were captured, so there is no captions file to replay. The audio can still be downloaded.');
-          } else setMessage('The recording was empty and was discarded.');
+              .catch(() => { if (mounted.current) setMessage('recorder.fingerprintFailed'); });
+            if (!taken.length) setMessage('recorder.noCaptions');
+          } else setMessage('recorder.empty');
         }
         const done = settle.current; settle.current = null; done?.();
       };
@@ -104,11 +106,11 @@ export function useAudioRecorder() {
       timer.current = setInterval(() => {
         const elapsed = performance.now() - startedAt.current;
         setElapsedMs(elapsed);
-        if (elapsed >= MAX_RECORDING_MS) { setMessage('Recording stopped at the 10 minute limit.'); void stop(); }
+        if (elapsed >= MAX_RECORDING_MS) { setMessage('recorder.timeLimit'); void stop(); }
       }, 500);
     } catch {
       release(); recorder.current = null;
-      setMessage('تعذر بدء التسجيل. Could not start recording; no audio was captured.');
+      setMessage('recorder.startFailed');
     }
   }, [supported, stop, clearTake]);
 

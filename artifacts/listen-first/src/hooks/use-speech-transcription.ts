@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import type { TranslationKey } from '@/i18n/translations';
 
 type SpeechResult = ArrayLike<{ transcript: string }> & { isFinal?: boolean };
 type SpeechEvent = { resultIndex: number; results: ArrayLike<SpeechResult> };
@@ -18,7 +19,8 @@ export function useSpeechTranscription(append: (text: string, isFinal?: boolean)
   const [language, setLanguage] = useState('ar-SA');
   const [listening, setListening] = useState(false);
   const [interim, setInterim] = useState('');
-  const [message, setMessage] = useState('');
+  // Translation keys, so messages already on screen follow a language switch.
+  const [message, setMessage] = useState<TranslationKey | ''>('');
   const recognition = useRef<Recognition | null>(null);
   const interimRef = useRef('');
   const appendRef = useRef(append);
@@ -82,7 +84,7 @@ export function useSpeechTranscription(append: (text: string, isFinal?: boolean)
     setMessage('');
     const browser = window as SpeechWindow;
     const Constructor = browser.SpeechRecognition || browser.webkitSpeechRecognition;
-    if (!Constructor) { setMessage('التفريغ الصوتي غير متاح هنا. استخدم Chrome أو اكتب شرحك. Speech transcription is unavailable; type your explanation instead.'); return; }
+    if (!Constructor) { setMessage('speech.unavailable'); return; }
     try {
       const instance = new Constructor();
       const consumed = new Set<number>();
@@ -106,9 +108,9 @@ export function useSpeechTranscription(append: (text: string, isFinal?: boolean)
       };
       instance.onerror = event => {
         if (recognition.current !== instance) return;
-        if (event.error === 'not-allowed' || event.error === 'service-not-allowed') setMessage('اسمح بالميكروفون أو أكمل بالكتابة. Microphone permission was not granted; your typed notes are unchanged.');
-        else if (event.error === 'audio-capture') setMessage('لا يوجد ميكروفون متاح. No microphone was found. You can continue by typing.');
-        else if (event.error !== 'aborted') setMessage('توقف التفريغ الصوتي. أعد تشغيله أو أكمل بالكتابة. Speech transcription stopped; your notes are still here.');
+        if (event.error === 'not-allowed' || event.error === 'service-not-allowed') setMessage('speech.permission');
+        else if (event.error === 'audio-capture') setMessage('speech.noMic');
+        else if (event.error !== 'aborted') setMessage('speech.stopped');
       };
       instance.onend = () => {
         if (recognition.current !== instance || !mounted.current) return;
@@ -123,7 +125,7 @@ export function useSpeechTranscription(append: (text: string, isFinal?: boolean)
     } catch {
       recognition.current = null;
       setListening(false);
-      setMessage('تعذر تشغيل الميكروفون. تحقق من الأذونات أو اكتب شرحك. Could not start the microphone; type your explanation instead.');
+      setMessage('speech.startFailed');
     }
   };
 

@@ -5,21 +5,24 @@ import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import {
   GRAPH_NODE_H, GRAPH_NODE_W, computeGraphLayout, rectEdgePoint, shortConceptLabel,
 } from '@/lib/concept-graph-layout';
+import type { TranslationKey } from '@/i18n/translations';
+import { useTranslation } from '@/i18n/useTranslation';
 
 export const statusMeta = {
-  understood: { label: 'Supported' },
-  incorrect: { label: 'Contradicted' },
-  partial: { label: 'Partial' },
-  uncertain: { label: 'Uncertain' },
-  skipped: { label: 'Not demonstrated' },
-  unassessed: { label: 'Not assessed yet' },
-} as const;
+  understood: { label: 'status.understood' },
+  incorrect: { label: 'status.incorrect' },
+  partial: { label: 'status.partial' },
+  uncertain: { label: 'status.uncertain' },
+  skipped: { label: 'status.skipped' },
+  unassessed: { label: 'status.unassessed' },
+} as const satisfies Record<string, { label: TranslationKey }>;
 type VisualStatus = keyof typeof statusMeta;
 
 export function ConceptMap({ map, compact = false, assessments, assessed = Boolean(assessments) }: {
   map: StudyMap; compact?: boolean; assessments?: StudyEvaluation['assessments']; assessed?: boolean;
 }) {
   const reducedMotion = useReducedMotion();
+  const { t, dir } = useTranslation();
   const markerId = `concept-arrow-${useId().replace(/:/g, '')}`;
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const validEdges = useMemo(() => {
@@ -44,7 +47,7 @@ export function ConceptMap({ map, compact = false, assessments, assessed = Boole
     return { status: nodeStatus === 'skipped' ? assessed ? 'skipped' : 'unassessed' : nodeStatus, uncertain: false };
   };
 
-  if (!map.nodes.length) return <div className="empty-map"><span className="empty-map-icon"><BookOpen size={20} /></span><p>Your concept map will take shape here.</p></div>;
+  if (!map.nodes.length) return <div className="empty-map"><span className="empty-map-icon"><BookOpen size={20} aria-hidden="true" /></span><p>{t('map.empty')}</p></div>;
 
   const labelOf = (id: string) => map.nodes.find(node => node.id === id)?.label;
   const arrows = validEdges.flatMap((edge, index) => {
@@ -66,8 +69,8 @@ export function ConceptMap({ map, compact = false, assessments, assessed = Boole
     }];
   });
 
-  return <section className={`concept-map ${compact ? 'concept-map-compact' : ''}`} aria-label="Interactive concept map">
-    <div className="concept-map-scroll" tabIndex={0} aria-label="Concept graph, scroll sideways on small screens">
+  return <section className={`concept-map ${compact ? 'concept-map-compact' : ''}`} aria-label={t('map.regionLabel')}>
+    <div className="concept-map-scroll" tabIndex={0} aria-label={t('map.scrollLabel')}>
       <div className={`concept-map-canvas ${validEdges.length ? 'has-edges' : 'no-edges'}`} style={{ width: layout.width, height: layout.height }} data-testid="concept-map-graph">
         {arrows.length > 0 && <svg className="concept-map-links" width={layout.width} height={layout.height} viewBox={`0 0 ${layout.width} ${layout.height}`} aria-hidden="true">
           <defs><marker id={markerId} markerWidth="9" markerHeight="9" refX="7" refY="4.5" orient="auto" markerUnits="userSpaceOnUse"><path d="M 0 0 L 9 4.5 L 0 9 z" /></marker></defs>
@@ -78,7 +81,7 @@ export function ConceptMap({ map, compact = false, assessments, assessed = Boole
         </svg>}
         {map.nodes.map((node, index) => {
           const { status, uncertain } = statusFor(node.id, node.status);
-          const text = uncertain ? 'Uncertain' : statusMeta[status].label;
+          const text = t(uncertain ? 'status.uncertain' : statusMeta[status].label);
           const pos = layout.positions[node.id];
           const selected = selectedId === node.id;
           return <motion.button
@@ -88,7 +91,7 @@ export function ConceptMap({ map, compact = false, assessments, assessed = Boole
             type="button"
             aria-expanded={selected}
             aria-controls={`${markerId}-details`}
-            aria-label={`${node.label}. ${text}. Open concept details.`}
+            aria-label={t('map.nodeLabel', { label: node.label, status: text })}
             title={node.label}
             onClick={() => setSelectedId(selected ? null : node.id)}
             data-testid={`concept-${node.id}`}
@@ -96,12 +99,12 @@ export function ConceptMap({ map, compact = false, assessments, assessed = Boole
             animate={{ opacity: 1, scale: 1 }}
             transition={{ duration: reducedMotion ? 0 : .3, delay: reducedMotion ? 0 : index * .04 }}>
             <strong dir="auto">{shortConceptLabel(node.label)}</strong>
-            <small>{text}</small>
+            <small dir={dir}>{text}</small>
           </motion.button>;
         })}
       </div>
     </div>
-    {validEdges.length > 0 && <ul className="visually-hidden" aria-label="Directed concept relationships">
+    {validEdges.length > 0 && <ul className="visually-hidden" aria-label={t('map.relationships')}>
       {validEdges.map((edge, index) => <li key={`${edge.from}-${edge.to}-${index}`}>{labelOf(edge.from)} — {edge.label} → {labelOf(edge.to)}</li>)}
     </ul>}
     <div className="concept-details-slot" id={`${markerId}-details`} aria-live="polite" aria-atomic="true">
@@ -109,10 +112,10 @@ export function ConceptMap({ map, compact = false, assessments, assessed = Boole
         {selectedNode ? <motion.article key={selectedNode.id} className="concept-detail-card"
           initial={{ opacity: 0, y: reducedMotion ? 0 : 7 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: reducedMotion ? 0 : -5 }}
           transition={{ duration: reducedMotion ? 0 : .22 }} data-testid={`concept-details-${selectedNode.id}`}>
-          <div className="concept-detail-heading"><h3>{selectedNode.label}</h3><button type="button" onClick={() => setSelectedId(null)} aria-label={`Close ${selectedNode.label} details`} data-testid={`button-close-concept-${selectedNode.id}`}>Close</button></div>
+          <div className="concept-detail-heading"><h3 dir="auto">{selectedNode.label}</h3><button type="button" onClick={() => setSelectedId(null)} aria-label={t('map.closeDetails', { label: selectedNode.label })} data-testid={`button-close-concept-${selectedNode.id}`}>{t('common.close')}</button></div>
           <p dir="auto">{selectedNode.description}</p>
-          <div className="concept-detail-evidence"><span>Evidence · exact provided text</span><p dir="auto">{selectedNode.evidence || 'No evidence attached to this concept yet.'}</p></div>
-        </motion.article> : <div className="concept-detail-prompt">Select a concept to open its description and evidence.</div>}
+          <div className="concept-detail-evidence"><span>{t('map.evidence')}</span><p dir="auto">{selectedNode.evidence || t('map.noEvidence')}</p></div>
+        </motion.article> : <div className="concept-detail-prompt">{t('map.selectPrompt')}</div>}
       </AnimatePresence>
     </div>
   </section>;

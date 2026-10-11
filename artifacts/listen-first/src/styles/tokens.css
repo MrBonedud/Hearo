@@ -39,16 +39,18 @@
   --color-text-inverse:     #FFFFFF;
 
   /* TYPOGRAPHY */
-  --font-arabic:  'IBM Plex Sans Arabic', 'Cairo', system-ui, sans-serif;
+  --font-arabic:  'IBM Plex Sans Arabic', 'Cairo', 'Tajawal', system-ui, sans-serif;
   --font-english: 'Inter', system-ui, -apple-system, sans-serif;
+  /* Five primary sizes (12 · 14 · 16 · 20 · 30). The in-between names stay as aliases so
+     existing rules keep working; only the landing headline uses a separate fluid display size. */
   --font-size-xs:   0.75rem;
   --font-size-sm:   0.875rem;
   --font-size-base: 1rem;
-  --font-size-lg:   1.125rem;
   --font-size-xl:   1.25rem;
-  --font-size-2xl:  1.5rem;
   --font-size-3xl:  1.875rem;
-  --font-size-4xl:  2.25rem;
+  --font-size-lg:   var(--font-size-base);
+  --font-size-2xl:  var(--font-size-xl);
+  --font-size-4xl:  var(--font-size-3xl);
   --font-weight-regular:  400;
   --font-weight-medium:   500;
   --font-weight-semibold: 600;

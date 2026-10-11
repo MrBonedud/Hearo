@@ -10,3 +10,4 @@
 - [Feedback experience](feedback-experience.md) — Supportive source-backed cards, silent by default, with optional gentle tones rather than game penalties.
 - [Hearo visual identity](visual-identity.md) — Pasted identity spec is the design source; no fake features, contrast-safe colour swaps, bidi and mobile grid pitfalls.
 - [Test execution](frontend-test-execution.md) — Per-package typechecks after merges; bundled test runtime needs, approved-PDF test input, and zero-test guards.
+- [Hearo localization](localization.md) — Arabic default, English-browser detection, saved choice wins; what never gets translated; tests run in English.
