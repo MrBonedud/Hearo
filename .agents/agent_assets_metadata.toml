@@ -70,3 +70,17 @@ mtime_ms = 1791714873507
 storage_uri = "gcs://replit-rams-assets-kirk/rams/assets/repl:f5eb4a40-0d19-49b7-a42a-e724840955a9/7349f385-8576-4b72-bbda-fef60ada9871/ead8d535-8690-48f6-99b9-902172f378a6"
 storage_version_token = "1791714878187503"
 content_type = "application/vnd.openxmlformats-officedocument.presentationml.presentation"
+
+[[outputs]]
+id = "6YVA4kg5jYOSWy21LGqHr"
+uri = "file://generated-artifacts/hearo-pitch-template.pptx"
+type = "slides"
+title = "Hearo pitch, template style (6 slides)"
+description = "Blue-purple template look with your text and Hearo mascot images."
+logical_id = "48f03d83-1b8e-453d-9fd2-d7fcb93effe2"
+content_hash = "sha256:aa7fd098f084073836478b5db35413999f73b5708d55e43b1a968a06d7c567f5"
+size = 3735128
+mtime_ms = 1791715042082
+storage_uri = "gcs://replit-rams-assets-kirk/rams/assets/repl:f5eb4a40-0d19-49b7-a42a-e724840955a9/48f03d83-1b8e-453d-9fd2-d7fcb93effe2/803ca6ed-203f-4cfc-9635-7c3ed827723f"
+storage_version_token = "1791715042824968"
+content_type = "application/vnd.openxmlformats-officedocument.presentationml.presentation"

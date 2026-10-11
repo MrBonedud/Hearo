@@ -1,0 +1,107 @@
+# SLIDE 1 — INTRODUCTION
+
+# HEARO
+
+**Learn by Explaining.**
+
+An AI-powered learning platform that listens to your explanations, checks your understanding, and helps you improve.
+
+*AI Hackathon 2026 | Arabic & English*
+
+---
+
+# SLIDE 2 — THE PROBLEM
+
+## Reading Doesn't Mean Understanding.
+
+Students often believe they understand a topic after reading or watching an explanation.
+
+But when asked to explain it themselves, they struggle.
+
+**The Challenge:** How can students discover what they truly understand and what they still need to learn?
+
+---
+
+# SLIDE 3 — OUR SOLUTION
+
+## Meet HEARO — AI That Listens.
+
+Hearo transforms passive studying into active learning.
+
+- Explain a topic using your voice or text.
+- Get your ideas checked against trusted learning material.
+- Discover mistakes and missing concepts.
+- Receive feedback supported by source references.
+
+**You explain. Hearo listens.**
+
+---
+
+# SLIDE 4 — HOW IT WORKS
+
+## From Explanation to Understanding.
+
+**01 — SELECT**
+
+Choose a study topic and reference material.
+
+**02 — EXPLAIN**
+
+Speak or type in Arabic or English.
+
+**03 — VERIFY**
+
+AI checks your explanation against the source.
+
+**04 — VISUALIZE**
+
+A concept map highlights correct, incorrect, and missing ideas.
+
+**05 — IMPROVE**
+
+Review corrections and download your learning report.
+
+---
+
+# SLIDE 5 — PRODUCT DEMO
+
+## See HEARO in Action.
+
+**Live Transcript**
+See the words as the learner explains.
+
+**AI-Based Checking**
+Compare explanations with the approved source when live checking is available.
+
+**Visual Feedback**
+
+- 🟢 Green — Supported
+- 🟡 Yellow — Incomplete / Needs More Detail
+- 🔴 Red — Incorrect
+- ⚪ Grey — Not Mentioned
+
+**Learning Report**
+Review corrections, source evidence, and areas to improve.
+
+---
+
+# SLIDE 6 — IMPACT & FUTURE
+
+## Beyond Memorization. Toward Real Understanding.
+
+**What Makes HEARO Different?**
+
+- Active learning instead of passive reading.
+- Arabic and English explanation support.
+- Source-based feedback and concept maps.
+- Saved study sessions and downloadable reports.
+
+**Our Vision**
+
+Expand Hearo to more subjects and learning environments.
+
+### HEARO
+
+**Don't Just Read It. Explain It.**
+
+*Thank You!*
