@@ -1,0 +1,29 @@
+kind = "video"
+videoAspectRatio = "16:9"
+previewPath = "/hearo-product-film/"
+title = "Hearo — Product Film"
+description = "A 16:9 company-ready product presentation film for Hearo, the listen-first learning app, built around real footage of the running application, with narration, captions and editable placeholders for recipient and contact details."
+version = "1.0.0"
+id = "artifacts/hearo-product-film"
+router = "path"
+
+[[services]]
+name = "web"
+paths = [ "/hearo-product-film/" ]
+localPort = 25225
+
+[services.development]
+run = "pnpm --filter @workspace/hearo-product-film run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/hearo-product-film", "run", "build" ]
+serve = "static"
+publicDir = "artifacts/hearo-product-film/dist/public"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "25225"
+BASE_PATH = "/hearo-product-film/"

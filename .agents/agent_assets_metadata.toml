@@ -84,3 +84,113 @@ mtime_ms = 1791715042082
 storage_uri = "gcs://replit-rams-assets-kirk/rams/assets/repl:f5eb4a40-0d19-49b7-a42a-e724840955a9/48f03d83-1b8e-453d-9fd2-d7fcb93effe2/803ca6ed-203f-4cfc-9635-7c3ed827723f"
 storage_version_token = "1791715042824968"
 content_type = "application/vnd.openxmlformats-officedocument.presentationml.presentation"
+
+[[outputs]]
+id = "6yxlv-ccPASvVF9T9-EI0"
+uri = "file://artifacts/hearo-product-film/public/audio/vo_open.mp3"
+type = "audio"
+title = "vo open"
+description = "Text-to-speech audio: What if you could see what someone understands, just by hearing them explain it?"
+logical_id = "184357bc-e48f-4929-8d03-57901cad3988"
+
+[[outputs]]
+id = "zkyJ9whHlcmWQvPRiLVv9"
+uri = "file://artifacts/hearo-product-film/public/audio/vo_arabic.mp3"
+type = "audio"
+title = "vo arabic"
+description = "Text-to-speech audio: Explanations in Arabic or English are checked against the same English source."
+logical_id = "f0f16edd-0b4f-4cad-a977-073adb31a707"
+
+[[outputs]]
+id = "JTUP7C0rlobS-lYMizL7N"
+uri = "file://artifacts/hearo-product-film/public/audio/vo_report.mp3"
+type = "audio"
+title = "vo report"
+description = "Text-to-speech audio: At the end, a report shows coverage and accuracy, ready to download."
+logical_id = "567e4a61-2307-4097-8d81-c32f25a45204"
+
+[[outputs]]
+id = "ZZUuLtW2XjfYuHklTfDuW"
+uri = "file://artifacts/hearo-product-film/public/audio/vo_reveal.mp3"
+type = "audio"
+title = "vo reveal"
+description = "Text-to-speech audio: This is Hearo. A learner opens an approved source. Hearo verifies it, and prepares a map of its key concepts."
+logical_id = "ab0c4c08-6b65-45fb-b7ee-fe654e06ebd2"
+
+[[outputs]]
+id = "j5OQl2FqA84F8yTKJQ-HQ"
+uri = "file://artifacts/hearo-product-film/public/audio/vo_opportunity.mp3"
+type = "audio"
+title = "vo opportunity"
+description = "Text-to-speech audio: Explaining in your own words is where the gaps surface. The hard part is checking that explanation against the source."
+logical_id = "0049cf4f-8d23-4adb-9c67-626259d08b3d"
+
+[[outputs]]
+id = "2Qyb_-82MFxJtmrsWDwTE"
+uri = "file://artifacts/hearo-product-film/public/audio/vo_pilot.mp3"
+type = "audio"
+title = "vo pilot"
+description = "Text-to-speech audio: Hearo is an early, working product. We'd like to propose a focused pilot, with success measures we define together."
+logical_id = "ebee14b4-efed-42b8-9348-016a47e5de69"
+
+[[outputs]]
+id = "lOmu6nk_70iKiUfwE_UH4"
+uri = "file://artifacts/hearo-product-film/public/audio/vo_diff.mp3"
+type = "audio"
+title = "vo diff"
+description = "Text-to-speech audio: Every verdict cites its source. AI notes are labeled apart from source text. And Hearo never interrupts."
+logical_id = "9b962a0b-e8c2-42aa-a44d-d678b7f7ae0b"
+
+[[outputs]]
+id = "NY1wU9CgOWlLogIAExybN"
+uri = "file://artifacts/hearo-product-film/public/audio/vo_wrong.mp3"
+type = "audio"
+title = "vo wrong"
+description = "Text-to-speech audio: When an idea goes wrong, Hearo catches it. The source sits right beside the learner's own words, so the correction is concrete."
+logical_id = "7d3d9caf-e932-4fc7-af86-28e9b480ff28"
+
+[[outputs]]
+id = "RYsfGKUJgmnOrwAE6Cadt"
+uri = "file://artifacts/hearo-product-film/public/audio/vo_problem.mp3"
+type = "audio"
+title = "vo problem"
+description = "Text-to-speech audio: Reading a lecture feels like learning. But rereading and highlighting rarely show what a learner actually understands. A wrong idea can sit unnoticed until an exam exposes it."
+logical_id = "c96f81fd-9449-4e0e-b6de-1bd5964c54e3"
+
+[[outputs]]
+id = "zad9fkGr6PIgo0LZYWbI_"
+uri = "file://artifacts/hearo-product-film/public/audio/vo_check.mp3"
+type = "audio"
+title = "vo check"
+description = "Text-to-speech audio: The learner explains, aloud or by typing. Hearo stays silent, checks the meaning against the lecture, and marks the concept supported, citing the exact lines."
+logical_id = "29452d7b-c75b-491e-bcf1-a97fddd186d5"
+
+[[outputs]]
+id = "ZlZ0QUIdvDQSsPUDEMUBW"
+uri = "file://artifacts/hearo-product-film/public/audio/vo_close.mp3"
+type = "audio"
+title = "vo close"
+description = "Text-to-speech audio: Hearo. Learn by explaining. Master by teaching."
+logical_id = "10bf1cb5-e690-4d0e-85d1-3ad6bc219308"
+
+[[outputs]]
+id = "Y41ZY0jv2b8KEtqiWd6Ku"
+uri = "file://artifacts/hearo-product-film/public/audio/bg_music.mp3"
+type = "audio"
+title = "background music"
+description = "Generated music: Ambient atmospheric minimal piano and soft synth pads instrumental scoring a premium B2B education-technology product film with voiceover. 84 BPM, thoughtful, confident, warm. Quiet …"
+logical_id = "141e95b4-0050-46c3-9eba-124bd8b8e0bd"
+
+[[outputs]]
+id = "sU8ege5ee3gbn-lPpQSGg"
+uri = "file://generated-artifacts/hearo-product-film/hearo-product-film-1080p.mp4"
+type = "video"
+title = "Hearo — Product Film (1080p MP4)"
+description = "113 s, 1920×1080, 30 fps H.264 + AAC, English voice-over and burned-in captions, built from real app footage. Placeholders for recipient, sender, contact and the call to action still need filling in."
+logical_id = "c2499cae-07b4-4533-8093-e9a822515031"
+content_hash = "sha256:36a945ae02d37d2c2f22615e8597cd00252801d1abd3562daa5ada0132825e44"
+size = 39878431
+mtime_ms = 1793103572382
+storage_uri = "gcs://replit-rams-assets-kirk/rams/assets/repl:f5eb4a40-0d19-49b7-a42a-e724840955a9/c2499cae-07b4-4533-8093-e9a822515031/b9b936c5-4ff4-46fe-90f9-825502e38182"
+storage_version_token = "1793103771390900"
+content_type = "video/mp4"

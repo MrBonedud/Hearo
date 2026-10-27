@@ -12,3 +12,4 @@
 - [Test execution](frontend-test-execution.md) — Per-package typechecks after merges; bundled test runtime needs, approved-PDF test input, and zero-test guards.
 - [Hearo localization](localization.md) — Arabic default, English-browser detection, saved choice wins; what never gets translated; tests run in English.
 - [Screen navigation](screen-navigation.md) — Screen changes reset to top and focus the h1; section jumps scroll-then-focus; hide controls whose section is absent.
+- [Product film](product-film.md) — MP4 comes from a real-time screencast plus the pre-mixed soundtrack; footage notes must state every speed-up and cut wait.
