@@ -7,6 +7,8 @@
     "hello": "tsx ./src/hello.ts",
     "study:live": "node ./verify-study-live.mjs",
     "study:test": "node --test ./study-live/*.test.mjs",
+    "film:render": "node ./render-product-film.mjs",
+    "film:soundtrack": "node ./build-film-soundtrack.mjs",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "devDependencies": {
