@@ -1,0 +1,29 @@
+kind = "video"
+videoAspectRatio = "16:9"
+previewPath = "/hearo-film-ar/"
+title = "Hearo — Arabic Product Film"
+description = "Arabic-narrated product presentation film for Hearo, rebuilt from real Arabic-interface footage of the app."
+version = "1.0.0"
+id = "artifacts/hearo-film-ar"
+router = "path"
+
+[[services]]
+name = "web"
+paths = [ "/hearo-film-ar/" ]
+localPort = 22910
+
+[services.development]
+run = "pnpm --filter @workspace/hearo-film-ar run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/hearo-film-ar", "run", "build" ]
+serve = "static"
+publicDir = "artifacts/hearo-film-ar/dist/public"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "22910"
+BASE_PATH = "/hearo-film-ar/"
